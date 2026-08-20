@@ -9,6 +9,7 @@ local UserInputService: UserInputService = cloneref(game:GetService("UserInputSe
 local TextService: TextService = cloneref(game:GetService("TextService"))
 local Teams: Teams = cloneref(game:GetService("Teams"))
 local TweenService: TweenService = cloneref(game:GetService("TweenService"))
+local Lighting = game:GetService("Lighting")
 
 local getgenv = getgenv or function()
     return shared
@@ -17,6 +18,19 @@ local setclipboard = setclipboard or nil
 local protectgui = protectgui or (syn and syn.protect_gui) or function() end
 local gethui = gethui or function() 
     return CoreGui 
+end
+
+-- Blur-Effekt Setup
+local blur = Lighting:FindFirstChild("UIBlur") or Instance.new("BlurEffect")
+blur.Name = "UIBlur"
+blur.Size = 0
+blur.Parent = Lighting
+
+local blurTweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+local function setBlurVisible(visible)
+    local targetSize = visible and 24 or 0
+    TweenService:Create(blur, blurTweenInfo, {Size = targetSize}):Play()
 end
 
 local LocalPlayer = Players.LocalPlayer
@@ -72,11 +86,11 @@ local Library = {
 
     IsLightTheme = false,
     Scheme = {
-        BackgroundColor = Color3.fromRGB(10, 10, 10),
-        MainColor = Color3.fromRGB(18, 18, 18),
-        AccentColor = Color3.fromRGB(255, 255, 255),
-        OutlineColor = Color3.fromRGB(35, 35, 35),
-        FontColor = Color3.new(245, 245, 245),
+        BackgroundColor = Color3.fromRGB(15, 15, 15),
+        MainColor = Color3.fromRGB(25, 25, 25),
+        AccentColor = Color3.fromRGB(125, 85, 255),
+        OutlineColor = Color3.fromRGB(40, 40, 40),
+        FontColor = Color3.new(1, 1, 1),
         Font = Font.fromEnum(Enum.Font.Code),
 
         Red = Color3.fromRGB(255, 50, 50),
