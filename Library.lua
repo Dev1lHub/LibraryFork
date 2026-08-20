@@ -9,7 +9,6 @@ local UserInputService: UserInputService = cloneref(game:GetService("UserInputSe
 local TextService: TextService = cloneref(game:GetService("TextService"))
 local Teams: Teams = cloneref(game:GetService("Teams"))
 local TweenService: TweenService = cloneref(game:GetService("TweenService"))
-local Lighting = game:GetService("Lighting")
 
 local getgenv = getgenv or function()
     return shared
@@ -18,19 +17,6 @@ local setclipboard = setclipboard or nil
 local protectgui = protectgui or (syn and syn.protect_gui) or function() end
 local gethui = gethui or function() 
     return CoreGui 
-end
-
--- Blur-Effekt Setup
-local blur = Lighting:FindFirstChild("UIBlur") or Instance.new("BlurEffect")
-blur.Name = "UIBlur"
-blur.Size = 0
-blur.Parent = Lighting
-
-local blurTweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-
-local function setBlurVisible(visible)
-    local targetSize = visible and 24 or 0
-    TweenService:Create(blur, blurTweenInfo, {Size = targetSize}):Play()
 end
 
 local LocalPlayer = Players.LocalPlayer
