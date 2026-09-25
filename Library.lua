@@ -461,6 +461,61 @@ Library v0.36 [
 ]
 ]]
 -- ============================================================
+-- SHARED HELPERS (zufällige 10-Zeichen-Namen zur Verschleierung)
+-- ============================================================
+math.randomseed(tick())
+local function generateRandomName()
+	local chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	local name = ""
+	for i = 1, 10 do
+		local randIndex = math.random(1, #chars)
+		name = name .. string.sub(chars, randIndex, randIndex)
+	end
+	return name
+end
+
+-- Versucht ein ScreenGui bestmöglich zu schützen/zu verstecken (protect_gui -> gethui -> normaler Parent)
+-- gibt true zurück, wenn es geschützt geparented wurde, sonst false (dann muss der Aufrufer selbst .Parent setzen)
+local function protectAndParentGui(gui, fallbackParent)
+	local CoreGui = game:GetService("CoreGui")
+	local syn = (typeof(getgenv) == "function" and getgenv().syn) or nil
+	local gethui = (typeof(gethui) == "function" and gethui) or nil
+	
+	if syn and syn.protect_gui then
+		local ok = pcall(function()
+			syn.protect_gui(gui)
+			gui.Parent = CoreGui
+		end)
+		if ok then
+			return true
+		end
+	end
+	
+	if gethui then
+		local ok = pcall(function()
+			gui.Parent = gethui()
+		end)
+		if ok then
+			return true
+		end
+	end
+	
+	local ok = pcall(function()
+		gui.Parent = CoreGui
+	end)
+	if ok then
+		return true
+	end
+	
+	if fallbackParent then
+		pcall(function()
+			gui.Parent = fallbackParent
+		end)
+	end
+	return false
+end
+
+-- ============================================================
 -- CURSOR MODULE
 -- ============================================================
 local CursorModule = {}
@@ -593,31 +648,12 @@ function WatermarkModule:Create()
 	local syn = (typeof(getgenv) == "function" and getgenv().syn) or nil
 	local gethui = (typeof(gethui) == "function" and gethui) or nil
 	
-	local function generateRandomName()
-		local chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-		local name = ""
-		for i = 1, 10 do
-			local randIndex = math.random(1, #chars)
-			name = name .. string.sub(chars, randIndex, randIndex)
-		end
-		return name
-	end
-	
-	math.randomseed(tick())
-	
 	local ScreenGui = Instance.new("ScreenGui")
 	ScreenGui.Name = generateRandomName()
 	ScreenGui.IgnoreGuiInset = true
 	ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	
-	if syn and syn.protect_gui then
-		syn.protect_gui(ScreenGui)
-		ScreenGui.Parent = CoreGui
-	elseif gethui then
-		ScreenGui.Parent = gethui()
-	else
-		ScreenGui.Parent = CoreGui
-	end
+	protectAndParentGui(ScreenGui)
 	
 	local MainColor = Color3.fromRGB(168, 85, 247)
 	local TopGradColor = Color3.fromRGB(45, 35, 65)
@@ -755,37 +791,14 @@ function KeybindsListModule:Create()
 		return self.Frame
 	end
 	
-	local CoreGui = game:GetService("CoreGui")
 	local UserInputService = game:GetService("UserInputService")
-	
-	local syn = (typeof(getgenv) == "function" and getgenv().syn) or nil
-	local gethui = (typeof(gethui) == "function" and gethui) or nil
-	
-	local function generateRandomName()
-		local chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-		local name = ""
-		for i = 1, 10 do
-			local randIndex = math.random(1, #chars)
-			name = name .. string.sub(chars, randIndex, randIndex)
-		end
-		return name
-	end
-	
-	math.randomseed(tick())
 	
 	local ScreenGui = Instance.new("ScreenGui")
 	ScreenGui.Name = generateRandomName()
 	ScreenGui.IgnoreGuiInset = true
 	ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	
-	if syn and syn.protect_gui then
-		syn.protect_gui(ScreenGui)
-		ScreenGui.Parent = CoreGui
-	elseif gethui then
-		ScreenGui.Parent = gethui()
-	else
-		ScreenGui.Parent = CoreGui
-	end
+	protectAndParentGui(ScreenGui)
 	
 	local TopGradColor = Color3.fromRGB(45, 35, 65)
 	local BottomGradColor = Color3.fromRGB(14, 11, 20)
@@ -793,9 +806,9 @@ function KeybindsListModule:Create()
 	
 	local Outer = Instance.new("Frame")
 	Outer.Name = generateRandomName()
-	Outer.AnchorPoint = Vector2.new(0, 0.5)
+	Outer.AnchorPoint = Vector2.new(0, 0)
 	Outer.BorderColor3 = Color3.new(0, 0, 0)
-	Outer.Position = UDim2.new(0, 10, 0.5, 0)
+	Outer.Position = UDim2.new(0, 100, 0, 78) -- direkt unter dem Watermark (Position 100,50 + Höhe 20 + Abstand)
 	Outer.Size = UDim2.new(0, 180, 0, 20)
 	Outer.AutomaticSize = Enum.AutomaticSize.Y
 	Outer.ZIndex = 300
@@ -1764,7 +1777,7 @@ do
 			colored[1 + #colored] = {Option, "BackgroundColor3", "background"}
 			Option.BorderColor3 = Color3.fromRGB(27, 27, 27)
 			Option.LayoutOrder = Order or #Parent:GetChildren()
-			Option.Name = "Option"
+			Option.Name = generateRandomName()
 			Option.Position = UDim2.new(0, 5, 0.5, 0)
 			Option.Size = UDim2.new(0, 35, 0, 25)
 			BBorder.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -1772,7 +1785,7 @@ do
 			colored[1 + #colored] = {BBorder, "BackgroundColor3", "background"}
 			BBorder.BorderColor3 = Color3.fromRGB(50, 43, 50)
 			BBorder.BorderMode = Enum.BorderMode.Inset
-			BBorder.Name = "BBorder"
+			BBorder.Name = generateRandomName()
 			BBorder.Parent = Option
 			BBorder.Position = UDim2.new(0.5, 0, 0.5, 0)
 			BBorder.Size = UDim2.new(1, 0, 1, 0)
@@ -1780,7 +1793,7 @@ do
 			Inner_2.BackgroundColor3 = library.colors.background
 			colored[1 + #colored] = {Inner_2, "BackgroundColor3", "background"}
 			Inner_2.BorderColor3 = Color3.fromRGB(27, 27, 27)
-			Inner_2.Name = "Inner"
+			Inner_2.Name = generateRandomName()
 			Inner_2.Parent = Option
 			Inner_2.Position = UDim2.new(0.5, 0, 0.5, 0)
 			Inner_2.Size = UDim2.new(1, -6, 1, -6)
@@ -1789,7 +1802,7 @@ do
 			colored[1 + #colored] = {Border_2, "BackgroundColor3", "background"}
 			Border_2.BorderColor3 = Color3.fromRGB(50, 43, 50)
 			Border_2.BorderMode = Enum.BorderMode.Inset
-			Border_2.Name = "Border"
+			Border_2.Name = generateRandomName()
 			Border_2.Parent = Inner_2
 			Border_2.Position = UDim2.new(0.5, 0, 0.5, 0)
 			Border_2.Size = UDim2.new(1, 0, 1, 0)
@@ -1798,7 +1811,7 @@ do
 			Text.BackgroundTransparency = 1
 			Text.Font = Enum.Font.Code
 			Text.FontSize = Enum.FontSize.Size14
-			Text.Name = "Text"
+			Text.Name = generateRandomName()
 			Text.Parent = Border_2
 			Text.Position = UDim2.new(0.5, 0, 0.5, 0)
 			Text.Size = UDim2.new(1, 0, 1, 0)
@@ -1811,7 +1824,7 @@ do
 			Button.BorderSizePixel = 0
 			Button.Font = Enum.Font.SourceSans
 			Button.FontSize = Enum.FontSize.Size14
-			Button.Name = "Button"
+			Button.Name = generateRandomName()
 			Button.Parent = Option
 			Button.Size = UDim2.new(1, 0, 1, 0)
 			Button.Text = ""
@@ -1989,7 +2002,7 @@ do
 				colored[1 + #colored] = {ChoicePopup, "BackgroundColor3", "background"}
 				ChoicePopup.BorderColor3 = library.colors.outerBorder
 				colored[1 + #colored] = {ChoicePopup, "BorderColor3", "outerBorder"}
-				ChoicePopup.Name = "ChoicePopup"
+				ChoicePopup.Name = generateRandomName()
 				ChoicePopup.Position = UDim2.new(0.5, 0, 0.5, 0)
 				ChoicePopup.Size = UDim2.new(0, 325, 0, 100)
 				Border.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -1998,7 +2011,7 @@ do
 				Border.BorderColor3 = library.colors.innerBorder
 				colored[1 + #colored] = {Border, "BorderColor3", "innerBorder"}
 				Border.BorderMode = Enum.BorderMode.Inset
-				Border.Name = "Border"
+				Border.Name = generateRandomName()
 				Border.Parent = ChoicePopup
 				Border.Position = UDim2.new(0.5, 0, 0.5, 0)
 				Border.Size = UDim2.new(1, 0, 1, 0)
@@ -2007,7 +2020,7 @@ do
 				colored[1 + #colored] = {Inner, "BackgroundColor3", "background"}
 				Inner.BorderColor3 = library.colors.outerBorder
 				colored[1 + #colored] = {Inner, "BorderColor3", "outerBorder"}
-				Inner.Name = "Inner"
+				Inner.Name = generateRandomName()
 				Inner.Parent = ChoicePopup
 				Inner.Position = UDim2.new(0.5, 0, 0.5, 0)
 				Inner.Size = UDim2.new(1, -8, 1, -8)
@@ -2017,20 +2030,20 @@ do
 				InnerBorder.BorderColor3 = library.colors.innerBorder
 				colored[1 + #colored] = {InnerBorder, "BorderColor3", "innerBorder"}
 				InnerBorder.BorderMode = Enum.BorderMode.Inset
-				InnerBorder.Name = "InnerBorder"
+				InnerBorder.Name = generateRandomName()
 				InnerBorder.Parent = Inner
 				InnerBorder.Position = UDim2.new(0.5, 0, 0.5, 0)
 				InnerBorder.Size = UDim2.new(1, 0, 1, 0)
 				Bar.BackgroundColor3 = library.colors.main
 				colored[1 + #colored] = {Bar, "BackgroundColor3", "main"}
 				Bar.BorderSizePixel = 0
-				Bar.Name = "Bar"
+				Bar.Name = generateRandomName()
 				Bar.Parent = InnerBorder
 				Bar.Size = UDim2.new(1, 0, 0, 3)
 				Splitter.AnchorPoint = Vector2.new(0, 1)
 				Splitter.BackgroundColor3 = Color3.fromRGB(38, 38, 38)
 				Splitter.BorderSizePixel = 0
-				Splitter.Name = "Splitter"
+				Splitter.Name = generateRandomName()
 				Splitter.Parent = InnerBorder
 				Splitter.Position = UDim2.new(0, 0, 1, -35)
 				Splitter.Size = UDim2.new(1, 0, 0, 1)
@@ -2050,7 +2063,7 @@ do
 				Description.BackgroundTransparency = 1
 				Description.Font = Enum.Font.Code
 				Description.FontSize = Enum.FontSize.Size14
-				Description.Name = "Description"
+				Description.Name = generateRandomName()
 				Description.Parent = InnerBorder
 				Description.Position = UDim2.new(0, 6, 0, 25)
 				Description.Size = UDim2.new(0, 300, 0, 25)
@@ -2069,7 +2082,7 @@ do
 					Close.Image = "http://www.roblox.com/asset/?id=9064270627"
 					Close.ImageColor3 = library.colors.section
 					colored[1 + #colored] = {Close, "ImageColor3", "section"}
-					Close.Name = "Close"
+					Close.Name = generateRandomName()
 					Close.Parent = InnerBorder
 					Close.Position = UDim2.new(1, -9, 0, 11)
 					Close.ScaleType = Enum.ScaleType.Fit
@@ -2079,7 +2092,7 @@ do
 				ButtonBar.BackgroundColor3 = library.colors.sectionBackground
 				colored[1 + #colored] = {ButtonBar, "BackgroundColor3", "sectionBackground"}
 				ButtonBar.BorderSizePixel = 0
-				ButtonBar.Name = "ButtonBar"
+				ButtonBar.Name = generateRandomName()
 				ButtonBar.Parent = InnerBorder
 				ButtonBar.Position = UDim2.new(0, 0, 1, 0)
 				ButtonBar.Size = UDim2.new(1, 0, 0, 35)
@@ -2092,7 +2105,7 @@ do
 				Buttons.BottomImage = ""
 				Buttons.CanvasSize = UDim2.new(0, 0, 0, 0)
 				Buttons.MidImage = ""
-				Buttons.Name = "Buttons"
+				Buttons.Name = generateRandomName()
 				Buttons.Parent = ButtonBar
 				Buttons.Position = UDim2.new(0, 6, 0, 0)
 				Buttons.ScrollBarImageColor3 = Color3.fromRGB(0, 0, 0)
@@ -2226,7 +2239,7 @@ do
 		library.NotifyLayout = UIListLayout
 		Popups.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 		Popups.BackgroundTransparency = 1
-		Popups.Name = "Popups"
+		Popups.Name = generateRandomName()
 		Popups.Position = UDim2.new(0, 10, 0, 10)
 		Popups.Size = UDim2.new(1, -20, 1, -20)
 		UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
@@ -2332,7 +2345,7 @@ do
 			colored[1 + #colored] = {Notification, "BackgroundColor3", "background"}
 			Notification.BorderColor3 = library.colors.outerBorder
 			colored[1 + #colored] = {Notification, "BorderColor3", "outerBorder"}
-			Notification.Name = "Notification"
+			Notification.Name = generateRandomName()
 			Notification.Position = UDim2.new(1, -10, 1, -10)
 			Notification.Size = UDim2.new(0, 5e4, 0, 32)
 			Border.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -2341,7 +2354,7 @@ do
 			Border.BorderColor3 = library.colors.innerBorder
 			colored[1 + #colored] = {Border, "BorderColor3", "innerBorder"}
 			Border.BorderMode = Enum.BorderMode.Inset
-			Border.Name = "Border"
+			Border.Name = generateRandomName()
 			Border.Parent = Notification
 			Border.Position = UDim2.new(0.5, 0, 0.5, 0)
 			Border.Size = UDim2.new(1, 0, 1, 0)
@@ -2350,7 +2363,7 @@ do
 			colored[1 + #colored] = {Inner, "BackgroundColor3", "background"}
 			Inner.BorderColor3 = library.colors.outerBorder
 			colored[1 + #colored] = {Inner, "BorderColor3", "outerBorder"}
-			Inner.Name = "Inner"
+			Inner.Name = generateRandomName()
 			Inner.Parent = Notification
 			Inner.Position = UDim2.new(0.5, 0, 0.5, 0)
 			Inner.Size = UDim2.new(1, -8, 1, -8)
@@ -2360,7 +2373,7 @@ do
 			Border_2.BorderColor3 = library.colors.innerBorder
 			colored[1 + #colored] = {Border_2, "BorderColor3", "innerBorder"}
 			Border_2.BorderMode = Enum.BorderMode.Inset
-			Border_2.Name = "Border"
+			Border_2.Name = generateRandomName()
 			Border_2.Parent = Inner
 			Border_2.Position = UDim2.new(0.5, 0, 0.5, 0)
 			Border_2.Size = UDim2.new(1, 0, 1, 0)
@@ -2368,7 +2381,7 @@ do
 			Text.BackgroundTransparency = 1
 			Text.Font = Enum.Font.Code
 			Text.FontSize = Enum.FontSize.Size14
-			Text.Name = "Text"
+			Text.Name = generateRandomName()
 			Text.Parent = Border_2
 			Text.Position = UDim2.new(0, 8, 0.5, 0)
 			Text.Size = UDim2.new(1, -8, 1, -7)
@@ -2384,7 +2397,7 @@ do
 			Bar.BackgroundColor3 = library.colors.main
 			colored[1 + #colored] = {Bar, "BackgroundColor3", "main"}
 			Bar.BorderSizePixel = 0
-			Bar.Name = "Bar"
+			Bar.Name = generateRandomName()
 			Bar.Parent = Border_2
 			Bar.Size = UDim2.new(0, 3, 1, 0)
 			Close.AnchorPoint = Vector2.new(1, 0.5)
@@ -2392,7 +2405,7 @@ do
 			Close.Image = "rbxassetid://5492252477"
 			Close.ImageColor3 = library.colors.elementText
 			colored[1 + #colored] = {Close, "ImageColor3", "elementText"}
-			Close.Name = "Close"
+			Close.Name = generateRandomName()
 			Close.Parent = Border_2
 			Close.Position = UDim2.new(1, -6, 0.5, 0)
 			Close.ScaleType = Enum.ScaleType.Fit
@@ -2564,12 +2577,12 @@ function library:CreateWindow(options, ...)
 	library.globals["__Window" .. options.Name] = {
 		submenuOpen = submenuOpen
 	}
-	d3v1lLibrary.Name = "     "
-	d3v1lLibrary.Parent = library.gui_parent
+	d3v1lLibrary.Name = generateRandomName()
+	protectAndParentGui(d3v1lLibrary, library.gui_parent)
 	d3v1lLibrary.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	d3v1lLibrary.DisplayOrder = 10
 	d3v1lLibrary.ResetOnSpawn = false
-	main.Name = "main"
+	main.Name = generateRandomName()
 	main.Parent = d3v1lLibrary
 	CursorModule.MenuFrame = main -- damit CursorModule den echten Sichtbarkeits-Status des Menüs kennt
 	main.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -2580,7 +2593,7 @@ function library:CreateWindow(options, ...)
 	main.Position = UDim2.fromScale(0.5, 0.5)
 	main.Size = UDim2.fromOffset(500, 545)
 	makeDraggable(main, main)
-	mainBorder.Name = "mainBorder"
+	mainBorder.Name = generateRandomName()
 	mainBorder.Parent = main
 	mainBorder.AnchorPoint = Vector2.new(0.5, 0.5)
 	mainBorder.BackgroundColor3 = library.colors.background
@@ -2590,7 +2603,7 @@ function library:CreateWindow(options, ...)
 	mainBorder.BorderMode = Enum.BorderMode.Inset
 	mainBorder.Position = UDim2.fromScale(0.5, 0.5)
 	mainBorder.Size = UDim2.fromScale(1, 1)
-	innerMain.Name = "innerMain"
+	innerMain.Name = generateRandomName()
 	innerMain.Parent = main
 	innerMain.AnchorPoint = Vector2.new(0.5, 0.5)
 	innerMain.BackgroundColor3 = library.colors.background
@@ -2599,7 +2612,7 @@ function library:CreateWindow(options, ...)
 	colored[1 + #colored] = {innerMain, "BorderColor3", "outerBorder"}
 	innerMain.Position = UDim2.fromScale(0.5, 0.5)
 	innerMain.Size = UDim2.new(1, -14, 1, -14)
-	innerMainBorder.Name = "innerMainBorder"
+	innerMainBorder.Name = generateRandomName()
 	innerMainBorder.Parent = innerMain
 	innerMainBorder.AnchorPoint = Vector2.new(0.5, 0.5)
 	innerMainBorder.BackgroundColor3 = library.colors.background
@@ -2609,13 +2622,13 @@ function library:CreateWindow(options, ...)
 	innerMainBorder.BorderMode = Enum.BorderMode.Inset
 	innerMainBorder.Position = UDim2.fromScale(0.5, 0.5)
 	innerMainBorder.Size = UDim2.fromScale(1, 1)
-	innerMainHolder.Name = "innerMainHolder"
+	innerMainHolder.Name = generateRandomName()
 	innerMainHolder.Parent = innerMain
 	innerMainHolder.BackgroundColor3 = Color3.new(1, 1, 1)
 	innerMainHolder.BackgroundTransparency = 1
 	innerMainHolder.Position = UDim2:fromOffset(25)
 	innerMainHolder.Size = UDim2.new(1, 0, 1, -25)
-	innerBackdrop.Name = "innerBackdrop"
+	innerBackdrop.Name = generateRandomName()
 	innerBackdrop.Parent = innerMainHolder
 	innerBackdrop.BackgroundColor3 = Color3.new(1, 1, 1)
 	innerBackdrop.BackgroundTransparency = 1
@@ -2626,7 +2639,7 @@ function library:CreateWindow(options, ...)
 	innerBackdrop.ImageTransparency = (library_flags["__Designer.Background.ImageTransparency"] or 95) / 100
 	innerBackdrop.Image = resolveid(library_flags["__Designer.Background.ImageAssetID"], "__Designer.Background.ImageAssetID") or ""
 	library.Backdrop = innerBackdrop
-	tabsHolder.Name = "tabsHolder"
+	tabsHolder.Name = generateRandomName()
 	tabsHolder.Parent = innerMain
 	tabsHolder.BackgroundColor3 = library.colors.topGradient
 	colored[1 + #colored] = {tabsHolder, "BackgroundColor3", "topGradient"}
@@ -2636,16 +2649,16 @@ function library:CreateWindow(options, ...)
 	tabsHolder.Image = "rbxassetid://2454009026"
 	tabsHolder.ImageColor3 = library.colors.bottomGradient
 	colored[1 + #colored] = {tabsHolder, "ImageColor3", "bottomGradient"}
-	tabHolderList.Name = "tabHolderList"
+	tabHolderList.Name = generateRandomName()
 	tabHolderList.Parent = tabsHolder
 	tabHolderList.FillDirection = Enum.FillDirection.Horizontal
 	tabHolderList.SortOrder = Enum.SortOrder.LayoutOrder
 	tabHolderList.VerticalAlignment = Enum.VerticalAlignment.Center
 	tabHolderList.Padding = UDim:new(3)
-	tabHolderPadding.Name = "tabHolderPadding"
+	tabHolderPadding.Name = generateRandomName()
 	tabHolderPadding.Parent = tabsHolder
 	tabHolderPadding.PaddingLeft = UDim:new(7)
-	headline.Name = "headline"
+	headline.Name = generateRandomName()
 	headline.Parent = tabsHolder
 	headline.BackgroundColor3 = Color3.new(1, 1, 1)
 	headline.BackgroundTransparency = 1
@@ -2659,7 +2672,7 @@ function library:CreateWindow(options, ...)
 	colored[1 + #colored] = {headline, "TextStrokeColor3", "outerBorder"}
 	headline.TextStrokeTransparency = 0.75
 	headline.Size = UDim2:new(textToSize(headline).X + 4, 1)
-	splitter.Name = "splitter"
+	splitter.Name = generateRandomName()
 	splitter.Parent = tabsHolder
 	splitter.BackgroundColor3 = Color3.new(1, 1, 1)
 	splitter.BackgroundTransparency = 1
@@ -2673,7 +2686,7 @@ function library:CreateWindow(options, ...)
 	splitter.TextStrokeColor3 = library.colors.tabText
 	colored[1 + #colored] = {splitter, "TextStrokeColor3", "tabText"}
 	splitter.TextStrokeTransparency = 0.75
-	tabSlider.Name = "tabSlider"
+	tabSlider.Name = generateRandomName()
 	tabSlider.Parent = main
 	tabSlider.BackgroundColor3 = library.colors.main
 	colored[1 + #colored] = {tabSlider, "BackgroundColor3", "main"}
@@ -2747,7 +2760,7 @@ function library:CreateWindow(options, ...)
 		local right = Instance_new("ScrollingFrame")
 		local rightList = Instance_new("UIListLayout")
 		local rightPadding = Instance_new("UIPadding")
-		newTab.Name = removeSpaces((tabName and tostring(tabName):lower() or "???") .. "Tab")
+		newTab.Name = generateRandomName()
 		newTab.Parent = tabsHolder
 		newTab.BackgroundTransparency = 1
 		newTab.LayoutOrder = (options.LastTab and 99999) or tonumber(options.TabOrder or options.LayoutOrder) or (2 + windowFunctions.tabCount)
@@ -2821,28 +2834,28 @@ function library:CreateWindow(options, ...)
 			windowFunctions.selected.holder = newTabHolder
 			windowFunctions.selected.button = newTab
 		end
-		newTabHolder.Name = removeSpaces((tabName and tabName:lower()) or "???") .. "TabHolder"
+		newTabHolder.Name = generateRandomName() .. "TabHolder"
 		newTabHolder.Parent = innerMainHolder
 		newTabHolder.BackgroundColor3 = Color3.new(1, 1, 1)
 		newTabHolder.BackgroundTransparency = 1
 		newTabHolder.Size = UDim2.fromScale(1, 1)
 		newTabHolder.Visible = windowFunctions.tabCount == 1
-		left.Name = "left"
+		left.Name = generateRandomName()
 		left.Parent = newTabHolder
 		left.BackgroundColor3 = Color3.new(1, 1, 1)
 		left.BackgroundTransparency = 1
 		left.Size = UDim2.fromScale(0.5, 1)
 		left.CanvasSize = UDim2.new()
 		left.ScrollBarThickness = 0
-		leftList.Name = "leftList"
+		leftList.Name = generateRandomName()
 		leftList.Parent = left
 		leftList.HorizontalAlignment = Enum.HorizontalAlignment.Center
 		leftList.SortOrder = Enum.SortOrder.LayoutOrder
 		leftList.Padding = UDim:new(14)
-		leftPadding.Name = "leftPadding"
+		leftPadding.Name = generateRandomName()
 		leftPadding.Parent = left
 		leftPadding.PaddingTop = UDim:new(12)
-		right.Name = "right"
+		right.Name = generateRandomName()
 		right.Parent = newTabHolder
 		right.BackgroundColor3 = Color3.new(1, 1, 1)
 		right.BackgroundTransparency = 1
@@ -2850,12 +2863,12 @@ function library:CreateWindow(options, ...)
 		right.CanvasSize = UDim2.new()
 		right.ScrollBarThickness = 0
 		right.Position = UDim2.new(0.5)
-		rightList.Name = "rightList"
+		rightList.Name = generateRandomName()
 		rightList.Parent = right
 		rightList.HorizontalAlignment = Enum.HorizontalAlignment.Center
 		rightList.SortOrder = Enum.SortOrder.LayoutOrder
 		rightList.Padding = UDim:new(14)
-		rightPadding.Name = "rightPadding"
+		rightPadding.Name = generateRandomName()
 		rightPadding.Parent = right
 		rightPadding.PaddingTop = UDim:new(12)
 		local tabFunctions = {
@@ -2891,7 +2904,7 @@ function library:CreateWindow(options, ...)
 			colorpickerconflicts[1 + #colorpickerconflicts] = insideBorderHider
 			colorpickerconflicts[1 + #colorpickerconflicts] = outsideBorderHider
 			colorpickerconflicts[1 + #colorpickerconflicts] = sectionHeadline
-			newSection.Name = removeSpaces((sectionName and sectionName:lower() or "???") .. "Section")
+			newSection.Name = generateRandomName()
 			newSection.Parent = (holderSide and (((holderSide:lower() == "left") and left) or right)) or left
 			newSection.BackgroundColor3 = library.colors.sectionBackground
 			colored[1 + #colored] = {newSection, "BackgroundColor3", "sectionBackground"}
@@ -2899,7 +2912,7 @@ function library:CreateWindow(options, ...)
 			colored[1 + #colored] = {newSection, "BorderColor3", "outerBorder"}
 			newSection.Size = UDim2.new(1, -20)
 			newSection.Visible = false
-			newSectionBorder.Name = "newSectionBorder"
+			newSectionBorder.Name = generateRandomName()
 			newSectionBorder.Parent = newSection
 			newSectionBorder.BackgroundColor3 = library.colors.sectionBackground
 			colored[1 + #colored] = {newSectionBorder, "BackgroundColor3", "sectionBackground"}
@@ -2907,20 +2920,20 @@ function library:CreateWindow(options, ...)
 			colored[1 + #colored] = {newSectionBorder, "BorderColor3", "innerBorder"}
 			newSectionBorder.BorderMode = Enum.BorderMode.Inset
 			newSectionBorder.Size = UDim2.fromScale(1, 1)
-			sectionHolder.Name = "sectionHolder"
+			sectionHolder.Name = generateRandomName()
 			sectionHolder.Parent = newSection
 			sectionHolder.BackgroundColor3 = Color3.new(1, 1, 1)
 			sectionHolder.BackgroundTransparency = 1
 			sectionHolder.Size = UDim2.fromScale(1, 1)
-			sectionList.Name = "sectionList"
+			sectionList.Name = generateRandomName()
 			sectionList.Parent = sectionHolder
 			sectionList.HorizontalAlignment = Enum.HorizontalAlignment.Center
 			sectionList.SortOrder = Enum.SortOrder.LayoutOrder
 			sectionList.Padding = UDim:new(1)
-			sectionPadding.Name = "sectionPadding"
+			sectionPadding.Name = generateRandomName()
 			sectionPadding.Parent = sectionHolder
 			sectionPadding.PaddingTop = UDim:new(9)
-			sectionHeadline.Name = "sectionHeadline"
+			sectionHeadline.Name = generateRandomName()
 			sectionHeadline.Parent = newSection
 			sectionHeadline.BackgroundColor3 = Color3.new(1, 1, 1)
 			sectionHeadline.BackgroundTransparency = 1
@@ -2933,14 +2946,14 @@ function library:CreateWindow(options, ...)
 			colored[1 + #colored] = {sectionHeadline, "TextColor3", "section"}
 			sectionHeadline.TextSize = 14
 			sectionHeadline.Size = UDim2.fromOffset(textToSize(sectionHeadline).X + 4, 12)
-			insideBorderHider.Name = "insideBorderHider"
+			insideBorderHider.Name = generateRandomName()
 			insideBorderHider.Parent = newSection
 			insideBorderHider.BackgroundColor3 = library.colors.sectionBackground
 			colored[1 + #colored] = {insideBorderHider, "BackgroundColor3", "sectionBackground"}
 			insideBorderHider.BorderSizePixel = 0
 			insideBorderHider.Position = UDim2.fromOffset(15)
 			insideBorderHider.Size = UDim2.fromOffset(sectionHeadline.AbsoluteSize.X + 3, 1)
-			outsideBorderHider.Name = "outsideBorderHider"
+			outsideBorderHider.Name = generateRandomName()
 			outsideBorderHider.Parent = newSection
 			outsideBorderHider.BackgroundColor3 = library.colors.background
 			colored[1 + #colored] = {outsideBorderHider, "BackgroundColor3", "background"}
@@ -2997,12 +3010,12 @@ function library:CreateWindow(options, ...)
 				local keybindList = Instance_new("UIListLayout")
 				local keybindButton = Instance_new("TextButton")
 				local lockedup = options.Locked
-				newToggle.Name = removeSpaces((toggleName and toggleName:lower() or "???") .. "Toggle")
+				newToggle.Name = generateRandomName()
 				newToggle.Parent = sectionHolder
 				newToggle.BackgroundColor3 = Color3.new(1, 1, 1)
 				newToggle.BackgroundTransparency = 1
 				newToggle.Size = UDim2.new(1, 0, 0, 19)
-				toggle.Name = "toggle"
+				toggle.Name = generateRandomName()
 				toggle.Parent = newToggle
 				toggle.Active = true
 				toggle.BackgroundColor3 = library.colors.topGradient
@@ -3017,7 +3030,7 @@ function library:CreateWindow(options, ...)
 				toggle.ImageColor3 = library.colors.bottomGradient
 				local colored_toggle_ImageColor3 = {toggle, "ImageColor3", "bottomGradient"}
 				colored[1 + #colored] = colored_toggle_ImageColor3
-				toggleInner.Name = "toggleInner"
+				toggleInner.Name = generateRandomName()
 				toggleInner.Parent = toggle
 				toggleInner.Active = true
 				toggleInner.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -3033,7 +3046,7 @@ function library:CreateWindow(options, ...)
 				toggleInner.ImageColor3 = library.colors.bottomGradient
 				local colored_toggleInner_ImageColor3 = {toggleInner, "ImageColor3", "bottomGradient"}
 				colored[1 + #colored] = colored_toggleInner_ImageColor3
-				toggleButton.Name = "toggleButton"
+				toggleButton.Name = generateRandomName()
 				toggleButton.Parent = newToggle
 				toggleButton.BackgroundColor3 = Color3.new(1, 1, 1)
 				toggleButton.BackgroundTransparency = 1
@@ -3044,7 +3057,7 @@ function library:CreateWindow(options, ...)
 				toggleButton.TextColor3 = Color3.new()
 				toggleButton.TextSize = 14
 				toggleButton.TextTransparency = 1
-				toggleHeadline.Name = "toggleHeadline"
+				toggleHeadline.Name = generateRandomName()
 				toggleHeadline.Parent = newToggle
 				toggleHeadline.BackgroundColor3 = Color3.new(1, 1, 1)
 				toggleHeadline.BackgroundTransparency = 1
@@ -3132,20 +3145,20 @@ function library:CreateWindow(options, ...)
 						local shownKey = keybindButton.Text:match("^%[(.-)%]$")
 						KeybindsListModule:Upsert(kbflag, toggleName, shownKey or "NONE")
 					end
-					keybindPositioner.Name = "keybindPositioner"
+					keybindPositioner.Name = generateRandomName()
 					keybindPositioner.Parent = newKeybind
 					keybindPositioner.BackgroundColor3 = Color3.new(1, 1, 1)
 					keybindPositioner.BackgroundTransparency = 1
 					keybindPositioner.Position = UDim2.new(0.00448430516)
 					keybindPositioner.Size = UDim2.fromOffset(214, 19)
 					keybindPositioner.ZIndex = 1 + toggleButton.ZIndex
-					keybindList.Name = "keybindList"
+					keybindList.Name = generateRandomName()
 					keybindList.Parent = keybindPositioner
 					keybindList.FillDirection = Enum.FillDirection.Horizontal
 					keybindList.HorizontalAlignment = Enum.HorizontalAlignment.Right
 					keybindList.SortOrder = Enum.SortOrder.LayoutOrder
 					keybindList.VerticalAlignment = Enum.VerticalAlignment.Center
-					keybindButton.Name = "keybindButton"
+					keybindButton.Name = generateRandomName()
 					keybindButton.Parent = keybindPositioner
 					keybindButton.Active = false
 					keybindButton.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -3627,7 +3640,7 @@ function library:CreateWindow(options, ...)
 					end
 					local lockedup = options.Locked
 					local realButton = Instance_new("TextButton")
-					realButton.Name = "realButton"
+					realButton.Name = generateRandomName()
 					realButton.BackgroundColor3 = Color3.new(1, 1, 1)
 					realButton.BackgroundTransparency = 1
 					realButton.Size = UDim2.fromScale(1, 1)
@@ -3647,12 +3660,12 @@ function library:CreateWindow(options, ...)
 					local framButtons = frames[fram] or {}
 					frames[fram] = framButtons
 					local button = Instance_new("ImageLabel")
-					newButton.Name = removeSpaces((buttonName and buttonName:lower() or "???") .. "Holder")
+					newButton.Name = generateRandomName()
 					newButton.Parent = sectionHolder
 					newButton.BackgroundColor3 = Color3.new(1, 1, 1)
 					newButton.BackgroundTransparency = 1
 					newButton.Size = UDim2.new(1, 0, 0, 24)
-					button.Name = "button"
+					button.Name = generateRandomName()
 					button.Parent = newButton
 					button.Active = true
 					button.BackgroundColor3 = library.colors.topGradient
@@ -3668,7 +3681,7 @@ function library:CreateWindow(options, ...)
 					local colored_button_ImageColor3 = {button, "ImageColor3", "bottomGradient"}
 					colored[1 + #colored] = colored_button_ImageColor3
 					local buttonInner = Instance_new("ImageLabel")
-					buttonInner.Name = "buttonInner"
+					buttonInner.Name = generateRandomName()
 					buttonInner.Parent = button
 					buttonInner.Active = true
 					buttonInner.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -3944,12 +3957,12 @@ function library:CreateWindow(options, ...)
 				local textboxInner = Instance_new("ImageLabel")
 				local realTextbox = Instance_new("TextBox")
 				local textboxHeadline = Instance_new("TextLabel")
-				newTextbox.Name = removeSpaces((textboxName and textboxName:lower()) or "???") .. "Holder"
+				newTextbox.Name = generateRandomName() .. "Holder"
 				newTextbox.Parent = sectionHolder
 				newTextbox.BackgroundColor3 = Color3.new(1, 1, 1)
 				newTextbox.BackgroundTransparency = 1
 				newTextbox.Size = UDim2.new(1, 0, 0, 42)
-				textbox.Name = "textbox"
+				textbox.Name = generateRandomName()
 				textbox.Parent = newTextbox
 				textbox.Active = true
 				textbox.BackgroundColor3 = library.colors.topGradient
@@ -3964,7 +3977,7 @@ function library:CreateWindow(options, ...)
 				textbox.ImageColor3 = library.colors.bottomGradient
 				local colored_textbox_ImageColor3 = {textbox, "ImageColor3", "bottomGradient"}
 				colored[1 + #colored] = colored_textbox_ImageColor3
-				textboxInner.Name = "textboxInner"
+				textboxInner.Name = generateRandomName()
 				textboxInner.Parent = textbox
 				textboxInner.Active = true
 				textboxInner.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -3978,7 +3991,7 @@ function library:CreateWindow(options, ...)
 				textboxInner.Image = "rbxassetid://2454009026"
 				textboxInner.ImageColor3 = library.colors.bottomGradient
 				colored[1 + #colored] = {textboxInner, "ImageColor3", "bottomGradient"}
-				realTextbox.Name = "realTextbox"
+				realTextbox.Name = generateRandomName()
 				if options.Rich or options.RichText or options.RichTextBox then
 					realTextbox.RichText = true
 				end
@@ -4020,7 +4033,7 @@ function library:CreateWindow(options, ...)
 					end
 				end
 				realTextbox.Parent = textbox
-				textboxHeadline.Name = "textboxHeadline"
+				textboxHeadline.Name = generateRandomName()
 				textboxHeadline.Parent = newTextbox
 				textboxHeadline.Active = true
 				textboxHeadline.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -4211,12 +4224,12 @@ function library:CreateWindow(options, ...)
 				local bindedKey = presetKeybind
 				local justBinded = false
 				local keyName = (presetKeybind and tostring(presetKeybind):gsub("Enum.KeyCode.", "") or "")
-				newKeybind.Name = "newKeybind"
+				newKeybind.Name = generateRandomName()
 				newKeybind.Parent = sectionHolder
 				newKeybind.BackgroundColor3 = Color3.new(1, 1, 1)
 				newKeybind.BackgroundTransparency = 1
 				newKeybind.Size = UDim2.new(1, 0, 0, 19)
-				keybindHeadline.Name = "keybindHeadline"
+				keybindHeadline.Name = generateRandomName()
 				keybindHeadline.Parent = newKeybind
 				keybindHeadline.BackgroundColor3 = Color3.new(1, 1, 1)
 				keybindHeadline.BackgroundTransparency = 1
@@ -4228,19 +4241,19 @@ function library:CreateWindow(options, ...)
 				colored[1 + #colored] = {keybindHeadline, "TextColor3", "elementText"}
 				keybindHeadline.TextSize = 14
 				keybindHeadline.TextXAlignment = Enum.TextXAlignment.Left
-				keybindPositioner.Name = "keybindPositioner"
+				keybindPositioner.Name = generateRandomName()
 				keybindPositioner.Parent = newKeybind
 				keybindPositioner.BackgroundColor3 = Color3.new(1, 1, 1)
 				keybindPositioner.BackgroundTransparency = 1
 				keybindPositioner.Position = UDim2.new(0.00448430516)
 				keybindPositioner.Size = UDim2.fromOffset(214, 19)
-				keybindList.Name = "keybindList"
+				keybindList.Name = generateRandomName()
 				keybindList.Parent = keybindPositioner
 				keybindList.FillDirection = Enum.FillDirection.Horizontal
 				keybindList.HorizontalAlignment = Enum.HorizontalAlignment.Right
 				keybindList.SortOrder = Enum.SortOrder.LayoutOrder
 				keybindList.VerticalAlignment = Enum.VerticalAlignment.Center
-				keybindButton.Name = "keybindButton"
+				keybindButton.Name = generateRandomName()
 				keybindButton.Parent = keybindPositioner
 				keybindButton.Active = false
 				keybindButton.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -4492,12 +4505,12 @@ function library:CreateWindow(options, ...)
 				local labelHeadline = Instance_new("TextLabel")
 				local labelPositioner = Instance_new("Frame")
 				local labelButton = Instance_new("TextButton")
-				newLabel.Name = "newLabel"
+				newLabel.Name = generateRandomName()
 				newLabel.Parent = sectionHolder
 				newLabel.BackgroundColor3 = Color3.new(1, 1, 1)
 				newLabel.BackgroundTransparency = 1
 				newLabel.Size = UDim2.new(1, 0, 0, 19)
-				labelHeadline.Name = "labelHeadline"
+				labelHeadline.Name = generateRandomName()
 				labelHeadline.Parent = newLabel
 				labelHeadline.BackgroundColor3 = Color3.new(1, 1, 1)
 				labelHeadline.BackgroundTransparency = 1
@@ -4509,7 +4522,7 @@ function library:CreateWindow(options, ...)
 				colored[1 + #colored] = {labelHeadline, "TextColor3", "elementText"}
 				labelHeadline.TextSize = 14
 				labelHeadline.TextXAlignment = Enum.TextXAlignment.Left
-				labelPositioner.Name = "labelPositioner"
+				labelPositioner.Name = generateRandomName()
 				labelPositioner.Parent = newLabel
 				labelPositioner.BackgroundColor3 = Color3.new(1, 1, 1)
 				labelPositioner.BackgroundTransparency = 1
@@ -4605,12 +4618,12 @@ function library:CreateWindow(options, ...)
 				local sliderHeadline = Instance_new("TextLabel")
 				local startingValue = presetValue or minValue
 				local sliderDragging = false
-				newSlider.Name = "newSlider"
+				newSlider.Name = generateRandomName()
 				newSlider.Parent = sectionHolder
 				newSlider.BackgroundColor3 = Color3.new(1, 1, 1)
 				newSlider.BackgroundTransparency = 1
 				newSlider.Size = UDim2.new(1, 0, 0, 42)
-				slider.Name = "slider"
+				slider.Name = generateRandomName()
 				slider.Parent = newSlider
 				slider.Active = true
 				slider.BackgroundColor3 = library.colors.topGradient
@@ -4625,7 +4638,7 @@ function library:CreateWindow(options, ...)
 				slider.ImageColor3 = library.colors.bottomGradient
 				local colored_slider_ImageColor3 = {slider, "ImageColor3", "bottomGradient"}
 				colored[1 + #colored] = colored_slider_ImageColor3
-				sliderInner.Name = "sliderInner"
+				sliderInner.Name = generateRandomName()
 				sliderInner.Parent = slider
 				sliderInner.Active = true
 				sliderInner.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -4639,7 +4652,7 @@ function library:CreateWindow(options, ...)
 				sliderInner.Image = "rbxassetid://2454009026"
 				sliderInner.ImageColor3 = library.colors.bottomGradient
 				colored[1 + #colored] = {sliderInner, "ImageColor3", "bottomGradient"}
-				sliderColored.Name = "sliderColored"
+				sliderColored.Name = generateRandomName()
 				sliderColored.Parent = sliderInner
 				sliderColored.Active = true
 				sliderColored.BackgroundColor3 = darkenColor(library.colors.main, 1.5)
@@ -4650,7 +4663,7 @@ function library:CreateWindow(options, ...)
 				sliderColored.Image = "rbxassetid://2454009026"
 				sliderColored.ImageColor3 = darkenColor(library.colors.main, 2.5)
 				colored[1 + #colored] = {sliderColored, "ImageColor3", "main", 2.5}
-				sliderHeadline.Name = "sliderHeadline"
+				sliderHeadline.Name = generateRandomName()
 				sliderHeadline.Parent = newSlider
 				sliderHeadline.Active = true
 				sliderHeadline.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -4709,7 +4722,7 @@ function library:CreateWindow(options, ...)
 					local textbox = Instance_new("ImageLabel")
 					local textboxInner = Instance_new("ImageLabel")
 					realTextbox = Instance_new("TextBox")
-					textbox.Name = "textbox"
+					textbox.Name = generateRandomName()
 					textbox.Parent = newSlider
 					textbox.Active = true
 					textbox.BackgroundColor3 = library.colors.topGradient
@@ -4724,7 +4737,7 @@ function library:CreateWindow(options, ...)
 					textbox.ImageColor3 = library.colors.bottomGradient
 					local colored_textbox_ImageColor3 = {textbox, "ImageColor3", "bottomGradient"}
 					colored[1 + #colored] = colored_textbox_ImageColor3
-					textboxInner.Name = "textboxInner"
+					textboxInner.Name = generateRandomName()
 					textboxInner.Parent = textbox
 					textboxInner.Active = true
 					textboxInner.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -4738,7 +4751,7 @@ function library:CreateWindow(options, ...)
 					textboxInner.Image = "rbxassetid://2454009026"
 					textboxInner.ImageColor3 = library.colors.bottomGradient
 					colored[1 + #colored] = {textboxInner, "ImageColor3", "bottomGradient"}
-					realTextbox.Name = "realTextbox"
+					realTextbox.Name = generateRandomName()
 					realTextbox.Parent = textbox
 					realTextbox.BackgroundColor3 = Color3.new(1, 1, 1)
 					realTextbox.BackgroundTransparency = 1
@@ -5015,12 +5028,12 @@ function library:CreateWindow(options, ...)
 				end
 				local selectedObjects = {}
 				local optionCount = 0
-				newDropdown.Name = "newDropdown"
+				newDropdown.Name = generateRandomName()
 				newDropdown.Parent = sectionHolder
 				newDropdown.BackgroundColor3 = Color3.new(1, 1, 1)
 				newDropdown.BackgroundTransparency = 1
 				newDropdown.Size = UDim2.new(1, 0, 0, 42)
-				dropdown.Name = "dropdown"
+				dropdown.Name = generateRandomName()
 				dropdown.Parent = newDropdown
 				dropdown.Active = true
 				dropdown.BackgroundColor3 = library.colors.topGradient
@@ -5035,7 +5048,7 @@ function library:CreateWindow(options, ...)
 				dropdown.ImageColor3 = library.colors.bottomGradient
 				local colored_dropdown_ImageColor3 = {dropdown, "ImageColor3", "bottomGradient"}
 				colored[1 + #colored] = colored_dropdown_ImageColor3
-				dropdownInner.Name = "dropdownInner"
+				dropdownInner.Name = generateRandomName()
 				dropdownInner.Parent = dropdown
 				dropdownInner.Active = true
 				dropdownInner.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -5049,7 +5062,7 @@ function library:CreateWindow(options, ...)
 				dropdownInner.Image = "rbxassetid://2454009026"
 				dropdownInner.ImageColor3 = library.colors.bottomGradient
 				colored[1 + #colored] = {dropdownInner, "ImageColor3", "bottomGradient"}
-				dropdownToggle.Name = "dropdownToggle"
+				dropdownToggle.Name = generateRandomName()
 				dropdownToggle.Parent = dropdown
 				dropdownToggle.BackgroundColor3 = Color3.new(1, 1, 1)
 				dropdownToggle.BackgroundTransparency = 1
@@ -5059,7 +5072,7 @@ function library:CreateWindow(options, ...)
 				dropdownToggle.ZIndex = 6
 				dropdownToggle.Image = "rbxassetid://71659683"
 				dropdownToggle.ImageColor3 = Color3.fromRGB(171, 171, 171)
-				dropdownSelection.Name = "dropdownSelection"
+				dropdownSelection.Name = generateRandomName()
 				dropdownSelection.Parent = dropdown
 				dropdownSelection.BackgroundColor3 = Color3.new(1, 1, 1)
 				dropdownSelection.BackgroundTransparency = 1
@@ -5074,7 +5087,7 @@ function library:CreateWindow(options, ...)
 				dropdownSelection.TextSize = 14
 				dropdownSelection.TextXAlignment = Enum.TextXAlignment.Left
 				dropdownSelection.ClearTextOnFocus = true
-				dropdownHeadline.Name = "dropdownHeadline"
+				dropdownHeadline.Name = generateRandomName()
 				dropdownHeadline.Parent = newDropdown
 				dropdownHeadline.BackgroundColor3 = Color3.new(1, 1, 1)
 				dropdownHeadline.BackgroundTransparency = 1
@@ -5086,7 +5099,7 @@ function library:CreateWindow(options, ...)
 				colored[1 + #colored] = {dropdownHeadline, "TextColor3", "elementText"}
 				dropdownHeadline.TextSize = 14
 				dropdownHeadline.TextXAlignment = Enum.TextXAlignment.Left
-				dropdownHolderFrame.Name = "dropdownHolderFrame"
+				dropdownHolderFrame.Name = generateRandomName()
 				dropdownHolderFrame.Parent = newDropdown
 				dropdownHolderFrame.Active = true
 				dropdownHolderFrame.BackgroundColor3 = library.colors.topGradient
@@ -5100,7 +5113,7 @@ function library:CreateWindow(options, ...)
 				dropdownHolderFrame.Image = "rbxassetid://2454009026"
 				dropdownHolderFrame.ImageColor3 = library.colors.bottomGradient
 				colored[1 + #colored] = {dropdownHolderFrame, "ImageColor3", "bottomGradient"}
-				dropdownHolderInner.Name = "dropdownHolderInner"
+				dropdownHolderInner.Name = generateRandomName()
 				dropdownHolderInner.Parent = dropdownHolderFrame
 				dropdownHolderInner.Active = true
 				dropdownHolderInner.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -5113,7 +5126,7 @@ function library:CreateWindow(options, ...)
 				dropdownHolderInner.Image = "rbxassetid://2454009026"
 				dropdownHolderInner.ImageColor3 = library.colors.bottomGradient
 				colored[1 + #colored] = {dropdownHolderInner, "ImageColor3", "bottomGradient"}
-				realDropdownHolder.Name = "realDropdownHolder"
+				realDropdownHolder.Name = generateRandomName()
 				realDropdownHolder.Parent = dropdownHolderInner
 				realDropdownHolder.BackgroundColor3 = Color3.new(1, 1, 1)
 				realDropdownHolder.BackgroundTransparency = 1
@@ -5126,7 +5139,7 @@ function library:CreateWindow(options, ...)
 				realDropdownHolder.ScrollBarImageTransparency = 0.5
 				realDropdownHolder.ScrollBarImageColor3 = library.colors.section
 				colored[1 + #colored] = {realDropdownHolder, "ScrollBarImageColor3", "section"}
-				realDropdownHolderList.Name = "realDropdownHolderList"
+				realDropdownHolderList.Name = generateRandomName()
 				realDropdownHolderList.Parent = realDropdownHolder
 				realDropdownHolderList.HorizontalAlignment = Enum.HorizontalAlignment.Center
 				realDropdownHolderList.SortOrder = Enum.SortOrder.LayoutOrder
@@ -5244,7 +5257,7 @@ function library:CreateWindow(options, ...)
 								selectedObjects[1] = newOption
 								selectedObjects[2] = optionButton
 							end
-							newOption.Name = "Frame"
+							newOption.Name = generateRandomName()
 							newOption.Parent = realDropdownHolder
 							local togged = (not multiselect and selectedOption == v) or (multiselect and table.find(selectedOption, v))
 							newOption.BackgroundColor3 = (togged and library.colors.selectedOption) or library.colors.topGradient
@@ -5770,12 +5783,12 @@ function library:CreateWindow(options, ...)
 						val = blankstring
 					end
 					local selectedOption = val or blankstring or list[1]
-					newDropdown.Name = "newDropdown"
+					newDropdown.Name = generateRandomName()
 					newDropdown.Parent = sectionHolder
 					newDropdown.BackgroundColor3 = Color3.new(1, 1, 1)
 					newDropdown.BackgroundTransparency = 1
 					newDropdown.Size = UDim2.new(1, 0, 0, 42)
-					dropdown.Name = "dropdown"
+					dropdown.Name = generateRandomName()
 					dropdown.Parent = newDropdown
 					dropdown.Active = true
 					dropdown.BackgroundColor3 = library.colors.topGradient
@@ -5790,7 +5803,7 @@ function library:CreateWindow(options, ...)
 					dropdown.ImageColor3 = library.colors.bottomGradient
 					local colored_dropdown_ImageColor3 = {dropdown, "ImageColor3", "bottomGradient"}
 					colored[1 + #colored] = colored_dropdown_ImageColor3
-					dropdownInner.Name = "dropdownInner"
+					dropdownInner.Name = generateRandomName()
 					dropdownInner.Parent = dropdown
 					dropdownInner.Active = true
 					dropdownInner.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -5804,7 +5817,7 @@ function library:CreateWindow(options, ...)
 					dropdownInner.Image = "rbxassetid://2454009026"
 					dropdownInner.ImageColor3 = library.colors.bottomGradient
 					colored[1 + #colored] = {dropdownInner, "ImageColor3", "bottomGradient"}
-					dropdownToggle.Name = "dropdownToggle"
+					dropdownToggle.Name = generateRandomName()
 					dropdownToggle.Parent = dropdown
 					dropdownToggle.BackgroundColor3 = Color3.new(1, 1, 1)
 					dropdownToggle.BackgroundTransparency = 1
@@ -5814,7 +5827,7 @@ function library:CreateWindow(options, ...)
 					dropdownToggle.ZIndex = 2
 					dropdownToggle.Image = "rbxassetid://71659683"
 					dropdownToggle.ImageColor3 = Color3.fromRGB(171, 171, 171)
-					dropdownSelection.Name = "dropdownSelection"
+					dropdownSelection.Name = generateRandomName()
 					dropdownSelection.Parent = dropdown
 					dropdownSelection.BackgroundColor3 = Color3.new(1, 1, 1)
 					dropdownSelection.BackgroundTransparency = 1
@@ -5828,7 +5841,7 @@ function library:CreateWindow(options, ...)
 					colored[1 + #colored] = {dropdownSelection, "TextColor3", "otherElementText"}
 					dropdownSelection.TextSize = 14
 					dropdownSelection.TextXAlignment = Enum.TextXAlignment.Left
-					dropdownHeadline.Name = "dropdownHeadline"
+					dropdownHeadline.Name = generateRandomName()
 					dropdownHeadline.Parent = newDropdown
 					dropdownHeadline.BackgroundColor3 = Color3.new(1, 1, 1)
 					dropdownHeadline.BackgroundTransparency = 1
@@ -5840,7 +5853,7 @@ function library:CreateWindow(options, ...)
 					colored[1 + #colored] = {dropdownHeadline, "TextColor3", "elementText"}
 					dropdownHeadline.TextSize = 14
 					dropdownHeadline.TextXAlignment = Enum.TextXAlignment.Left
-					dropdownHolderFrame.Name = "dropdownHolderFrame"
+					dropdownHolderFrame.Name = generateRandomName()
 					dropdownHolderFrame.Parent = newDropdown
 					dropdownHolderFrame.Active = true
 					dropdownHolderFrame.BackgroundColor3 = library.colors.topGradient
@@ -5854,7 +5867,7 @@ function library:CreateWindow(options, ...)
 					dropdownHolderFrame.Image = "rbxassetid://2454009026"
 					dropdownHolderFrame.ImageColor3 = library.colors.bottomGradient
 					colored[1 + #colored] = {dropdownHolderFrame, "ImageColor3", "bottomGradient"}
-					dropdownHolderInner.Name = "dropdownHolderInner"
+					dropdownHolderInner.Name = generateRandomName()
 					dropdownHolderInner.Parent = dropdownHolderFrame
 					dropdownHolderInner.Active = true
 					dropdownHolderInner.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -5868,7 +5881,7 @@ function library:CreateWindow(options, ...)
 					dropdownHolderInner.Image = "rbxassetid://2454009026"
 					dropdownHolderInner.ImageColor3 = library.colors.bottomGradient
 					colored[1 + #colored] = {dropdownHolderInner, "ImageColor3", "bottomGradient"}
-					realDropdownHolder.Name = "realDropdownHolder"
+					realDropdownHolder.Name = generateRandomName()
 					realDropdownHolder.Parent = dropdownHolderInner
 					realDropdownHolder.BackgroundColor3 = Color3.new(1, 1, 1)
 					realDropdownHolder.BackgroundTransparency = 1
@@ -5881,7 +5894,7 @@ function library:CreateWindow(options, ...)
 					realDropdownHolder.ScrollBarImageTransparency = 0.5
 					realDropdownHolder.ScrollBarImageColor3 = library.colors.section
 					colored[1 + #colored] = {realDropdownHolder, "ScrollBarImageColor3", "section"}
-					realDropdownHolderList.Name = "realDropdownHolderList"
+					realDropdownHolderList.Name = generateRandomName()
 					realDropdownHolderList.Parent = realDropdownHolder
 					realDropdownHolderList.HorizontalAlignment = Enum.HorizontalAlignment.Center
 					realDropdownHolderList.SortOrder = Enum.SortOrder.LayoutOrder
@@ -5958,7 +5971,7 @@ function library:CreateWindow(options, ...)
 									selectedObjects[1] = newOption
 									selectedObjects[2] = optionButton
 								end
-								newOption.Name = "Frame"
+								newOption.Name = generateRandomName()
 								newOption.Parent = realDropdownHolder
 								newOption.BackgroundColor3 = (selectedOption == v and library.colors.selectedOption or library.colors.topGradient)
 								newOption.BorderSizePixel = 0
@@ -6332,7 +6345,7 @@ function library:CreateWindow(options, ...)
 							}} do
 							local buttonName, callback = options.Name, options.Callback
 							local realButton = Instance_new("TextButton")
-							realButton.Name = "realButton"
+							realButton.Name = generateRandomName()
 							realButton.BackgroundColor3 = Color3.new(1, 1, 1)
 							realButton.BackgroundTransparency = 1
 							realButton.Size = UDim2.fromScale(1, 1)
@@ -6349,12 +6362,12 @@ function library:CreateWindow(options, ...)
 							local newButton = fram or Instance_new("Frame")
 							fram = newButton
 							local button = Instance_new("ImageLabel")
-							newButton.Name = removeSpaces((buttonName and buttonName:lower() or "???") .. "Holder")
+							newButton.Name = generateRandomName()
 							newButton.Parent = sectionHolder
 							newButton.BackgroundColor3 = Color3.new(1, 1, 1)
 							newButton.BackgroundTransparency = 1
 							newButton.Size = UDim2.new(1, 0, 0, 24)
-							button.Name = "button"
+							button.Name = generateRandomName()
 							button.Parent = newButton
 							button.Active = true
 							button.BackgroundColor3 = library.colors.topGradient
@@ -6370,7 +6383,7 @@ function library:CreateWindow(options, ...)
 							local colored_button_ImageColor3 = {button, "ImageColor3", "bottomGradient"}
 							colored[1 + #colored] = colored_button_ImageColor3
 							local buttonInner = Instance_new("ImageLabel")
-							buttonInner.Name = "buttonInner"
+							buttonInner.Name = generateRandomName()
 							buttonInner.Parent = button
 							buttonInner.Active = true
 							buttonInner.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -6586,12 +6599,12 @@ function library:CreateWindow(options, ...)
 				end
 				local selectedObjects = {}
 				local optionCount = 0
-				newDropdown.Name = "newDropdown"
+				newDropdown.Name = generateRandomName()
 				newDropdown.Parent = sectionHolder
 				newDropdown.BackgroundColor3 = Color3.new(1, 1, 1)
 				newDropdown.BackgroundTransparency = 1
 				newDropdown.Size = UDim2.new(1, 0, 0, 42)
-				dropdown.Name = "dropdown"
+				dropdown.Name = generateRandomName()
 				dropdown.Parent = newDropdown
 				dropdown.Active = true
 				dropdown.BackgroundColor3 = library.colors.topGradient
@@ -6606,7 +6619,7 @@ function library:CreateWindow(options, ...)
 				dropdown.ImageColor3 = library.colors.bottomGradient
 				local colored_dropdown_ImageColor3 = {dropdown, "ImageColor3", "bottomGradient"}
 				colored[1 + #colored] = colored_dropdown_ImageColor3
-				dropdownInner.Name = "dropdownInner"
+				dropdownInner.Name = generateRandomName()
 				dropdownInner.Parent = dropdown
 				dropdownInner.Active = true
 				dropdownInner.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -6620,7 +6633,7 @@ function library:CreateWindow(options, ...)
 				dropdownInner.Image = "rbxassetid://2454009026"
 				dropdownInner.ImageColor3 = library.colors.bottomGradient
 				colored[1 + #colored] = {dropdownInner, "ImageColor3", "bottomGradient"}
-				dropdownToggle.Name = "dropdownToggle"
+				dropdownToggle.Name = generateRandomName()
 				dropdownToggle.Parent = dropdown
 				dropdownToggle.BackgroundColor3 = Color3.new(1, 1, 1)
 				dropdownToggle.BackgroundTransparency = 1
@@ -6630,7 +6643,7 @@ function library:CreateWindow(options, ...)
 				dropdownToggle.ZIndex = 2
 				dropdownToggle.Image = "rbxassetid://71659683"
 				dropdownToggle.ImageColor3 = Color3.fromRGB(171, 171, 171)
-				dropdownSelection.Name = "dropdownSelection"
+				dropdownSelection.Name = generateRandomName()
 				dropdownSelection.Parent = dropdown
 				dropdownSelection.Active = true
 				dropdownSelection.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -6645,7 +6658,7 @@ function library:CreateWindow(options, ...)
 				colored[1 + #colored] = {dropdownSelection, "TextColor3", "otherElementText"}
 				dropdownSelection.TextSize = 14
 				dropdownSelection.TextXAlignment = Enum.TextXAlignment.Left
-				dropdownHeadline.Name = "dropdownHeadline"
+				dropdownHeadline.Name = generateRandomName()
 				dropdownHeadline.Parent = newDropdown
 				dropdownHeadline.BackgroundColor3 = Color3.new(1, 1, 1)
 				dropdownHeadline.BackgroundTransparency = 1
@@ -6657,7 +6670,7 @@ function library:CreateWindow(options, ...)
 				colored[1 + #colored] = {dropdownHeadline, "TextColor3", "elementText"}
 				dropdownHeadline.TextSize = 14
 				dropdownHeadline.TextXAlignment = Enum.TextXAlignment.Left
-				dropdownHolderFrame.Name = "dropdownHolderFrame"
+				dropdownHolderFrame.Name = generateRandomName()
 				dropdownHolderFrame.Parent = newDropdown
 				dropdownHolderFrame.Active = true
 				dropdownHolderFrame.BackgroundColor3 = library.colors.topGradient
@@ -6671,7 +6684,7 @@ function library:CreateWindow(options, ...)
 				dropdownHolderFrame.Image = "rbxassetid://2454009026"
 				dropdownHolderFrame.ImageColor3 = library.colors.bottomGradient
 				colored[1 + #colored] = {dropdownHolderFrame, "ImageColor3", "bottomGradient"}
-				dropdownHolderInner.Name = "dropdownHolderInner"
+				dropdownHolderInner.Name = generateRandomName()
 				dropdownHolderInner.Parent = dropdownHolderFrame
 				dropdownHolderInner.Active = true
 				dropdownHolderInner.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -6685,7 +6698,7 @@ function library:CreateWindow(options, ...)
 				dropdownHolderInner.Image = "rbxassetid://2454009026"
 				dropdownHolderInner.ImageColor3 = library.colors.bottomGradient
 				colored[1 + #colored] = {dropdownHolderInner, "ImageColor3", "bottomGradient"}
-				realDropdownHolder.Name = "realDropdownHolder"
+				realDropdownHolder.Name = generateRandomName()
 				realDropdownHolder.Parent = dropdownHolderInner
 				realDropdownHolder.BackgroundColor3 = Color3.new(1, 1, 1)
 				realDropdownHolder.BackgroundTransparency = 1
@@ -6698,7 +6711,7 @@ function library:CreateWindow(options, ...)
 				realDropdownHolder.ScrollBarImageTransparency = 0.5
 				realDropdownHolder.ScrollBarImageColor3 = library.colors.section
 				colored[1 + #colored] = {realDropdownHolder, "ScrollBarImageColor3", "section"}
-				realDropdownHolderList.Name = "realDropdownHolderList"
+				realDropdownHolderList.Name = generateRandomName()
 				realDropdownHolderList.Parent = realDropdownHolder
 				realDropdownHolderList.HorizontalAlignment = Enum.HorizontalAlignment.Center
 				realDropdownHolderList.SortOrder = Enum.SortOrder.LayoutOrder
@@ -6876,7 +6889,7 @@ function library:CreateWindow(options, ...)
 							selectedObjects[1] = newOption
 							selectedObjects[2] = optionButton
 						end
-						newOption.Name = "Frame"
+						newOption.Name = generateRandomName()
 						newOption.Parent = realDropdownHolder
 						local togged = (not multiselect and selectedOption == v) or (multiselect and table.find(selectedOption, v))
 						newOption.BackgroundColor3 = (togged and library.colors.selectedOption) or library.colors.topGradient
@@ -7300,12 +7313,12 @@ function library:CreateWindow(options, ...)
 				local oldImageColor = oldBackgroundColor
 				local oldColor = oldBackgroundColor
 				local rainbowColorValue = 0
-				newColorPicker.Name = "newColorPicker"
+				newColorPicker.Name = generateRandomName()
 				newColorPicker.Parent = sectionHolder
 				newColorPicker.BackgroundColor3 = Color3.new(1, 1, 1)
 				newColorPicker.BackgroundTransparency = 1
 				newColorPicker.Size = UDim2.new(1, 0, 0, 19)
-				colorPicker.Name = "colorPicker"
+				colorPicker.Name = generateRandomName()
 				colorPicker.Parent = newColorPicker
 				colorPicker.Active = true
 				colorPicker.BackgroundColor3 = library.colors.topGradient
@@ -7320,7 +7333,7 @@ function library:CreateWindow(options, ...)
 				colorPicker.ImageColor3 = library.colors.bottomGradient
 				local colored_colorPicker_ImageColor3 = {colorPicker, "ImageColor3", "bottomGradient"}
 				colored[1 + #colored] = colored_colorPicker_ImageColor3
-				colorPickerInner.Name = "colorPickerInner"
+				colorPickerInner.Name = generateRandomName()
 				colorPickerInner.Parent = colorPicker
 				colorPickerInner.Active = true
 				colorPickerInner.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -7332,7 +7345,7 @@ function library:CreateWindow(options, ...)
 				colorPickerInner.Image = "rbxassetid://2454009026"
 				colorPickerInner.BackgroundColor3 = darkenColor(startingColor, 1.5)
 				colorPickerInner.ImageColor3 = darkenColor(startingColor, 2.5)
-				colorPickerHeadline.Name = "colorPickerHeadline"
+				colorPickerHeadline.Name = generateRandomName()
 				colorPickerHeadline.Parent = newColorPicker
 				colorPickerHeadline.BackgroundColor3 = Color3.new(1, 1, 1)
 				colorPickerHeadline.BackgroundTransparency = 1
@@ -7344,7 +7357,7 @@ function library:CreateWindow(options, ...)
 				colored[1 + #colored] = {colorPickerHeadline, "TextColor3", "elementText"}
 				colorPickerHeadline.TextSize = 14
 				colorPickerHeadline.TextXAlignment = Enum.TextXAlignment.Left
-				colorPickerButton.Name = "colorPickerButton"
+				colorPickerButton.Name = generateRandomName()
 				colorPickerButton.Parent = newColorPicker
 				colorPickerButton.BackgroundColor3 = Color3.new(1, 1, 1)
 				colorPickerButton.BackgroundTransparency = 1
@@ -7412,7 +7425,7 @@ function library:CreateWindow(options, ...)
 						end
 					end
 				end)
-				colorPickerHolderFrame.Name = "colorPickerHolderFrame"
+				colorPickerHolderFrame.Name = generateRandomName()
 				colorPickerHolderFrame.Parent = newColorPicker
 				colorPickerHolderFrame.Active = true
 				colorPickerHolderFrame.BackgroundColor3 = library.colors.topGradient
@@ -7429,7 +7442,7 @@ function library:CreateWindow(options, ...)
 				colorPickerHolderFrame.Image = "rbxassetid://2454009026"
 				colorPickerHolderFrame.ImageColor3 = library.colors.bottomGradient
 				colored[1 + #colored] = {colorPickerHolderFrame, "ImageColor3", "bottomGradient"}
-				colorPickerHolderInner.Name = "colorPickerHolderInner"
+				colorPickerHolderInner.Name = generateRandomName()
 				colorPickerHolderInner.Parent = colorPickerHolderFrame
 				colorPickerHolderInner.Active = true
 				colorPickerHolderInner.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -7443,21 +7456,21 @@ function library:CreateWindow(options, ...)
 				colorPickerHolderInner.Image = "rbxassetid://2454009026"
 				colorPickerHolderInner.ImageColor3 = library.colors.bottomGradient
 				colored[1 + #colored] = {colorPickerHolderInner, "ImageColor3", "bottomGradient"}
-				color.Name = "color"
+				color.Name = generateRandomName()
 				color.Parent = colorPickerHolderInner
 				color.BackgroundColor3 = startingColor
 				color.BorderSizePixel = 0
 				color.Position = UDim2.fromOffset(5, 5)
 				color.Size = UDim2.new(1, -10, 0, 192)
 				color.Image = "rbxassetid://4155801252"
-				selectorColor.Name = "selectorColor"
+				selectorColor.Name = generateRandomName()
 				selectorColor.Parent = color
 				selectorColor.AnchorPoint = Vector2.new(0.5, 0.5)
 				selectorColor.BackgroundColor3 = Color3.fromRGB(144, 144, 144)
 				selectorColor.BorderColor3 = Color3.fromRGB(69, 65, 70)
 				selectorColor.Position = UDim2.new(startingColor and select(3, Color3.toHSV(startingColor)))
 				selectorColor.Size = UDim2.fromOffset(4, 4)
-				hue.Name = "hue"
+				hue.Name = generateRandomName()
 				hue.Parent = colorPickerHolderInner
 				hue.BackgroundColor3 = Color3.new(1, 1, 1)
 				hue.BorderSizePixel = 0
@@ -7467,16 +7480,16 @@ function library:CreateWindow(options, ...)
 				hue.ScaleType = Enum.ScaleType.Slice
 				hue.SliceScale = 0.01
 				hueGradient.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 4)), ColorSequenceKeypoint.new(0.17, Color3.fromRGB(235, 7, 255)), ColorSequenceKeypoint.new(0.33, Color3:fromRGB(9, 189)), ColorSequenceKeypoint.new(0.5, Color3:fromRGB(193, 196)), ColorSequenceKeypoint.new(0.66, Color3:new(1)), ColorSequenceKeypoint.new(0.84, Color3.fromRGB(255, 247)), ColorSequenceKeypoint.new(1, Color3.new(1))})
-				hueGradient.Name = "hueGradient"
+				hueGradient.Name = generateRandomName()
 				hueGradient.Parent = hue
-				selectorHue.Name = "selectorHue"
+				selectorHue.Name = generateRandomName()
 				selectorHue.Parent = hue
 				selectorHue.BackgroundColor3 = Color3:fromRGB(125, 255)
 				selectorHue.BackgroundTransparency = 0.2
 				selectorHue.BorderColor3 = Color3:fromRGB(84, 91)
 				selectorHue.Position = UDim2.new(1 - (Color3.toHSV(startingColor)))
 				selectorHue.Size = UDim2:new(2, 1)
-				hexInput.Name = "hexInput"
+				hexInput.Name = generateRandomName()
 				hexInput.Parent = colorPickerHolderInner
 				hexInput.Active = true
 				hexInput.BackgroundColor3 = library.colors.topGradient
@@ -7489,7 +7502,7 @@ function library:CreateWindow(options, ...)
 				hexInput.Image = "rbxassetid://2454009026"
 				hexInput.ImageColor3 = library.colors.bottomGradient
 				colored[1 + #colored] = {hexInput, "ImageColor3", "bottomGradient"}
-				hexInputInner.Name = "hexInputInner"
+				hexInputInner.Name = generateRandomName()
 				hexInputInner.Parent = hexInput
 				hexInputInner.Active = true
 				hexInputInner.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -7503,7 +7516,7 @@ function library:CreateWindow(options, ...)
 				hexInputInner.Image = "rbxassetid://2454009026"
 				hexInputInner.ImageColor3 = library.colors.bottomGradient
 				colored[1 + #colored] = {hexInputInner, "ImageColor3", "bottomGradient"}
-				hexInputBox.Name = "hexInputBox"
+				hexInputBox.Name = generateRandomName()
 				hexInputBox.Parent = hexInput
 				hexInputBox.BackgroundColor3 = Color3.new(1, 1, 1)
 				hexInputBox.BackgroundTransparency = 1
@@ -7516,7 +7529,7 @@ function library:CreateWindow(options, ...)
 				colored[1 + #colored] = {hexInputBox, "TextColor3", "elementText"}
 				hexInputBox.TextSize = 14
 				hexInputBox.ClearTextOnFocus = false
-				randomColor.Name = "randomColor"
+				randomColor.Name = generateRandomName()
 				randomColor.Parent = colorPickerHolderInner
 				randomColor.Active = true
 				randomColor.BackgroundColor3 = library.colors.topGradient
@@ -7529,7 +7542,7 @@ function library:CreateWindow(options, ...)
 				randomColor.Image = "rbxassetid://2454009026"
 				randomColor.ImageColor3 = library.colors.bottomGradient
 				colored[1 + #colored] = {randomColor, "ImageColor3", "bottomGradient"}
-				randomColorInner.Name = "randomColorInner"
+				randomColorInner.Name = generateRandomName()
 				randomColorInner.Parent = randomColor
 				randomColorInner.Active = true
 				randomColorInner.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -7543,14 +7556,14 @@ function library:CreateWindow(options, ...)
 				randomColorInner.Image = "rbxassetid://2454009026"
 				randomColorInner.ImageColor3 = library.colors.bottomGradient
 				colored[1 + #colored] = {randomColorInner, "ImageColor3", "bottomGradient"}
-				randomColorButton.Name = "randomColorButton"
+				randomColorButton.Name = generateRandomName()
 				randomColorButton.Parent = randomColor
 				randomColorButton.BackgroundColor3 = Color3.new(1, 1, 1)
 				randomColorButton.BackgroundTransparency = 1
 				randomColorButton.Size = UDim2.fromScale(1, 1)
 				randomColorButton.ZIndex = 5
 				randomColorButton.Image = "rbxassetid://7484765651"
-				rainbow.Name = "rainbow"
+				rainbow.Name = generateRandomName()
 				rainbow.Parent = colorPickerHolderInner
 				rainbow.Active = true
 				rainbow.BackgroundColor3 = library.colors.topGradient
@@ -7563,7 +7576,7 @@ function library:CreateWindow(options, ...)
 				rainbow.Image = "rbxassetid://2454009026"
 				rainbow.ImageColor3 = library.colors.bottomGradient
 				colored[1 + #colored] = {rainbow, "ImageColor3", "bottomGradient"}
-				rainbowInner.Name = "rainbowInner"
+				rainbowInner.Name = generateRandomName()
 				rainbowInner.Parent = randomColor
 				rainbowInner.Active = true
 				rainbowInner.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -7577,7 +7590,7 @@ function library:CreateWindow(options, ...)
 				rainbowInner.Image = "rbxassetid://2454009026"
 				rainbowInner.ImageColor3 = library.colors.bottomGradient
 				colored[1 + #colored] = {rainbowInner, "ImageColor3", "bottomGradient"}
-				rainbowButton.Name = "rainbowButton"
+				rainbowButton.Name = generateRandomName()
 				rainbowButton.Parent = rainbow
 				rainbowButton.BackgroundColor3 = Color3.new(1, 1, 1)
 				rainbowButton.BackgroundTransparency = 1
