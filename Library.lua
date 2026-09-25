@@ -464,6 +464,7 @@ Library v0.36 [
 -- CURSOR MODULE
 -- ============================================================
 local CursorModule = {}
+CursorModule.Toggled = false
 
 function CursorModule:Enable()
 	local UserInputService = game:GetService("UserInputService")
@@ -527,6 +528,7 @@ end
 -- WATERMARK MODULE
 -- ============================================================
 local WatermarkModule = {}
+WatermarkModule.WatermarkOuter = nil
 
 function WatermarkModule:Create()
 	local CoreGui = game:GetService("CoreGui")
