@@ -7616,12 +7616,18 @@ function library:CreateWindow(options, ...)
 		}}, {"AddToggle", "__Designer.Toggle.WatermarkToggle", backgroundsection, {
 			Name = "Show Watermark",
 			Flag = "__Designer.Watermark.Enabled",
-			Value = true,
+			Value = false,
 			Callback = function(value)
 				if value then
-					WatermarkModule:Show()
+					if not WatermarkModule.WatermarkOuter then
+						WatermarkModule:Create()
+					else
+						WatermarkModule:Show()
+					end
 				else
-					WatermarkModule:Hide()
+					if WatermarkModule.WatermarkOuter then
+						WatermarkModule:Hide()
+					end
 				end
 			end
 		}}, {"AddPersistence", "__Designer.Persistence.ThemeFile", filessection, {
