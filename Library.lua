@@ -7620,13 +7620,19 @@ function library:CreateWindow(options, ...)
 			Callback = function(value)
 				if value then
 					if not WatermarkModule.WatermarkOuter then
-						WatermarkModule:Create()
+						pcall(function()
+							WatermarkModule:Create()
+						end)
 					else
-						WatermarkModule:Show()
+						pcall(function()
+							WatermarkModule:Show()
+						end)
 					end
 				else
 					if WatermarkModule.WatermarkOuter then
-						WatermarkModule:Hide()
+						pcall(function()
+							WatermarkModule:Hide()
+						end)
 					end
 				end
 			end
@@ -7646,7 +7652,19 @@ function library:CreateWindow(options, ...)
 			end
 		}}, {"AddPersistence", "__Designer.Persistence.WorkspaceProfile", filessection, persistoptions}, {"AddButton", "__Designer.Button.TerminateGUI", settingssection, {{
 			Name = "Terminate GUI",
-			Callback = library.unload
+			Callback = function()
+				if CursorModule then
+					CursorModule:Disable()
+					CursorModule.Toggled = false
+				end
+				if WatermarkModule and WatermarkModule.WatermarkOuter then
+					pcall(function()
+						WatermarkModule.WatermarkOuter:Destroy()
+						WatermarkModule.WatermarkOuter = nil
+					end)
+				end
+				library.unload()
+			end
 		}, {
 			Name = "Reset GUI",
 			Callback = resetall
