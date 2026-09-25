@@ -794,7 +794,7 @@ do
 					library.Backdrop.Visible = library_flags["__Designer.Background.UseBackgroundImage"] and true
 					library.Backdrop.Image = resolveid(library_flags["__Designer.Background.ImageAssetID"], "__Designer.Background.ImageAssetID") or ""
 					library.Backdrop.ImageColor3 = library_flags["__Designer.Background.ImageColor"] or Color3.new(1, 1, 1)
-					library.Backdrop.ImageTransparency = (library_flags["__Designer.Background.ImageTransparency"] or 95) / 100
+					library.Backdrop.ImageTransparency = (library_flags["__Designer.Background.ImageTransparency"] or 50) / 100
 				end
 			end)
 		end
@@ -2081,7 +2081,7 @@ function library:CreateWindow(options, ...)
 	innerBackdrop.ZIndex = -1
 	innerBackdrop.Visible = library_flags["__Designer.Background.UseBackgroundImage"] and true
 	innerBackdrop.ImageColor3 = library_flags["__Designer.Background.ImageColor"] or Color3.new(1, 1, 1)
-	innerBackdrop.ImageTransparency = (library_flags["__Designer.Background.ImageTransparency"] or 95) / 100
+	innerBackdrop.ImageTransparency = (library_flags["__Designer.Background.ImageTransparency"] or 50) / 100
 	innerBackdrop.Image = resolveid(library_flags["__Designer.Background.ImageAssetID"], "__Designer.Background.ImageAssetID") or ""
 	library.Backdrop = innerBackdrop
 	tabsHolder.Name = "tabsHolder"
@@ -7365,7 +7365,7 @@ function library:CreateWindow(options, ...)
 		}}, {"AddSlider", "__Designer.Slider.ImageTransparency", backgroundsection, {
 			Name = "Image Transparency",
 			Flag = "__Designer.Background.ImageTransparency",
-			Value = 95,
+			Value = 50,
 			Min = 0,
 			Max = 100,
 			Format = "Image Transparency: %s%%",
@@ -7503,7 +7503,7 @@ function library:CreateWindow(options, ...)
 		if library.Backdrop then
 			library.Backdrop.Image = resolveid(library_flags["__Designer.Background.ImageAssetID"], "__Designer.Background.ImageAssetID") or ""
 			library.Backdrop.Visible = library_flags["__Designer.Background.UseBackgroundImage"] and true
-			library.Backdrop.ImageTransparency = (library_flags["__Designer.Background.ImageTransparency"] or 95) / 100
+			library.Backdrop.ImageTransparency = (library_flags["__Designer.Background.ImageTransparency"] or 50) / 100
 			library.Backdrop.ImageColor3 = library_flags["__Designer.Background.ImageColor"] or Color3.new(1, 1, 1)
 		end
 		local function setbackground(t, Asset, Transparency, Visible)
@@ -7617,7 +7617,7 @@ function library:CreateWindow(options, ...)
 					library.Backdrop.Visible = library_flags["__Designer.Background.UseBackgroundImage"] and true
 					library.Backdrop.Image = resolveid(library_flags["__Designer.Background.ImageAssetID"], "__Designer.Background.ImageAssetID") or ""
 					library.Backdrop.ImageColor3 = library_flags["__Designer.Background.ImageColor"] or Color3.new(1, 1, 1)
-					library.Backdrop.ImageTransparency = (library_flags["__Designer.Background.ImageTransparency"] or 95) / 100
+					library.Backdrop.ImageTransparency = (library_flags["__Designer.Background.ImageTransparency"] or 50) / 100
 				end
 			end)
 		end
