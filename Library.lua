@@ -460,6 +460,230 @@ Library v0.36 [
     ]
 ]
 ]]
+-- ============================================================
+-- CURSOR MODULE
+-- ============================================================
+local CursorModule = {}
+
+function CursorModule:Enable()
+	local UserInputService = game:GetService("UserInputService")
+	local RunService = game:GetService("RunService")
+	local RenderStepped = RunService.RenderStepped
+	
+	self.Toggled = true
+	
+	task.spawn(function()
+		local success, Cursor = pcall(function() return Drawing.new('Triangle') end)
+		local success2, CursorOutline = pcall(function() return Drawing.new('Triangle') end)
+		
+		if not success or not success2 then return end
+		
+		Cursor.Thickness = 1
+		Cursor.Filled = true
+		Cursor.Visible = true
+		
+		CursorOutline.Thickness = 1
+		CursorOutline.Filled = false
+		CursorOutline.Color = Color3.new(0, 0, 0)
+		CursorOutline.Visible = true
+		
+		local tickStart = tick()
+		local State = UserInputService.MouseIconEnabled
+		
+		while self.Toggled do
+			UserInputService.MouseIconEnabled = false
+			local mPos = UserInputService:GetMouseLocation()
+			
+			local timePassed = (tick() - tickStart) * 2
+			local pulse = (math.sin(timePassed) + 1) / 2
+			
+			local colorLightLila = Color3.fromRGB(185, 110, 255)
+			local colorDarkLila = Color3.fromRGB(75, 20, 120)
+			
+			Cursor.Color = colorLightLila:Lerp(colorDarkLila, pulse)
+			
+			Cursor.PointA = Vector2.new(mPos.X, mPos.Y)
+			Cursor.PointB = Vector2.new(mPos.X + 16, mPos.Y + 6)
+			Cursor.PointC = Vector2.new(mPos.X + 6, mPos.Y + 16)
+			
+			CursorOutline.PointA = Cursor.PointA
+			CursorOutline.PointB = Cursor.PointB
+			CursorOutline.PointC = Cursor.PointC
+			
+			RenderStepped:Wait()
+		end
+		
+		UserInputService.MouseIconEnabled = State
+		Cursor:Remove()
+		CursorOutline:Remove()
+	end)
+end
+
+function CursorModule:Disable()
+	self.Toggled = false
+end
+
+-- ============================================================
+-- WATERMARK MODULE
+-- ============================================================
+local WatermarkModule = {}
+
+function WatermarkModule:Create()
+	local CoreGui = game:GetService("CoreGui")
+	local RunService = game:GetService("RunService")
+	local Stats = game:GetService("Stats")
+	local UserInputService = game:GetService("UserInputService")
+	local MarketplaceService = game:GetService("MarketplaceService")
+	
+	local syn = (typeof(getgenv) == "function" and getgenv().syn) or nil
+	local gethui = (typeof(gethui) == "function" and gethui) or nil
+	
+	local function generateRandomName()
+		local chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+		local name = ""
+		for i = 1, 10 do
+			local randIndex = math.random(1, #chars)
+			name = name .. string.sub(chars, randIndex, randIndex)
+		end
+		return name
+	end
+	
+	math.randomseed(tick())
+	
+	local ScreenGui = Instance.new("ScreenGui")
+	ScreenGui.Name = generateRandomName()
+	ScreenGui.IgnoreGuiInset = true
+	ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	
+	if syn and syn.protect_gui then
+		syn.protect_gui(ScreenGui)
+		ScreenGui.Parent = CoreGui
+	elseif gethui then
+		ScreenGui.Parent = gethui()
+	else
+		ScreenGui.Parent = CoreGui
+	end
+	
+	local MainColor = Color3.fromRGB(168, 85, 247)
+	local TopGradColor = Color3.fromRGB(45, 35, 65)
+	local BottomGradColor = Color3.fromRGB(14, 11, 20)
+	
+	local WatermarkOuter = Instance.new("Frame")
+	WatermarkOuter.Name = generateRandomName()
+	WatermarkOuter.BorderColor3 = Color3.new(0, 0, 0)
+	WatermarkOuter.Position = UDim2.new(0, 100, 0, 50)
+	WatermarkOuter.Size = UDim2.new(0, 0, 0, 20)
+	WatermarkOuter.AutomaticSize = Enum.AutomaticSize.X
+	WatermarkOuter.ZIndex = 200
+	WatermarkOuter.Visible = true
+	WatermarkOuter.Parent = ScreenGui
+	
+	local WatermarkInner = Instance.new("Frame")
+	WatermarkInner.Name = generateRandomName()
+	WatermarkInner.BackgroundColor3 = MainColor
+	WatermarkInner.BorderColor3 = MainColor
+	WatermarkInner.BorderMode = Enum.BorderMode.Inset
+	WatermarkInner.Size = UDim2.new(1, 0, 1, 0)
+	WatermarkInner.ZIndex = 201
+	WatermarkInner.Parent = WatermarkOuter
+	
+	local InnerFrame = Instance.new("Frame")
+	InnerFrame.Name = generateRandomName()
+	InnerFrame.BackgroundColor3 = Color3.new(1, 1, 1)
+	InnerFrame.BorderSizePixel = 0
+	InnerFrame.Position = UDim2.new(0, 1, 0, 1)
+	InnerFrame.Size = UDim2.new(1, -2, 1, -2)
+	InnerFrame.ZIndex = 202
+	InnerFrame.Parent = WatermarkInner
+	
+	local Gradient = Instance.new("UIGradient")
+	Gradient.Name = generateRandomName()
+	Gradient.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, TopGradColor),
+		ColorSequenceKeypoint.new(1, BottomGradColor),
+	})
+	Gradient.Rotation = 90
+	Gradient.Parent = InnerFrame
+	
+	local WatermarkLabel = Instance.new("TextLabel")
+	WatermarkLabel.Name = generateRandomName()
+	WatermarkLabel.Position = UDim2.new(0, 6, 0, 0)
+	WatermarkLabel.Size = UDim2.new(0, 0, 1, 0)
+	WatermarkLabel.AutomaticSize = Enum.AutomaticSize.X
+	WatermarkLabel.BackgroundTransparency = 1
+	WatermarkLabel.TextColor3 = Color3.fromRGB(168, 85, 247)
+	WatermarkLabel.Font = Enum.Font.Code
+	WatermarkLabel.TextSize = 13
+	WatermarkLabel.TextXAlignment = Enum.TextXAlignment.Left
+	WatermarkLabel.ZIndex = 203
+	WatermarkLabel.Text = "D3v1lHub | Loading... | FPS: 0 | Ping: 0ms"
+	WatermarkLabel.Parent = InnerFrame
+	
+	local UIPadding = Instance.new("UIPadding")
+	UIPadding.Name = generateRandomName()
+	UIPadding.PaddingRight = UDim.new(0, 8)
+	UIPadding.Parent = WatermarkLabel
+	
+	local gameName = "Unknown Game"
+	pcall(function()
+		local info = MarketplaceService:GetProductInfo(game.PlaceId)
+		if info and info.Name then
+			gameName = info.Name
+		end
+	end)
+	
+	local dragging, dragInput, dragStart, startPos
+	WatermarkOuter.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = WatermarkOuter.Position
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+				end
+			end)
+		end
+	end)
+	
+	WatermarkOuter.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+			dragInput = input
+		end
+	end)
+	
+	UserInputService.InputChanged:Connect(function(input)
+		if input == dragInput and dragging then
+			local delta = input.Position - dragStart
+			WatermarkOuter.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+		end
+	end)
+	
+	task.spawn(function()
+		while task.wait(0.5) do
+			pcall(function()
+				local fps = math.floor(1 / RunService.RenderStepped:Wait())
+				local ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
+				WatermarkLabel.Text = string.format("D3v1lHub | %s | FPS: %d | Ping: %dms", gameName, fps, ping)
+			end)
+		end
+	end)
+	
+	self.WatermarkOuter = WatermarkOuter
+	return WatermarkOuter
+end
+
+function WatermarkModule:Hide()
+	if self.WatermarkOuter then
+		self.WatermarkOuter.Visible = false
+	end
+end
+
+function WatermarkModule:Show()
+	if self.WatermarkOuter then
+		self.WatermarkOuter.Visible = true
+	end
+end
 local library = {
 	Version = "0.66",
 	WorkspaceName = "D3v1lHub Lib",
@@ -7376,6 +7600,28 @@ function library:CreateWindow(options, ...)
 			Flag = "__Designer.Background.UseBackgroundImage",
 			Value = true,
 			Callback = updatecolorsnotween
+		}}, {"AddToggle", "__Designer.Toggle.CursorToggle", backgroundsection, {
+			Name = "Custom Cursor",
+			Flag = "__Designer.Cursor.Enabled",
+			Value = false,
+			Callback = function(value)
+				if value then
+					CursorModule:Enable()
+				else
+					CursorModule:Disable()
+				end
+			end
+		}}, {"AddToggle", "__Designer.Toggle.WatermarkToggle", backgroundsection, {
+			Name = "Show Watermark",
+			Flag = "__Designer.Watermark.Enabled",
+			Value = true,
+			Callback = function(value)
+				if value then
+					WatermarkModule:Show()
+				else
+					WatermarkModule:Hide()
+				end
+			end
 		}}, {"AddPersistence", "__Designer.Persistence.ThemeFile", filessection, {
 			Name = "Theme Profile",
 			Flag = "__Designer.Files.ThemeFile",
