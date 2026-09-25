@@ -465,6 +465,7 @@ Library v0.36 [
 -- ============================================================
 local CursorModule = {}
 CursorModule.Toggled = false
+CursorModule.MenuFrame = nil -- wird gesetzt, sobald das Fenster (main) erstellt wurde
 
 function CursorModule:Enable()
 	local UserInputService = game:GetService("UserInputService")
@@ -493,7 +494,7 @@ function CursorModule:Enable()
 		
 		while self.Toggled do
 			-- ✅ NUR ZEIGEN WENN MENU OFFEN IST
-			local menuVisible = d3v1lLibrary and d3v1lLibrary.Visible
+			local menuVisible = CursorModule.MenuFrame and CursorModule.MenuFrame.Visible
 			
 			if menuVisible then
 				UserInputService.MouseIconEnabled = false
@@ -2269,6 +2270,7 @@ function library:CreateWindow(options, ...)
 	d3v1lLibrary.ResetOnSpawn = false
 	main.Name = "main"
 	main.Parent = d3v1lLibrary
+	CursorModule.MenuFrame = main -- damit CursorModule den echten Sichtbarkeits-Status des Menüs kennt
 	main.AnchorPoint = Vector2.new(0.5, 0.5)
 	main.BackgroundColor3 = library.colors.background
 	colored[1 + #colored] = {main, "BackgroundColor3", "background"}
