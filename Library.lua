@@ -491,6 +491,7 @@ function CursorModule:Enable()
 		
 		local tickStart = tick()
 		local State = UserInputService.MouseIconEnabled
+		local BehaviorState = UserInputService.MouseBehavior
 		
 		while self.Toggled do
 			-- ✅ NUR ZEIGEN WENN MENU OFFEN IST
@@ -498,6 +499,10 @@ function CursorModule:Enable()
 			
 			if menuVisible then
 				UserInputService.MouseIconEnabled = false
+				-- Menu offen → Maus entsperren, damit man frei über die UI bewegen kann
+				if UserInputService.MouseBehavior ~= Enum.MouseBehavior.Default then
+					UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+				end
 				local mPos = UserInputService:GetMouseLocation()
 				
 				local timePassed = (tick() - tickStart) * 2
@@ -519,8 +524,11 @@ function CursorModule:Enable()
 				Cursor.Visible = true
 				CursorOutline.Visible = true
 			else
-				-- Menu geschlossen → normaler Cursor
+				-- Menu geschlossen → normaler Cursor & ursprüngliches Mausverhalten (z.B. Kamera-Lock) wiederherstellen
 				UserInputService.MouseIconEnabled = State
+				if UserInputService.MouseBehavior ~= BehaviorState then
+					UserInputService.MouseBehavior = BehaviorState
+				end
 				Cursor.Visible = false
 				CursorOutline.Visible = false
 			end
@@ -529,6 +537,7 @@ function CursorModule:Enable()
 		end
 		
 		UserInputService.MouseIconEnabled = State
+		UserInputService.MouseBehavior = BehaviorState
 		Cursor:Remove()
 		CursorOutline:Remove()
 	end)
