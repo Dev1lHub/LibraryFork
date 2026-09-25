@@ -1544,7 +1544,7 @@ do
 				Title.TextColor3 = library.colors.elementText
 				colored[1 + #colored] = {Title, "TextColor3", "elementText"}
 				Title.TextSize = 15
-				Title.TextStrokeTransparency = 0.95
+				Title.TextStrokeTransparency = 0.50
 				Title.TextXAlignment = Enum.TextXAlignment.Left
 				Description.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 				Description.BackgroundTransparency = 1
@@ -1557,7 +1557,7 @@ do
 				Description.TextColor3 = library.colors.elementText
 				colored[1 + #colored] = {Description, "TextColor3", "elementText"}
 				Description.TextSize = 14
-				Description.TextStrokeTransparency = 0.95
+				Description.TextStrokeTransparency = 0.50
 				Description.TextTruncate = Enum.TextTruncate.AtEnd
 				Description.TextWrap = true
 				Description.TextWrapped = true
