@@ -739,6 +739,227 @@ function WatermarkModule:Show()
 		self.WatermarkOuter.Visible = true
 	end
 end
+
+-- ============================================================
+-- KEYBINDS LIST MODULE (listet automatisch alle vergebenen Keybinds auf, Look angelehnt an Linoria)
+-- ============================================================
+local KeybindsListModule = {}
+KeybindsListModule.Frame = nil
+KeybindsListModule.Container = nil
+KeybindsListModule.Entries = {}
+KeybindsListModule.MainColor = Color3.fromRGB(168, 85, 247)
+KeybindsListModule.IdleColor = Color3.fromRGB(200, 200, 210)
+
+function KeybindsListModule:Create()
+	if self.Frame then
+		return self.Frame
+	end
+	
+	local CoreGui = game:GetService("CoreGui")
+	local UserInputService = game:GetService("UserInputService")
+	
+	local syn = (typeof(getgenv) == "function" and getgenv().syn) or nil
+	local gethui = (typeof(gethui) == "function" and gethui) or nil
+	
+	local function generateRandomName()
+		local chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+		local name = ""
+		for i = 1, 10 do
+			local randIndex = math.random(1, #chars)
+			name = name .. string.sub(chars, randIndex, randIndex)
+		end
+		return name
+	end
+	
+	math.randomseed(tick())
+	
+	local ScreenGui = Instance.new("ScreenGui")
+	ScreenGui.Name = generateRandomName()
+	ScreenGui.IgnoreGuiInset = true
+	ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	
+	if syn and syn.protect_gui then
+		syn.protect_gui(ScreenGui)
+		ScreenGui.Parent = CoreGui
+	elseif gethui then
+		ScreenGui.Parent = gethui()
+	else
+		ScreenGui.Parent = CoreGui
+	end
+	
+	local TopGradColor = Color3.fromRGB(45, 35, 65)
+	local BottomGradColor = Color3.fromRGB(14, 11, 20)
+	local OutlineColor = Color3.fromRGB(35, 30, 45)
+	
+	local Outer = Instance.new("Frame")
+	Outer.Name = generateRandomName()
+	Outer.AnchorPoint = Vector2.new(0, 0.5)
+	Outer.BorderColor3 = Color3.new(0, 0, 0)
+	Outer.Position = UDim2.new(0, 10, 0.5, 0)
+	Outer.Size = UDim2.new(0, 180, 0, 20)
+	Outer.AutomaticSize = Enum.AutomaticSize.Y
+	Outer.ZIndex = 300
+	Outer.Visible = false
+	Outer.Parent = ScreenGui
+	
+	local Inner = Instance.new("Frame")
+	Inner.Name = generateRandomName()
+	Inner.BackgroundColor3 = BottomGradColor
+	Inner.BorderColor3 = OutlineColor
+	Inner.BorderMode = Enum.BorderMode.Inset
+	Inner.Size = UDim2.new(1, 0, 1, 0)
+	Inner.ZIndex = 301
+	Inner.Parent = Outer
+	
+	local ColorBar = Instance.new("Frame")
+	ColorBar.Name = generateRandomName()
+	ColorBar.BackgroundColor3 = self.MainColor
+	ColorBar.BorderSizePixel = 0
+	ColorBar.Size = UDim2.new(1, 0, 0, 2)
+	ColorBar.ZIndex = 302
+	ColorBar.Parent = Inner
+	
+	local Title = Instance.new("TextLabel")
+	Title.Name = generateRandomName()
+	Title.BackgroundTransparency = 1
+	Title.Position = UDim2.new(0, 6, 0, 3)
+	Title.Size = UDim2.new(1, -12, 0, 16)
+	Title.Font = Enum.Font.Code
+	Title.TextSize = 13
+	Title.TextColor3 = self.MainColor
+	Title.TextXAlignment = Enum.TextXAlignment.Left
+	Title.Text = "Keybinds"
+	Title.ZIndex = 302
+	Title.Parent = Inner
+	
+	local Container = Instance.new("Frame")
+	Container.Name = generateRandomName()
+	Container.BackgroundTransparency = 1
+	Container.Position = UDim2.new(0, 0, 0, 20)
+	Container.Size = UDim2.new(1, 0, 0, 0)
+	Container.AutomaticSize = Enum.AutomaticSize.Y
+	Container.ZIndex = 302
+	Container.Parent = Inner
+	
+	local ListLayout = Instance.new("UIListLayout")
+	ListLayout.FillDirection = Enum.FillDirection.Vertical
+	ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	ListLayout.Padding = UDim.new(0, 2)
+	ListLayout.Parent = Container
+	
+	local Padding = Instance.new("UIPadding")
+	Padding.PaddingLeft = UDim.new(0, 6)
+	Padding.PaddingBottom = UDim.new(0, 4)
+	Padding.Parent = Container
+	
+	-- Draggable (gleiches Muster wie beim Watermark)
+	local dragging, dragInput, dragStart, startPos
+	Outer.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = Outer.Position
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+				end
+			end)
+		end
+	end)
+	
+	Outer.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+			dragInput = input
+		end
+	end)
+	
+	UserInputService.InputChanged:Connect(function(input)
+		if input == dragInput and dragging then
+			local delta = input.Position - dragStart
+			Outer.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+		end
+	end)
+	
+	self.ScreenGui = ScreenGui
+	self.Frame = Outer
+	self.Container = Container
+	self.Entries = {}
+	
+	return Outer
+end
+
+function KeybindsListModule:Show()
+	if not self.Frame then
+		self:Create()
+	end
+	self.Frame.Visible = true
+end
+
+function KeybindsListModule:Hide()
+	if self.Frame then
+		self.Frame.Visible = false
+	end
+end
+
+-- Erstellt oder aktualisiert die Zeile für einen Keybind (id = eindeutiger Flag-Name)
+function KeybindsListModule:Upsert(id, name, keyText)
+	if not self.Frame then
+		self:Create()
+	end
+	
+	keyText = keyText or "NONE"
+	
+	local entry = self.Entries[id]
+	if not entry then
+		local Row = Instance.new("Frame")
+		Row.BackgroundTransparency = 1
+		Row.Size = UDim2.new(1, -6, 0, 16)
+		Row.ZIndex = 303
+		Row.LayoutOrder = (function()
+			local n = 0
+			for _ in pairs(self.Entries) do
+				n = n + 1
+			end
+			return n
+		end)()
+		Row.Parent = self.Container
+		
+		local Label = Instance.new("TextLabel")
+		Label.BackgroundTransparency = 1
+		Label.Size = UDim2.new(1, 0, 1, 0)
+		Label.Font = Enum.Font.Code
+		Label.TextSize = 13
+		Label.TextXAlignment = Enum.TextXAlignment.Left
+		Label.TextColor3 = self.IdleColor
+		Label.ZIndex = 304
+		Label.Parent = Row
+		
+		entry = {
+			Row = Row,
+			Label = Label,
+			Active = false
+		}
+		self.Entries[id] = entry
+	end
+	
+	entry.Name = name
+	entry.KeyText = keyText
+	entry.Label.Text = string.format("[%s] %s", tostring(keyText), tostring(name))
+	entry.Row.Visible = (keyText ~= nil and keyText ~= "NONE" and keyText ~= "")
+	entry.Label.TextColor3 = entry.Active and self.MainColor or self.IdleColor
+end
+
+-- Hebt den Eintrag farblich hervor, solange die zugehörige Funktion aktiv ist
+function KeybindsListModule:SetActive(id, active)
+	local entry = self.Entries[id]
+	if not entry then
+		return
+	end
+	
+	entry.Active = active and true or false
+	entry.Label.TextColor3 = entry.Active and self.MainColor or self.IdleColor
+end
+
 local library = {
 	Version = "0.66",
 	WorkspaceName = "D3v1lHub Lib",
@@ -2054,7 +2275,26 @@ do
 						end
 						continue
 					end
-					Noti.Object = ((Noti.Object and Noti.Object:Destroy()) and nil) or (Noti.Destroy() and nil) or (table.remove(Notifications, Index) and nil) or nil
+					table.remove(Notifications, Index)
+					if Noti.Object then
+						-- ✅ Beim automatischen Ablaufen ebenfalls smooth raustweenen statt hart zerstören
+						local ObjToKill = Noti.Object
+						Noti.Object = nil
+						Noti.Active = false
+						task.spawn(function()
+							pcall(function()
+								tweenService:Create(ObjToKill, TweenInfo.new(0.3, library.configuration.easingStyle, library.configuration.easingDirection), {
+									Size = UDim2.new(0, 0, 0, 32)
+								}):Play()
+								task.wait(0.3)
+							end)
+							if ObjToKill then
+								ObjToKill:Destroy()
+							end
+						end)
+					else
+						Noti.Destroy()
+					end
 				end
 			end
 		end)
@@ -2157,13 +2397,18 @@ do
 			Close.Position = UDim2.new(1, -6, 0.5, 0)
 			Close.ScaleType = Enum.ScaleType.Fit
 			Close.Size = UDim2.new(0, 10, 0, 10)
-			Notification.Size = UDim2.new(0, 64 + textToSize(Text).X, 0, 32)
+			local targetWidth = 64 + textToSize(Text).X
+			Notification.Size = UDim2.new(0, 0, 0, 32)
 			Notification.Parent = Popups
 			Notification.LayoutOrder = #Notification.Parent:GetChildren() * ((Inverse and 1) or -1)
 			if Popups.Parent then
 			else
 				Popups.Parent = MainScreenGui
 			end
+			-- ✅ Smoothes Rein-Tweenen (Breite wächst von 0 auf Zielgröße)
+			tweenService:Create(Notification, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
+				Size = UDim2.new(0, targetWidth, 0, 32)
+			}):Play()
 			NotificationObj.OnClose = Close.Activated
 			NotificationObj.InputBegan = Notification.InputBegan
 			NotificationObj.Destroying = Notification.Destroying
@@ -2176,7 +2421,9 @@ do
 				end
 				Str = ((Str == nil) and "No text given") or tostring(Str)
 				Text.Text, NotificationObj.Text = Str, Str
-				Notification.Size = UDim2.new(0, 44 + Text.TextBounds.X, 0, 32)
+				tweenService:Create(Notification, TweenInfo.new(0.3, library.configuration.easingStyle, library.configuration.easingDirection), {
+					Size = UDim2.new(0, 44 + Text.TextBounds.X, 0, 32)
+				}):Play()
 				return Str, Text
 			end
 			local function Pause(self, Set, NoForce)
@@ -2262,11 +2509,26 @@ do
 				Pause(false, true)
 			end)
 			local function Destroy()
-				if Notification then
-					Notification:Destroy()
+				if Notification and Notification.Parent then
+					NotificationObj.Active = false
+					local ObjToKill = Notification
+					NotificationObj.Object = nil
+					-- ✅ Smoothes Raus-Tweenen statt hartem Destroy
+					task.spawn(function()
+						pcall(function()
+							tweenService:Create(ObjToKill, TweenInfo.new(0.3, library.configuration.easingStyle, library.configuration.easingDirection), {
+								Size = UDim2.new(0, 0, 0, 32)
+							}):Play()
+							task.wait(0.3)
+						end)
+						if ObjToKill then
+							ObjToKill:Destroy()
+						end
+					end)
+				else
+					NotificationObj.Active = false
+					NotificationObj.Object = nil
 				end
-				NotificationObj.Active = false
-				NotificationObj.Object = nil
 			end
 			NotificationObj.Destroy = Destroy
 			Close.Activated:Connect(Destroy)
@@ -2796,6 +3058,7 @@ function library:CreateWindow(options, ...)
 				toggleHeadline.TextSize = 14
 				toggleHeadline.TextXAlignment = Enum.TextXAlignment.Left
 				local last_v = nil
+				local kbSyncFlag = nil -- wird gesetzt, falls dieser Toggle einen Keybind besitzt (für die Keybinds-Liste)
 				local function Set(t, newStatus)
 					if nil == newStatus and t ~= nil then
 						newStatus = t
@@ -2817,6 +3080,9 @@ function library:CreateWindow(options, ...)
 						library_flags[flagName] = newStatus
 						if options.Location then
 							options.Location[options.LocationFlag or flagName] = newStatus
+						end
+						if kbSyncFlag then
+							KeybindsListModule:SetActive(kbSyncFlag, newStatus)
 						end
 						if callback and (last_v ~= newStatus or options.AllowDuplicateCalls) then
 							colored_toggleInner_BackgroundColor3[3] = (newStatus and "main") or "topGradient"
@@ -2855,12 +3121,17 @@ function library:CreateWindow(options, ...)
 						warn(debug.traceback("Warning! Re-used flag '" .. kbflag .. "'", 3))
 					end
 					haskbflag = kbflag
+					kbSyncFlag = kbflag
 					library.keyHandler = keyHandler
 					local keyHandler = options.KeyNames or keyHandler
 					local bindedKey = presetKeybind
 					local justBinded = false
 					local keyName = keyHandler.allowedKeys[bindedKey] or (bindedKey and (bindedKey.Name or tostring(bindedKey):gsub("Enum.KeyCode.", ""))) or "NONE"
 					local newKeybind = newToggle
+					local function syncKbList()
+						local shownKey = keybindButton.Text:match("^%[(.-)%]$")
+						KeybindsListModule:Upsert(kbflag, toggleName, shownKey or "NONE")
+					end
 					keybindPositioner.Name = "keybindPositioner"
 					keybindPositioner.Parent = newKeybind
 					keybindPositioner.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -2883,13 +3154,14 @@ function library:CreateWindow(options, ...)
 					keybindButton.Selectable = false
 					keybindButton.Size = UDim2.fromOffset(46, 12)
 					keybindButton.Font = Enum.Font.Code
-					keybindButton.Text = keyName or (presetKeybind and tostring(presetKeybind):gsub("Enum.KeyCode.", "")) or "[NONE]"
+					keybindButton.Text = "[" .. (keyName or (presetKeybind and tostring(presetKeybind):gsub("Enum.KeyCode.", "")) or "NONE") .. "]"
 					keybindButton.TextColor3 = library.colors.otherElementText
 					local colored_keybindButton_TextColor3 = {keybindButton, "TextColor3", "otherElementText"}
 					colored[1 + #colored] = colored_keybindButton_TextColor3
 					keybindButton.TextSize = 14
 					keybindButton.TextXAlignment = Enum.TextXAlignment.Right
 					keybindButton.Size = UDim2.fromOffset(textToSize(keybindButton).X + 4, 12)
+					syncKbList()
 					local klast_v = bindedKey or presetKeybind
 					local function newkey()
 						if lockedup then
@@ -2923,6 +3195,7 @@ function library:CreateWindow(options, ...)
 										keyName = keyHandler.allowedKeys[bindedKey] or (bindedKey and (bindedKey.Name or tostring(bindedKey):gsub("Enum.KeyCode.", ""))) or "NONE"
 										keybindButton.Text = "[" .. (keyName or (bindedKey and bindedKey.Name) or "NONE") .. "]"
 										keybindButton.Size = UDim2.fromOffset(textToSize(keybindButton).X + 4, 12)
+										syncKbList()
 										justBinded = true
 										colored_keybindButton_TextColor3[3] = "otherElementText"
 										colored_keybindButton_TextColor3[4] = nil
@@ -2944,6 +3217,7 @@ function library:CreateWindow(options, ...)
 									keyName = keyHandler.allowedKeys[bindedKey]
 									keybindButton.Text = "[" .. (keyName or (bindedKey and bindedKey.Name) or tostring(bindedKey.KeyCode):gsub("Enum.KeyCode.", "")) .. "]"
 									keybindButton.Size = UDim2.fromOffset(textToSize(keybindButton).X + 4, 12)
+									syncKbList()
 									justBinded = true
 									colored_keybindButton_TextColor3[3] = "otherElementText"
 									colored_keybindButton_TextColor3[4] = nil
@@ -2961,6 +3235,7 @@ function library:CreateWindow(options, ...)
 								old_texts, bindedKey = "[NONE]", nil
 							end
 							keybindButton.Text = old_texts
+							syncKbList()
 							colored_keybindButton_TextColor3[3] = "otherElementText"
 							colored_keybindButton_TextColor3[4] = nil
 							tweenService:Create(keybindButton, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
@@ -3055,6 +3330,7 @@ function library:CreateWindow(options, ...)
 						keyName = (key == nil and "NONE") or keyHandler.allowedKeys[key]
 						keybindButton.Text = "[" .. (keyName or key.Name or tostring(key):gsub("Enum.KeyCode.", "")) .. "]"
 						keybindButton.Size = UDim2.fromOffset(textToSize(keybindButton).X + 4, 12)
+						syncKbList()
 						justBinded = true
 						colored_keybindButton_TextColor3[3] = "otherElementText"
 						colored_keybindButton_TextColor3[4] = nil
@@ -3082,6 +3358,7 @@ function library:CreateWindow(options, ...)
 						keyName = keyHandler.allowedKeys[bindedKey] or (bindedKey and (bindedKey.Name or tostring(bindedKey):gsub("Enum.KeyCode.", ""))) or "NONE"
 						keybindButton.Text = "[" .. (keyName or (key and key.Name) or tostring(key):gsub("Enum.KeyCode.", "")) .. "]"
 						keybindButton.Size = UDim2.fromOffset(textToSize(keybindButton).X + 4, 12)
+						syncKbList()
 						colored_keybindButton_TextColor3[3] = "otherElementText"
 						colored_keybindButton_TextColor3[4] = (lockedup and 2.5) or nil
 						tweenService:Create(keybindButton, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
@@ -3138,6 +3415,9 @@ function library:CreateWindow(options, ...)
 						if options.Location then
 							options.Location[options.LocationFlag or flagName] = newval
 						end
+						if kbSyncFlag then
+							KeybindsListModule:SetActive(kbSyncFlag, newval)
+						end
 						colored_toggleInner_BackgroundColor3[3] = (newval and "main") or "topGradient"
 						colored_toggleInner_BackgroundColor3[4] = (newval and 1.5) or nil
 						colored_toggleInner_ImageColor3[3] = (newval and "main") or "bottomGradient"
@@ -3181,6 +3461,9 @@ function library:CreateWindow(options, ...)
 						ImageColor3 = darkenColor(library.colors.main, 2.5)
 					}):Play()
 				end
+				if kbSyncFlag then
+					KeybindsListModule:SetActive(kbSyncFlag, library_flags[flagName] and true or false)
+				end
 				local function Update()
 					toggleName, callback = options.Name or toggleName, options.Callback
 					local boolstatus = library_flags[flagName]
@@ -3188,6 +3471,9 @@ function library:CreateWindow(options, ...)
 					colored_toggleInner_BackgroundColor3[4] = (boolstatus and 1.5) or nil
 					colored_toggleInner_ImageColor3[3] = (boolstatus and "main") or "bottomGradient"
 					colored_toggleInner_ImageColor3[4] = (boolstatus and 2.5) or nil
+					if kbSyncFlag then
+						KeybindsListModule:SetActive(kbSyncFlag, boolstatus and true or false)
+					end
 					if lockedup then
 						colored_toggleInner_BackgroundColor3[4] = 1 + (colored_toggleInner_BackgroundColor3[4] or 1)
 						colored_toggleInner_ImageColor3[4] = 1 + (colored_toggleInner_ImageColor3[4] or 1)
@@ -3963,13 +4249,18 @@ function library:CreateWindow(options, ...)
 				keybindButton.Selectable = false
 				keybindButton.Size = UDim2.fromOffset(46, 12)
 				keybindButton.Font = Enum.Font.Code
-				keybindButton.Text = (presetKeybind and tostring(presetKeybind):gsub("Enum.KeyCode.", "") or "[NONE]")
+				keybindButton.Text = "[" .. (presetKeybind and tostring(presetKeybind):gsub("Enum.KeyCode.", "") or "NONE") .. "]"
 				keybindButton.TextColor3 = library.colors.otherElementText
 				local colored_keybindButton_TextColor3 = {keybindButton, "TextColor3", "otherElementText"}
 				colored[1 + #colored] = colored_keybindButton_TextColor3
 				keybindButton.TextSize = 14
 				keybindButton.TextXAlignment = Enum.TextXAlignment.Right
 				keybindButton.Size = UDim2.fromOffset(textToSize(keybindButton).X + 4, 12)
+				local function syncKbList()
+					local shownKey = keybindButton.Text:match("^%[(.-)%]$")
+					KeybindsListModule:Upsert(flag, keybindName, shownKey or "NONE")
+				end
+				syncKbList()
 				sectionFunctions:Update()
 				local last_v = bindedKey or presetKeybind
 				local function newkey()
@@ -4003,6 +4294,7 @@ function library:CreateWindow(options, ...)
 									keyName = keyHandler.allowedKeys[bindedKey]
 									keybindButton.Text = "[" .. (keyName or bindedKey.Name or tostring(key.KeyCode):gsub("Enum.KeyCode.", "")) .. "]"
 									keybindButton.Size = UDim2.fromOffset(textToSize(keybindButton).X + 4, 12)
+									syncKbList()
 									justBinded = true
 									colored_keybindButton_TextColor3[3] = "otherElementText"
 									colored_keybindButton_TextColor3[4] = nil
@@ -4031,6 +4323,7 @@ function library:CreateWindow(options, ...)
 								keyName = keyHandler.allowedKeys[bindedKey]
 								keybindButton.Text = "[" .. (keyName or bindedKey.Name or tostring(key.KeyCode):gsub("Enum.KeyCode.", "")) .. "]"
 								keybindButton.Size = UDim2.fromOffset(textToSize(keybindButton).X + 4, 12)
+								syncKbList()
 								justBinded = true
 								colored_keybindButton_TextColor3[3] = "otherElementText"
 								colored_keybindButton_TextColor3[4] = nil
@@ -4055,6 +4348,7 @@ function library:CreateWindow(options, ...)
 							old_texts, bindedKey = "[NONE]", nil
 						end
 						keybindButton.Text = old_texts
+						syncKbList()
 						colored_keybindButton_TextColor3[3] = "otherElementText"
 						colored_keybindButton_TextColor3[4] = nil
 						tweenService:Create(keybindButton, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
@@ -4103,6 +4397,7 @@ function library:CreateWindow(options, ...)
 					keyName = (key == nil and "NONE") or keyHandler.allowedKeys[key]
 					keybindButton.Text = "[" .. (keyName or key.Name or tostring(key):gsub("Enum.KeyCode.", "")) .. "]"
 					keybindButton.Size = UDim2.fromOffset(textToSize(keybindButton).X + 4, 12)
+					syncKbList()
 					justBinded = true
 					colored_keybindButton_TextColor3[3] = "otherElementText"
 					colored_keybindButton_TextColor3[4] = nil
@@ -4129,6 +4424,7 @@ function library:CreateWindow(options, ...)
 					keyName = (key == nil and "NONE") or keyHandler.allowedKeys[key]
 					keybindButton.Text = "[" .. (keyName or key.Name or tostring(key):gsub("Enum.KeyCode.", "")) .. "]"
 					keybindButton.Size = UDim2.fromOffset(textToSize(keybindButton).X + 4, 12)
+					syncKbList()
 					colored_keybindButton_TextColor3[3] = "otherElementText"
 					colored_keybindButton_TextColor3[4] = nil
 					tweenService:Create(keybindButton, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
@@ -7690,6 +7986,21 @@ function library:CreateWindow(options, ...)
 					end
 				end
 			end
+		}}, {"AddToggle", "__Designer.Toggle.KeybindsListToggle", backgroundsection, {
+			Name = "Show Keybinds List",
+			Flag = "__Designer.KeybindsList.Enabled",
+			Value = true,
+			Callback = function(value)
+				if value then
+					pcall(function()
+						KeybindsListModule:Show()
+					end)
+				else
+					pcall(function()
+						KeybindsListModule:Hide()
+					end)
+				end
+			end
 		}}, {"AddPersistence", "__Designer.Persistence.ThemeFile", filessection, {
 			Name = "Theme Profile",
 			Flag = "__Designer.Files.ThemeFile",
@@ -7715,6 +8026,20 @@ function library:CreateWindow(options, ...)
 					pcall(function()
 						WatermarkModule.WatermarkOuter:Destroy()
 						WatermarkModule.WatermarkOuter = nil
+					end)
+				end
+				if KeybindsListModule and KeybindsListModule.ScreenGui then
+					pcall(function()
+						KeybindsListModule.ScreenGui:Destroy()
+						KeybindsListModule.Frame = nil
+						KeybindsListModule.ScreenGui = nil
+					end)
+				end
+				if NotifyModule and NotifyModule.ScreenGui then
+					pcall(function()
+						NotifyModule.ScreenGui:Destroy()
+						NotifyModule.NotifyArea = nil
+						NotifyModule.ScreenGui = nil
 					end)
 				end
 				library.unload()
