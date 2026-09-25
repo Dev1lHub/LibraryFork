@@ -1,14 +1,14 @@
 local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Dev1lHub/LibraryFork/refs/heads/main/Library.lua"))()
 local Wait = library.subs.Wait
 
-local PepsisWorld = library:CreateWindow({
+local D3v1lsWorld = library:CreateWindow({
     Name = "D3v1lHub",
     Themeable = {
         Info = "Discord Server: CODE"
     }
 })
 
-local GeneralTab = PepsisWorld:CreateTab({
+local GeneralTab = D3v1ls:CreateTab({
     Name = "General"
 })
 
