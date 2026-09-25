@@ -476,26 +476,26 @@ local library = {
 		easingStyle = Enum.EasingStyle.Quart,
 		easingDirection = Enum.EasingDirection.Out
 	},
-	colors = {
-		main = Color3.fromRGB(255, 39, 39),
-		background = Color3.fromRGB(40, 40, 40),
-		outerBorder = Color3.fromRGB(15, 15, 15),
-		innerBorder = Color3.fromRGB(73, 63, 73),
-		topGradient = Color3.fromRGB(35, 35, 35),
-		bottomGradient = Color3.fromRGB(29, 29, 29),
-		sectionBackground = Color3.fromRGB(35, 34, 34),
-		section = Color3.fromRGB(176, 175, 176),
-		otherElementText = Color3.fromRGB(129, 127, 129),
-		elementText = Color3.fromRGB(147, 145, 147),
-		elementBorder = Color3.fromRGB(20, 20, 20),
-		selectedOption = Color3.fromRGB(55, 55, 55),
-		unselectedOption = Color3.fromRGB(40, 40, 40),
-		hoveredOptionTop = Color3.fromRGB(65, 65, 65),
-		unhoveredOptionTop = Color3.fromRGB(50, 50, 50),
-		hoveredOptionBottom = Color3.fromRGB(45, 45, 45),
-		unhoveredOptionBottom = Color3.fromRGB(35, 35, 35),
-		tabText = Color3.fromRGB(185, 185, 185)
-	},
+colors = {
+        main = Color3.fromRGB(168, 85, 247),          -- Kräftiges Anime-Neon-Lila (Akzente)
+        background = Color3.fromRGB(18, 16, 24),        -- Sehr dunkles, leicht violettes Schwarz (Hintergrund)
+        outerBorder = Color3.fromRGB(10, 8, 15),        -- Tiefer, dunkler äußerer Rahmen
+        innerBorder = Color3.fromRGB(59, 43, 76),       -- Dezenter lila-grauer innerer Rahmen
+        topGradient = Color3.fromRGB(28, 24, 38),       -- Oberer Farbverlauf (dunkles Lila-Grau)
+        bottomGradient = Color3.fromRGB(20, 17, 27),    -- Unterer Farbverlauf
+        sectionBackground = Color3.fromRGB(24, 21, 33), -- Sektions-Hintergrund
+        section = Color3.fromRGB(216, 180, 254),        -- Helles Lavendel für Sektions-Titel
+        otherElementText = Color3.fromRGB(156, 145, 175),-- Gedimmter Text
+        elementText = Color3.fromRGB(230, 220, 245),    -- Haupttext (klar und gut lesbar)
+        elementBorder = Color3.fromRGB(12, 10, 18),     -- Element-Rahmen
+        selectedOption = Color3.fromRGB(50, 38, 70),    -- Ausgewählte Option (sattes Lila)
+        unselectedOption = Color3.fromRGB(24, 21, 33),  -- Nicht ausgewählte Option
+        hoveredOptionTop = Color3.fromRGB(70, 52, 98),  -- Hover-Effekt (helleres Lila, oben)
+        unhoveredOptionTop = Color3.fromRGB(38, 32, 52),-- Standard oben
+        hoveredOptionBottom = Color3.fromRGB(55, 40, 78),-- Hover-Effekt (unten)
+        unhoveredOptionBottom = Color3.fromRGB(28, 23, 38),-- Standard unten
+        tabText = Color3.fromRGB(200, 190, 220)       -- Tab-Textfarbe
+    },
 	gui_parent = (function()
 		local x, c = pcall(function()
 			return game:GetService("CoreGui")
