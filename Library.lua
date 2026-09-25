@@ -506,10 +506,17 @@ function CursorModule:Enable()
 			local menuVisible = (CursorModule.MenuFrame and CursorModule.MenuFrame.Visible) and true or false
 			
 			if menuVisible then
+				if not wasMenuVisible then
+					-- Menu wurde gerade geöffnet → aktuellen Mausstatus (inkl. Shiftlock) jetzt merken,
+					-- BEVOR wir ihn überschreiben, damit wir ihn beim Schließen korrekt wiederherstellen können
+					BehaviorState = UserInputService.MouseBehavior
+				end
+				
 				UserInputService.MouseIconEnabled = false
 				
-				if not wasMenuVisible then
-					-- Menu wurde gerade geöffnet → Maus einmalig entsperren
+				-- Jeden Frame erzwingen, da z.B. Shiftlock (Roblox's eigener MouseLockController)
+				-- MouseBehavior sonst ständig wieder auf LockCenter zurücksetzt
+				if UserInputService.MouseBehavior ~= Enum.MouseBehavior.Default then
 					UserInputService.MouseBehavior = Enum.MouseBehavior.Default
 				end
 				
@@ -537,8 +544,8 @@ function CursorModule:Enable()
 				UserInputService.MouseIconEnabled = State
 				
 				if wasMenuVisible then
-					-- Menu wurde gerade geschlossen → ursprüngliches Mausverhalten einmalig wiederherstellen
-					-- (danach NICHT mehr jeden Frame erzwingen, sonst kämpft es gegen die Kamera-Steuerung des Spiels)
+					-- Menu wurde gerade geschlossen → ursprüngliches Mausverhalten (z.B. Shiftlock/LockCenter) einmalig wiederherstellen
+					-- (danach NICHT mehr jeden Frame erzwingen, sonst kämpft es gegen die normale Kamera-/Shiftlock-Steuerung des Spiels)
 					UserInputService.MouseBehavior = BehaviorState
 				end
 				
