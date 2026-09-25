@@ -468,6 +468,10 @@ CursorModule.Toggled = false
 CursorModule.MenuFrame = nil -- wird gesetzt, sobald das Fenster (main) erstellt wurde
 
 function CursorModule:Enable()
+	if self.Toggled then
+		return -- läuft bereits, keinen zweiten Loop starten (sonst konkurrierende Zustände)
+	end
+	
 	local UserInputService = game:GetService("UserInputService")
 	local RunService = game:GetService("RunService")
 	local RenderStepped = RunService.RenderStepped
@@ -478,7 +482,10 @@ function CursorModule:Enable()
 		local success, Cursor = pcall(function() return Drawing.new('Triangle') end)
 		local success2, CursorOutline = pcall(function() return Drawing.new('Triangle') end)
 		
-		if not success or not success2 then return end
+		if not success or not success2 then
+			self.Toggled = false
+			return
+		end
 		
 		Cursor.Thickness = 1
 		Cursor.Filled = true
@@ -492,17 +499,20 @@ function CursorModule:Enable()
 		local tickStart = tick()
 		local State = UserInputService.MouseIconEnabled
 		local BehaviorState = UserInputService.MouseBehavior
+		local wasMenuVisible = false -- für Flanken-Erkennung (nur beim Wechsel etwas ändern)
 		
 		while self.Toggled do
 			-- ✅ NUR ZEIGEN WENN MENU OFFEN IST
-			local menuVisible = CursorModule.MenuFrame and CursorModule.MenuFrame.Visible
+			local menuVisible = (CursorModule.MenuFrame and CursorModule.MenuFrame.Visible) and true or false
 			
 			if menuVisible then
 				UserInputService.MouseIconEnabled = false
-				-- Menu offen → Maus entsperren, damit man frei über die UI bewegen kann
-				if UserInputService.MouseBehavior ~= Enum.MouseBehavior.Default then
+				
+				if not wasMenuVisible then
+					-- Menu wurde gerade geöffnet → Maus einmalig entsperren
 					UserInputService.MouseBehavior = Enum.MouseBehavior.Default
 				end
+				
 				local mPos = UserInputService:GetMouseLocation()
 				
 				local timePassed = (tick() - tickStart) * 2
@@ -524,15 +534,19 @@ function CursorModule:Enable()
 				Cursor.Visible = true
 				CursorOutline.Visible = true
 			else
-				-- Menu geschlossen → normaler Cursor & ursprüngliches Mausverhalten (z.B. Kamera-Lock) wiederherstellen
 				UserInputService.MouseIconEnabled = State
-				if UserInputService.MouseBehavior ~= BehaviorState then
+				
+				if wasMenuVisible then
+					-- Menu wurde gerade geschlossen → ursprüngliches Mausverhalten einmalig wiederherstellen
+					-- (danach NICHT mehr jeden Frame erzwingen, sonst kämpft es gegen die Kamera-Steuerung des Spiels)
 					UserInputService.MouseBehavior = BehaviorState
 				end
+				
 				Cursor.Visible = false
 				CursorOutline.Visible = false
 			end
 			
+			wasMenuVisible = menuVisible
 			RenderStepped:Wait()
 		end
 		
