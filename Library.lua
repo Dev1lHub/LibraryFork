@@ -492,24 +492,37 @@ function CursorModule:Enable()
 		local State = UserInputService.MouseIconEnabled
 		
 		while self.Toggled do
-			UserInputService.MouseIconEnabled = false
-			local mPos = UserInputService:GetMouseLocation()
+			-- ✅ NUR ZEIGEN WENN MENU OFFEN IST
+			local menuVisible = d3v1lLibrary and d3v1lLibrary.Visible
 			
-			local timePassed = (tick() - tickStart) * 2
-			local pulse = (math.sin(timePassed) + 1) / 2
-			
-			local colorLightLila = Color3.fromRGB(185, 110, 255)
-			local colorDarkLila = Color3.fromRGB(75, 20, 120)
-			
-			Cursor.Color = colorLightLila:Lerp(colorDarkLila, pulse)
-			
-			Cursor.PointA = Vector2.new(mPos.X, mPos.Y)
-			Cursor.PointB = Vector2.new(mPos.X + 16, mPos.Y + 6)
-			Cursor.PointC = Vector2.new(mPos.X + 6, mPos.Y + 16)
-			
-			CursorOutline.PointA = Cursor.PointA
-			CursorOutline.PointB = Cursor.PointB
-			CursorOutline.PointC = Cursor.PointC
+			if menuVisible then
+				UserInputService.MouseIconEnabled = false
+				local mPos = UserInputService:GetMouseLocation()
+				
+				local timePassed = (tick() - tickStart) * 2
+				local pulse = (math.sin(timePassed) + 1) / 2
+				
+				local colorLightLila = Color3.fromRGB(185, 110, 255)
+				local colorDarkLila = Color3.fromRGB(75, 20, 120)
+				
+				Cursor.Color = colorLightLila:Lerp(colorDarkLila, pulse)
+				
+				Cursor.PointA = Vector2.new(mPos.X, mPos.Y)
+				Cursor.PointB = Vector2.new(mPos.X + 16, mPos.Y + 6)
+				Cursor.PointC = Vector2.new(mPos.X + 6, mPos.Y + 16)
+				
+				CursorOutline.PointA = Cursor.PointA
+				CursorOutline.PointB = Cursor.PointB
+				CursorOutline.PointC = Cursor.PointC
+				
+				Cursor.Visible = true
+				CursorOutline.Visible = true
+			else
+				-- Menu geschlossen → normaler Cursor
+				UserInputService.MouseIconEnabled = State
+				Cursor.Visible = false
+				CursorOutline.Visible = false
+			end
 			
 			RenderStepped:Wait()
 		end
