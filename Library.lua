@@ -512,34 +512,43 @@ function CursorModule:Enable()
 					BehaviorState = UserInputService.MouseBehavior
 				end
 				
+				-- ✅ Rechtsklick gehalten → normale Roblox-Kamera-Drehung zulassen (nicht überschreiben)
+				local rightMouseHeld = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
 				UserInputService.MouseIconEnabled = false
 				
-				-- Jeden Frame erzwingen, da z.B. Shiftlock (Roblox's eigener MouseLockController)
-				-- MouseBehavior sonst ständig wieder auf LockCenter zurücksetzt
-				if UserInputService.MouseBehavior ~= Enum.MouseBehavior.Default then
-					UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+				if rightMouseHeld then
+					-- Während des Drehens: eigenen Cursor ausblenden und Roblox selbst
+					-- über MouseBehavior entscheiden lassen (üblicherweise LockCenter zum Drehen)
+					Cursor.Visible = false
+					CursorOutline.Visible = false
+				else
+					-- Jeden Frame erzwingen, da z.B. Shiftlock (Roblox's eigener MouseLockController)
+					-- MouseBehavior sonst ständig wieder auf LockCenter zurücksetzt
+					if UserInputService.MouseBehavior ~= Enum.MouseBehavior.Default then
+						UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+					end
+					
+					local mPos = UserInputService:GetMouseLocation()
+					
+					local timePassed = (tick() - tickStart) * 2
+					local pulse = (math.sin(timePassed) + 1) / 2
+					
+					local colorLightLila = Color3.fromRGB(185, 110, 255)
+					local colorDarkLila = Color3.fromRGB(75, 20, 120)
+					
+					Cursor.Color = colorLightLila:Lerp(colorDarkLila, pulse)
+					
+					Cursor.PointA = Vector2.new(mPos.X, mPos.Y)
+					Cursor.PointB = Vector2.new(mPos.X + 16, mPos.Y + 6)
+					Cursor.PointC = Vector2.new(mPos.X + 6, mPos.Y + 16)
+					
+					CursorOutline.PointA = Cursor.PointA
+					CursorOutline.PointB = Cursor.PointB
+					CursorOutline.PointC = Cursor.PointC
+					
+					Cursor.Visible = true
+					CursorOutline.Visible = true
 				end
-				
-				local mPos = UserInputService:GetMouseLocation()
-				
-				local timePassed = (tick() - tickStart) * 2
-				local pulse = (math.sin(timePassed) + 1) / 2
-				
-				local colorLightLila = Color3.fromRGB(185, 110, 255)
-				local colorDarkLila = Color3.fromRGB(75, 20, 120)
-				
-				Cursor.Color = colorLightLila:Lerp(colorDarkLila, pulse)
-				
-				Cursor.PointA = Vector2.new(mPos.X, mPos.Y)
-				Cursor.PointB = Vector2.new(mPos.X + 16, mPos.Y + 6)
-				Cursor.PointC = Vector2.new(mPos.X + 6, mPos.Y + 16)
-				
-				CursorOutline.PointA = Cursor.PointA
-				CursorOutline.PointB = Cursor.PointB
-				CursorOutline.PointC = Cursor.PointC
-				
-				Cursor.Visible = true
-				CursorOutline.Visible = true
 			else
 				UserInputService.MouseIconEnabled = State
 				
@@ -741,7 +750,7 @@ local library = {
 	subs = {},
 	colored = {},
 	configuration = {
-		hideKeybind = Enum.KeyCode.RightShift,
+		hideKeybind = Enum.KeyCode.LeftControl,
 		smoothDragging = false,
 		easingStyle = Enum.EasingStyle.Quart,
 		easingDirection = Enum.EasingDirection.Out
