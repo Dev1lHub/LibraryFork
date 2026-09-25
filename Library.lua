@@ -7605,7 +7605,7 @@ function library:CreateWindow(options, ...)
 		}}, {"AddToggle", "__Designer.Toggle.CursorToggle", backgroundsection, {
 			Name = "Custom Cursor",
 			Flag = "__Designer.Cursor.Enabled",
-			Value = false,
+			Value = true,
 			Callback = function(value)
 				if value then
 					CursorModule:Enable()
@@ -7616,7 +7616,7 @@ function library:CreateWindow(options, ...)
 		}}, {"AddToggle", "__Designer.Toggle.WatermarkToggle", backgroundsection, {
 			Name = "Show Watermark",
 			Flag = "__Designer.Watermark.Enabled",
-			Value = false,
+			Value = true,
 			Callback = function(value)
 				if value then
 					if not WatermarkModule.WatermarkOuter then
