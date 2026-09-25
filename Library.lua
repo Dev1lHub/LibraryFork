@@ -461,8 +461,8 @@ Library v0.36 [
 ]
 ]]
 local library = {
-	Version = "0.36",
-	WorkspaceName = "Pepsi Lib",
+	Version = "0.66",
+	WorkspaceName = "D3v1lHub Lib",
 	flags = {},
 	signals = {},
 	objects = {},
@@ -627,28 +627,28 @@ local function resolveid(image, flag)
 								end
 							end)
 							codename = string.sub(codename, 1, 24) .. tostring(fixes)
-							local fold = isfolder("./Pepsi Lib")
+							local fold = isfolder("./D3v1lHub Lib")
 							if fold then
 							else
-								makefolder("./Pepsi Lib")
+								makefolder("./D3v1lHub Lib")
 							end
-							fold = isfolder("./Pepsi Lib/Themes")
+							fold = isfolder("./D3v1lHub Lib/Themes")
 							if fold then
 							else
-								makefolder("./Pepsi Lib/Themes")
+								makefolder("./D3v1lHub Lib/Themes")
 							end
-							fold = isfolder("./Pepsi Lib/Themes/SynapseAssetsCache")
+							fold = isfolder("./D3v1lHub Lib/Themes/SynapseAssetsCache")
 							if fold then
 							else
-								makefolder("./Pepsi Lib Themes/SynapseAssetsCache")
+								makefolder("./D3v1lHub Lib/Themes/SynapseAssetsCache")
 							end
-							if not fold or not isfile("./Pepsi Lib/Themes/SynapseAssetsCache/" .. codename .. ".dat") then
+							if not fold or not isfile("./D3v1lHub Lib/Themes/SynapseAssetsCache/" .. codename .. ".dat") then
 								local res = game:HttpGet(string.sub(image, 15))
 								if res ~= nil then
-									writefile("./Pepsi Lib/Themes/SynapseAssetsCache/" .. codename .. ".dat", res)
+									writefile("./D3v1lHub Lib/Themes/SynapseAssetsCache/" .. codename .. ".dat", res)
 								end
 							end
-							return getsynasset(readfile("./Pepsi Lib/Themes/SynapseAssetsCache/" .. codename .. ".dat"))
+							return getsynasset(readfile("./D3v1lHub Lib/Themes/SynapseAssetsCache/" .. codename .. ".dat"))
 						end)
 						if x and e ~= nil then
 							return e
@@ -2002,11 +2002,11 @@ function library:CreateWindow(options, ...)
 	local windowoptions = options
 	local windowName = options.Name or "Unnamed Window"
 	options.Name = windowName
-	if windowName and #windowName > 0 and library.WorkspaceName == "Pepsi Lib" then
-		library.WorkspaceName = convertfilename(windowName, "Pepsi Lib")
+	if windowName and #windowName > 0 and library.WorkspaceName == "D3v1lHub Lib" then
+		library.WorkspaceName = convertfilename(windowName, "D3v1lHub Lib")
 	end
-	local pepsiLibrary = Instance_new("ScreenGui")
-	library.MainScreenGui, MainScreenGui = pepsiLibrary, pepsiLibrary
+	local d3v1lLibrary = Instance_new("ScreenGui")
+	library.MainScreenGui, MainScreenGui = d3v1lLibrary, d3v1lLibrary
 	local main = Instance_new("Frame")
 	local mainBorder = Instance_new("Frame")
 	local tabSlider = Instance_new("Frame")
@@ -2023,13 +2023,13 @@ function library:CreateWindow(options, ...)
 	library.globals["__Window" .. options.Name] = {
 		submenuOpen = submenuOpen
 	}
-	pepsiLibrary.Name = "     "
-	pepsiLibrary.Parent = library.gui_parent
-	pepsiLibrary.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	pepsiLibrary.DisplayOrder = 10
-	pepsiLibrary.ResetOnSpawn = false
+	d3v1lLibrary.Name = "     "
+	d3v1lLibrary.Parent = library.gui_parent
+	d3v1lLibrary.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	d3v1lLibrary.DisplayOrder = 10
+	d3v1lLibrary.ResetOnSpawn = false
 	main.Name = "main"
-	main.Parent = pepsiLibrary
+	main.Parent = d3v1lLibrary
 	main.AnchorPoint = Vector2.new(0.5, 0.5)
 	main.BackgroundColor3 = library.colors.background
 	colored[1 + #colored] = {main, "BackgroundColor3", "background"}
@@ -2187,7 +2187,7 @@ function library:CreateWindow(options, ...)
 	windowFunctions.LastTab = nil
 	function windowFunctions:CreateTab(options, ...)
 		options = (options and (type(options) == "string") and resolvevararg("Tab", options, ...)) or options or {
-			Name = "Pepsi Style: Elite Lego Hax"
+			Name = "D3v1lHub Style: Elite Lego Hax"
 		}
 		local image = options.Image
 		if image then
@@ -5157,14 +5157,14 @@ function library:CreateWindow(options, ...)
 					local realDropdownHolder = Instance_new("ScrollingFrame")
 					local realDropdownHolderList = Instance_new("UIListLayout")
 					local dropdownEnabled = false
-					if not isfolder("./Pepsi Lib") then
-						makefolder("./Pepsi Lib")
+					if not isfolder("./D3v1lHub Lib") then
+						makefolder("./D3v1lHub Lib")
 					end
-					local common_string = "./Pepsi Lib/" .. tostring(custom_workspace or library.WorkspaceName)
+					local common_string = "./D3v1lHub Lib/" .. tostring(custom_workspace or library.WorkspaceName)
 					local function resolvelist(nofold)
 						if custom_workspace ~= options.Workspace then
 							custom_workspace = options.Workspace
-							common_string = "./Pepsi Lib/" .. tostring(custom_workspace or library.WorkspaceName)
+							common_string = "./D3v1lHub Lib/" .. tostring(custom_workspace or library.WorkspaceName)
 						end
 						if not isfolder or not makefolder or not listfiles then
 							return {}
@@ -7379,7 +7379,7 @@ function library:CreateWindow(options, ...)
 		}}, {"AddPersistence", "__Designer.Persistence.ThemeFile", filessection, {
 			Name = "Theme Profile",
 			Flag = "__Designer.Files.ThemeFile",
-			Workspace = "Pepsi Lib Themes",
+			Workspace = "D3v1lHub Lib Themes",
 			Flags = flags,
 			Suffix = "Theme",
 			Desginer = true
@@ -7473,7 +7473,7 @@ function library:CreateWindow(options, ...)
 		end
 		if options.Credit ~= false then
 			daaata[1 + #daaata] = {"AddLabel", "__Designer.Label.Creator", detailssection, {
-				Text = "Library by Pepsi#5229 "
+				Text = "Library by d3v1lhub2222 "
 			}}
 		elseif "Gee, thanks for your support." then
 		end
