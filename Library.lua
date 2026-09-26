@@ -2789,7 +2789,7 @@ function library:CreateWindow(options, ...)
 	main.BorderSizePixel = 0
 	main.ClipsDescendants = true -- verhindert, dass Inhalte über die abgerundeten Ecken hinausragen
 	main.Position = UDim2.fromScale(0.5, 0.5)
-	main.Size = UDim2.fromOffset(470, 571) -- schmaler, da an den Rändern zu viel ungenutzter Platz war
+	main.Size = UDim2.fromOffset(450, 550) -- nochmal etwas kompakter (Breite und Höhe)
 	addCorner(main, 8)
 	do
 		local mainStroke = Instance_new("UIStroke")
@@ -3294,7 +3294,7 @@ function library:CreateWindow(options, ...)
 		leftList.Parent = left
 		leftList.HorizontalAlignment = Enum.HorizontalAlignment.Center
 		leftList.SortOrder = Enum.SortOrder.LayoutOrder
-		leftList.Padding = UDim:new(14)
+		leftList.Padding = UDim:new(8) -- kleinerer Abstand zwischen den Groupboxes untereinander
 		leftPadding.Name = generateRandomName()
 		leftPadding.Parent = left
 		leftPadding.PaddingTop = UDim:new(12)
@@ -3310,7 +3310,7 @@ function library:CreateWindow(options, ...)
 		rightList.Parent = right
 		rightList.HorizontalAlignment = Enum.HorizontalAlignment.Center
 		rightList.SortOrder = Enum.SortOrder.LayoutOrder
-		rightList.Padding = UDim:new(14)
+		rightList.Padding = UDim:new(8) -- kleinerer Abstand zwischen den Groupboxes untereinander
 		rightPadding.Name = generateRandomName()
 		rightPadding.Parent = right
 		rightPadding.PaddingTop = UDim:new(12)
