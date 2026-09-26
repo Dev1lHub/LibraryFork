@@ -2725,6 +2725,13 @@ function library:CreateWindow(options, ...)
 	local tabHolderPadding = Instance_new("UIPadding")
 	local headline = Instance_new("TextLabel")
 	local splitter = Instance_new("TextLabel")
+	local titleBar = Instance_new("ImageLabel")
+	local titleBarList = Instance_new("UIListLayout")
+	local titleBarPadding = Instance_new("UIPadding")
+	local unloadButton = Instance_new("TextButton")
+	local gameNameLabel = Instance_new("TextLabel")
+	local splitter2 = Instance_new("TextLabel")
+	local execNameLabel = Instance_new("TextLabel")
 	local submenuOpen = nil
 	library.globals["__Window" .. options.Name] = {
 		submenuOpen = submenuOpen
@@ -2742,7 +2749,7 @@ function library:CreateWindow(options, ...)
 	colored[1 + #colored] = {main, "BackgroundColor3", "background"}
 	main.BorderSizePixel = 0
 	main.Position = UDim2.fromScale(0.5, 0.5)
-	main.Size = UDim2.fromOffset(500, 545)
+	main.Size = UDim2.fromOffset(500, 571)
 	addCorner(main, 8)
 	do
 		local mainStroke = Instance_new("UIStroke")
@@ -2812,8 +2819,8 @@ function library:CreateWindow(options, ...)
 	innerMainHolder.Parent = innerMain
 	innerMainHolder.BackgroundColor3 = Color3.new(1, 1, 1)
 	innerMainHolder.BackgroundTransparency = 1
-	innerMainHolder.Position = UDim2:fromOffset(25)
-	innerMainHolder.Size = UDim2.new(1, 0, 1, -25)
+	innerMainHolder.Position = UDim2.new(0, 25, 0, 50)
+	innerMainHolder.Size = UDim2.new(1, 0, 1, -50)
 	innerBackdrop.Name = generateRandomName()
 	innerBackdrop.Parent = innerMainHolder
 	innerBackdrop.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -2825,12 +2832,173 @@ function library:CreateWindow(options, ...)
 	innerBackdrop.ImageTransparency = (library_flags["__Designer.Background.ImageTransparency"] or 95) / 100
 	innerBackdrop.Image = resolveid(library_flags["__Designer.Background.ImageAssetID"], "__Designer.Background.ImageAssetID") or ""
 	library.Backdrop = innerBackdrop
+	-- Einheitliche Unload-Logik (wird von der Top-Bar UND vom Designer "Terminate GUI"-Button genutzt)
+	local function terminateGui()
+		if CursorModule then
+			CursorModule:Disable()
+			CursorModule.Toggled = false
+		end
+		if WatermarkModule and WatermarkModule.WatermarkOuter then
+			pcall(function()
+				WatermarkModule.WatermarkOuter:Destroy()
+				WatermarkModule.WatermarkOuter = nil
+			end)
+		end
+		if KeybindsListModule and KeybindsListModule.ScreenGui then
+			pcall(function()
+				KeybindsListModule.ScreenGui:Destroy()
+				KeybindsListModule.Frame = nil
+				KeybindsListModule.ScreenGui = nil
+			end)
+		end
+		library.unload()
+	end
+	-- Neue obere Leiste: Unload-Button | D3v1lHub | Spiel | Executor -------- Search
+	local MarketplaceService = game:GetService("MarketplaceService")
+	local currentGameName = "Unknown Game"
+	pcall(function()
+		local info = MarketplaceService:GetProductInfo(game.PlaceId)
+		if info and info.Name then
+			currentGameName = info.Name
+		end
+	end)
+	local currentExecName = "Unknown"
+	pcall(function()
+		if typeof(identifyexecutor) == "function" then
+			local n = identifyexecutor()
+			if n then
+				currentExecName = tostring(n)
+			end
+		elseif typeof(getexecutorname) == "function" then
+			local n = getexecutorname()
+			if n then
+				currentExecName = tostring(n)
+			end
+		elseif typeof(getgenv) == "function" and getgenv().syn then
+			currentExecName = "Synapse"
+		end
+	end)
+	titleBar.Name = generateRandomName()
+	titleBar.Parent = innerMain
+	titleBar.BackgroundColor3 = library.colors.topGradient
+	colored[1 + #colored] = {titleBar, "BackgroundColor3", "topGradient"}
+	titleBar.BorderSizePixel = 0
+	titleBar.Position = UDim2.fromOffset(1, 1)
+	titleBar.Size = UDim2.new(1, -2, 0, 23)
+	titleBar.Image = "rbxassetid://2454009026"
+	addCorner(titleBar, 6)
+	titleBar.ImageColor3 = library.colors.bottomGradient
+	colored[1 + #colored] = {titleBar, "ImageColor3", "bottomGradient"}
+	titleBarList.Name = generateRandomName()
+	titleBarList.Parent = titleBar
+	titleBarList.FillDirection = Enum.FillDirection.Horizontal
+	titleBarList.SortOrder = Enum.SortOrder.LayoutOrder
+	titleBarList.VerticalAlignment = Enum.VerticalAlignment.Center
+	titleBarList.Padding = UDim:new(5)
+	titleBarPadding.Name = generateRandomName()
+	titleBarPadding.Parent = titleBar
+	titleBarPadding.PaddingLeft = UDim:new(6)
+	unloadButton.Name = generateRandomName()
+	unloadButton.Parent = titleBar
+	unloadButton.LayoutOrder = 1
+	unloadButton.BackgroundColor3 = library.colors.topGradient
+	colored[1 + #colored] = {unloadButton, "BackgroundColor3", "topGradient"}
+	unloadButton.BorderSizePixel = 0
+	unloadButton.Size = UDim2.fromOffset(16, 16)
+	addCorner(unloadButton, 3)
+	do
+		local unloadButtonStroke = Instance_new("UIStroke")
+		unloadButtonStroke.Name = generateRandomName()
+		unloadButtonStroke.Parent = unloadButton
+		unloadButtonStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		unloadButtonStroke.Thickness = 1
+		unloadButtonStroke.Color = library.colors.elementBorder
+		colored[1 + #colored] = {unloadButtonStroke, "Color", "elementBorder"}
+	end
+	unloadButton.Font = Enum.Font.Code
+	unloadButton.Text = "-"
+	unloadButton.TextColor3 = library.colors.main
+	colored[1 + #colored] = {unloadButton, "TextColor3", "main"}
+	unloadButton.TextSize = 14
+	library.signals[1 + #library.signals] = unloadButton.MouseButton1Click:Connect(function()
+		pcall(terminateGui)
+	end)
+	headline.Name = generateRandomName()
+	headline.Parent = titleBar
+	headline.BackgroundColor3 = Color3.new(1, 1, 1)
+	headline.BackgroundTransparency = 1
+	headline.LayoutOrder = 2
+	headline.Font = Enum.Font.Code
+	headline.Text = (windowName and tostring(windowName)) or "???"
+	headline.TextColor3 = library.colors.main
+	colored[1 + #colored] = {headline, "TextColor3", "main"}
+	headline.TextSize = 14
+	headline.TextStrokeColor3 = library.colors.outerBorder
+	colored[1 + #colored] = {headline, "TextStrokeColor3", "outerBorder"}
+	headline.TextStrokeTransparency = 0.75
+	headline.Size = UDim2:new(textToSize(headline).X + 4, 1)
+	splitter.Name = generateRandomName()
+	splitter.Parent = titleBar
+	splitter.BackgroundColor3 = Color3.new(1, 1, 1)
+	splitter.BackgroundTransparency = 1
+	splitter.LayoutOrder = 3
+	splitter.Size = UDim2:new(6, 1)
+	splitter.Font = Enum.Font.Code
+	splitter.Text = "|"
+	splitter.TextColor3 = library.colors.tabText
+	colored[1 + #colored] = {splitter, "TextColor3", "tabText"}
+	splitter.TextSize = 14
+	splitter.TextStrokeColor3 = library.colors.tabText
+	colored[1 + #colored] = {splitter, "TextStrokeColor3", "tabText"}
+	splitter.TextStrokeTransparency = 0.75
+	gameNameLabel.Name = generateRandomName()
+	gameNameLabel.Parent = titleBar
+	gameNameLabel.BackgroundColor3 = Color3.new(1, 1, 1)
+	gameNameLabel.BackgroundTransparency = 1
+	gameNameLabel.LayoutOrder = 4
+	gameNameLabel.Font = Enum.Font.Code
+	gameNameLabel.Text = currentGameName
+	gameNameLabel.TextColor3 = library.colors.otherElementText
+	colored[1 + #colored] = {gameNameLabel, "TextColor3", "otherElementText"}
+	gameNameLabel.TextSize = 14
+	gameNameLabel.TextStrokeColor3 = library.colors.outerBorder
+	colored[1 + #colored] = {gameNameLabel, "TextStrokeColor3", "outerBorder"}
+	gameNameLabel.TextStrokeTransparency = 0.75
+	gameNameLabel.Size = UDim2:new(textToSize(gameNameLabel).X + 4, 1)
+	splitter2.Name = generateRandomName()
+	splitter2.Parent = titleBar
+	splitter2.BackgroundColor3 = Color3.new(1, 1, 1)
+	splitter2.BackgroundTransparency = 1
+	splitter2.LayoutOrder = 5
+	splitter2.Size = UDim2:new(6, 1)
+	splitter2.Font = Enum.Font.Code
+	splitter2.Text = "|"
+	splitter2.TextColor3 = library.colors.tabText
+	colored[1 + #colored] = {splitter2, "TextColor3", "tabText"}
+	splitter2.TextSize = 14
+	splitter2.TextStrokeColor3 = library.colors.tabText
+	colored[1 + #colored] = {splitter2, "TextStrokeColor3", "tabText"}
+	splitter2.TextStrokeTransparency = 0.75
+	execNameLabel.Name = generateRandomName()
+	execNameLabel.Parent = titleBar
+	execNameLabel.BackgroundColor3 = Color3.new(1, 1, 1)
+	execNameLabel.BackgroundTransparency = 1
+	execNameLabel.LayoutOrder = 6
+	execNameLabel.Font = Enum.Font.Code
+	execNameLabel.Text = currentExecName
+	execNameLabel.TextColor3 = library.colors.otherElementText
+	colored[1 + #colored] = {execNameLabel, "TextColor3", "otherElementText"}
+	execNameLabel.TextSize = 14
+	execNameLabel.TextStrokeColor3 = library.colors.outerBorder
+	colored[1 + #colored] = {execNameLabel, "TextStrokeColor3", "outerBorder"}
+	execNameLabel.TextStrokeTransparency = 0.75
+	execNameLabel.Size = UDim2:new(textToSize(execNameLabel).X + 4, 1)
 	tabsHolder.Name = generateRandomName()
 	tabsHolder.Parent = innerMain
 	tabsHolder.BackgroundColor3 = library.colors.topGradient
 	colored[1 + #colored] = {tabsHolder, "BackgroundColor3", "topGradient"}
 	tabsHolder.BorderSizePixel = 0
-	tabsHolder.Position = UDim2.fromOffset(1, 1)
+	tabsHolder.Position = UDim2.fromOffset(1, 26)
 	tabsHolder.Size = UDim2.new(1, -2, 0, 23)
 	tabsHolder.Image = "rbxassetid://2454009026"
 	addCorner(tabsHolder, 6)
@@ -2845,42 +3013,14 @@ function library:CreateWindow(options, ...)
 	tabHolderPadding.Name = generateRandomName()
 	tabHolderPadding.Parent = tabsHolder
 	tabHolderPadding.PaddingLeft = UDim:new(7)
-	headline.Name = generateRandomName()
-	headline.Parent = tabsHolder
-	headline.BackgroundColor3 = Color3.new(1, 1, 1)
-	headline.BackgroundTransparency = 1
-	headline.LayoutOrder = 1
-	headline.Font = Enum.Font.Code
-	headline.Text = (windowName and tostring(windowName)) or "???"
-	headline.TextColor3 = library.colors.main
-	colored[1 + #colored] = {headline, "TextColor3", "main"}
-	headline.TextSize = 14
-	headline.TextStrokeColor3 = library.colors.outerBorder
-	colored[1 + #colored] = {headline, "TextStrokeColor3", "outerBorder"}
-	headline.TextStrokeTransparency = 0.75
-	headline.Size = UDim2:new(textToSize(headline).X + 4, 1)
-	splitter.Name = generateRandomName()
-	splitter.Parent = tabsHolder
-	splitter.BackgroundColor3 = Color3.new(1, 1, 1)
-	splitter.BackgroundTransparency = 1
-	splitter.LayoutOrder = 2
-	splitter.Size = UDim2:new(6, 1)
-	splitter.Font = Enum.Font.Code
-	splitter.Text = "|"
-	splitter.TextColor3 = library.colors.tabText
-	colored[1 + #colored] = {splitter, "TextColor3", "tabText"}
-	splitter.TextSize = 14
-	splitter.TextStrokeColor3 = library.colors.tabText
-	colored[1 + #colored] = {splitter, "TextStrokeColor3", "tabText"}
-	splitter.TextStrokeTransparency = 0.75
-	-- Search-Box oben rechts in der Tableiste (sucht Toggles/Features live)
+	-- Search-Box jetzt ganz rechts in der NEUEN oberen Leiste (nicht mehr unten bei den Tabs)
 	local searchBoxHolder = Instance_new("ImageLabel")
 	local searchBoxInner = Instance_new("ImageLabel")
 	local searchBoxInput = Instance_new("TextBox")
 	searchBoxHolder.Name = generateRandomName()
-	searchBoxHolder.Parent = innerMain
+	searchBoxHolder.Parent = titleBar
 	searchBoxHolder.Active = true
-	searchBoxHolder.AnchorPoint = Vector2.new(1, 0)
+	searchBoxHolder.AnchorPoint = Vector2.new(1, 0.5)
 	searchBoxHolder.BackgroundColor3 = library.colors.topGradient
 	colored[1 + #colored] = {searchBoxHolder, "BackgroundColor3", "topGradient"}
 	searchBoxHolder.BorderSizePixel = 0
@@ -2893,7 +3033,7 @@ function library:CreateWindow(options, ...)
 		searchBoxHolderStroke.Color = library.colors.elementBorder
 		colored[1 + #colored] = {searchBoxHolderStroke, "Color", "elementBorder"}
 	end
-	searchBoxHolder.Position = UDim2.new(1, -3, 0, 3)
+	searchBoxHolder.Position = UDim2.new(1, -6, 0.5, 0)
 	searchBoxHolder.Selectable = true
 	searchBoxHolder.Size = UDim2.fromOffset(110, 17)
 	searchBoxHolder.ZIndex = 5
@@ -8663,31 +8803,7 @@ function library:CreateWindow(options, ...)
 		}}, {"AddPersistence", "__Designer.Persistence.WorkspaceProfile", filessection, persistoptions}, {"AddButton", "__Designer.Button.TerminateGUI", settingssection, {{
 			Name = "Terminate GUI",
 			Callback = function()
-				if CursorModule then
-					CursorModule:Disable()
-					CursorModule.Toggled = false
-				end
-				if WatermarkModule and WatermarkModule.WatermarkOuter then
-					pcall(function()
-						WatermarkModule.WatermarkOuter:Destroy()
-						WatermarkModule.WatermarkOuter = nil
-					end)
-				end
-				if KeybindsListModule and KeybindsListModule.ScreenGui then
-					pcall(function()
-						KeybindsListModule.ScreenGui:Destroy()
-						KeybindsListModule.Frame = nil
-						KeybindsListModule.ScreenGui = nil
-					end)
-				end
-				if NotifyModule and NotifyModule.ScreenGui then
-					pcall(function()
-						NotifyModule.ScreenGui:Destroy()
-						NotifyModule.NotifyArea = nil
-						NotifyModule.ScreenGui = nil
-					end)
-				end
-				library.unload()
+				pcall(terminateGui)
 			end
 		}, {
 			Name = "Reset GUI",
