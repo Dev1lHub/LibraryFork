@@ -2822,7 +2822,7 @@ function library:CreateWindow(options, ...)
 	innerMainHolder.BackgroundColor3 = Color3.new(1, 1, 1)
 	innerMainHolder.BackgroundTransparency = 1
 	innerMainHolder.Position = UDim2.new(0, 25, 0, 50)
-	innerMainHolder.Size = UDim2.new(1, -25, 1, -50) -- Breite muss um den linken Versatz (25) verkleinert werden, sonst ragt der Inhalt rechts raus
+	innerMainHolder.Size = UDim2.new(1, -50, 1, -50) -- gleicher Abstand (25px) links UND rechts für echte Symmetrie
 	innerBackdrop.Name = generateRandomName()
 	innerBackdrop.Parent = innerMainHolder
 	innerBackdrop.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -3594,8 +3594,8 @@ function library:CreateWindow(options, ...)
 					keybindPositioner.Parent = newKeybind
 					keybindPositioner.BackgroundColor3 = Color3.new(1, 1, 1)
 					keybindPositioner.BackgroundTransparency = 1
-					keybindPositioner.Position = UDim2.new(0.00448430516)
-					keybindPositioner.Size = UDim2.fromOffset(214, 19)
+					keybindPositioner.Position = UDim2.new(0, 2, 0, 0)
+					keybindPositioner.Size = UDim2.new(1, -4, 0, 19) -- relativ statt fest 214px, sonst ragt der Keybind-Button in schmalen (2-spaltigen) Groupboxen raus
 					keybindPositioner.ZIndex = 1 + toggleButton.ZIndex
 					keybindList.Name = generateRandomName()
 					keybindList.Parent = keybindPositioner
@@ -4734,8 +4734,8 @@ function library:CreateWindow(options, ...)
 				keybindPositioner.Parent = newKeybind
 				keybindPositioner.BackgroundColor3 = Color3.new(1, 1, 1)
 				keybindPositioner.BackgroundTransparency = 1
-				keybindPositioner.Position = UDim2.new(0.00448430516)
-				keybindPositioner.Size = UDim2.fromOffset(214, 19)
+				keybindPositioner.Position = UDim2.new(0, 2, 0, 0)
+				keybindPositioner.Size = UDim2.new(1, -4, 0, 19) -- relativ statt fest 214px, sonst ragt der Keybind-Button in schmalen (2-spaltigen) Groupboxen raus
 				keybindList.Name = generateRandomName()
 				keybindList.Parent = keybindPositioner
 				keybindList.FillDirection = Enum.FillDirection.Horizontal
