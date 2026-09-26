@@ -3018,9 +3018,9 @@ function library:CreateWindow(options, ...)
 	local searchBoxInner = Instance_new("ImageLabel")
 	local searchBoxInput = Instance_new("TextBox")
 	searchBoxHolder.Name = generateRandomName()
-	searchBoxHolder.Parent = titleBar
+	searchBoxHolder.Parent = innerMain -- NICHT titleBar! Sonst reißt dessen UIListLayout die Box mit in den Flow (Bug: landete ganz links)
 	searchBoxHolder.Active = true
-	searchBoxHolder.AnchorPoint = Vector2.new(1, 0.5)
+	searchBoxHolder.AnchorPoint = Vector2.new(1, 0)
 	searchBoxHolder.BackgroundColor3 = library.colors.topGradient
 	colored[1 + #colored] = {searchBoxHolder, "BackgroundColor3", "topGradient"}
 	searchBoxHolder.BorderSizePixel = 0
@@ -3033,7 +3033,7 @@ function library:CreateWindow(options, ...)
 		searchBoxHolderStroke.Color = library.colors.elementBorder
 		colored[1 + #colored] = {searchBoxHolderStroke, "Color", "elementBorder"}
 	end
-	searchBoxHolder.Position = UDim2.new(1, -6, 0.5, 0)
+	searchBoxHolder.Position = UDim2.new(1, -4, 0, 3) -- oben rechts, mittig in der titleBar-Zeile (die bei y=1..24 liegt)
 	searchBoxHolder.Selectable = true
 	searchBoxHolder.Size = UDim2.fromOffset(110, 17)
 	searchBoxHolder.ZIndex = 5
@@ -3226,9 +3226,13 @@ function library:CreateWindow(options, ...)
 		end
 		library.signals[1 + #library.signals] = newTab.MouseButton1Click:Connect(goto)
 		if windowFunctions.tabCount == 1 then
-			tabSlider.Size = UDim2.fromOffset(newTab.AbsoluteSize.X, 1)
-			tabSlider.Position = UDim2.fromOffset(newTab.AbsolutePosition.X, newTab.AbsolutePosition.Y + newTab.AbsoluteSize.Y) - UDim2.fromOffset(main.AbsolutePosition.X, main.AbsolutePosition.Y)
-			tabSlider.Visible = true
+			-- Direkt nach dem Parenten sind AbsolutePosition/AbsoluteSize teils noch nicht final
+			-- (Layout braucht einen Frame) -> Slider würde falsch/verschoben landen. Daher 1 Frame warten.
+			task.defer(function()
+				tabSlider.Size = UDim2.fromOffset(newTab.AbsoluteSize.X, 1)
+				tabSlider.Position = UDim2.fromOffset(newTab.AbsolutePosition.X, newTab.AbsolutePosition.Y + newTab.AbsoluteSize.Y) - UDim2.fromOffset(main.AbsolutePosition.X, main.AbsolutePosition.Y)
+				tabSlider.Visible = true
+			end)
 			windowFunctions.selected.holder = newTabHolder
 			windowFunctions.selected.button = newTab
 		end
