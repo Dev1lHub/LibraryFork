@@ -1658,20 +1658,48 @@ local function makeMarquee(headline)
 	headline.AutomaticSize = Enum.AutomaticSize.X
 	headline.TextXAlignment = Enum.TextXAlignment.Left
 	local activeTween = nil
+	local generation = 0
 	local function refresh()
+		generation = generation + 1
+		local myGeneration = generation
 		if activeTween then
 			activeTween:Cancel()
 			activeTween = nil
 		end
 		headline.Position = UDim2.new(0, 0, 0.5, 0)
 		task.defer(function()
+			if generation ~= myGeneration then
+				return
+			end
 			local overflow = headline.AbsoluteSize.X - wrapper.AbsoluteSize.X
 			if overflow > 2 then
 				local duration = math.clamp(overflow / 30, 1.5, 8)
-				activeTween = tweenService:Create(headline, TweenInfo.new(duration, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1, true, 1), {
-					Position = UDim2.new(0, -overflow, 0.5, 0)
-				})
-				activeTween:Play()
+				-- Ablauf: 2 Sek. warten -> hin scrollen -> 2 Sek. warten -> zurück scrollen -> wiederholen
+				task.spawn(function()
+					while generation == myGeneration do
+						task.wait(2)
+						if generation ~= myGeneration then
+							break
+						end
+						activeTween = tweenService:Create(headline, TweenInfo.new(duration, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut), {
+							Position = UDim2.new(0, -overflow, 0.5, 0)
+						})
+						activeTween:Play()
+						activeTween.Completed:Wait()
+						if generation ~= myGeneration then
+							break
+						end
+						task.wait(2)
+						if generation ~= myGeneration then
+							break
+						end
+						activeTween = tweenService:Create(headline, TweenInfo.new(duration, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut), {
+							Position = UDim2.new(0, 0, 0.5, 0)
+						})
+						activeTween:Play()
+						activeTween.Completed:Wait()
+					end
+				end)
 			end
 		end)
 	end
@@ -2921,15 +2949,15 @@ function library:CreateWindow(options, ...)
 	end)
 	titleBar.Name = generateRandomName()
 	titleBar.Parent = innerMain
-	titleBar.BackgroundColor3 = library.colors.topGradient
-	colored[1 + #colored] = {titleBar, "BackgroundColor3", "topGradient"}
+	titleBar.BackgroundColor3 = library.colors.sectionBackground -- bewusst anders als die Tabs-Leiste (kein Gradient-Look), damit beide Leisten sich unterscheiden
+	colored[1 + #colored] = {titleBar, "BackgroundColor3", "sectionBackground"}
 	titleBar.BorderSizePixel = 0
 	titleBar.Position = UDim2.fromOffset(1, 1)
 	titleBar.Size = UDim2.new(1, -2, 0, 23)
 	titleBar.Image = "rbxassetid://2454009026"
 	addCorner(titleBar, 6)
-	titleBar.ImageColor3 = library.colors.bottomGradient
-	colored[1 + #colored] = {titleBar, "ImageColor3", "bottomGradient"}
+	titleBar.ImageColor3 = library.colors.sectionBackground
+	colored[1 + #colored] = {titleBar, "ImageColor3", "sectionBackground"}
 	titleBarList.Name = generateRandomName()
 	titleBarList.Parent = titleBar
 	titleBarList.FillDirection = Enum.FillDirection.Horizontal
@@ -2973,7 +3001,7 @@ function library:CreateWindow(options, ...)
 	headline.Text = (windowName and tostring(windowName)) or "???"
 	headline.TextColor3 = library.colors.main
 	colored[1 + #colored] = {headline, "TextColor3", "main"}
-	headline.TextSize = 14
+	headline.TextSize = 15 -- etwas größer als der Tab-Text, damit sich Titel- und Tableiste unterscheiden
 	headline.TextStrokeColor3 = library.colors.outerBorder
 	colored[1 + #colored] = {headline, "TextStrokeColor3", "outerBorder"}
 	headline.TextStrokeTransparency = 0.75
@@ -3294,7 +3322,7 @@ function library:CreateWindow(options, ...)
 		leftList.Parent = left
 		leftList.HorizontalAlignment = Enum.HorizontalAlignment.Center
 		leftList.SortOrder = Enum.SortOrder.LayoutOrder
-		leftList.Padding = UDim:new(8) -- kleinerer Abstand zwischen den Groupboxes untereinander
+		leftList.Padding = UDim:new(12) -- etwas größerer Abstand zwischen den Groupboxes untereinander
 		leftPadding.Name = generateRandomName()
 		leftPadding.Parent = left
 		leftPadding.PaddingTop = UDim:new(12)
@@ -3310,7 +3338,7 @@ function library:CreateWindow(options, ...)
 		rightList.Parent = right
 		rightList.HorizontalAlignment = Enum.HorizontalAlignment.Center
 		rightList.SortOrder = Enum.SortOrder.LayoutOrder
-		rightList.Padding = UDim:new(8) -- kleinerer Abstand zwischen den Groupboxes untereinander
+		rightList.Padding = UDim:new(12) -- etwas größerer Abstand zwischen den Groupboxes untereinander
 		rightPadding.Name = generateRandomName()
 		rightPadding.Parent = right
 		rightPadding.PaddingTop = UDim:new(12)
