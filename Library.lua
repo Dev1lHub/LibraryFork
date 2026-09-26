@@ -1312,7 +1312,10 @@ do
 				end
 				local data = colored[DataIndex]
 				data = data and data[1]
-				if data and (typeof(data) == "Instance") and IsDescendantOf(data, MainScreenGui) then
+				if data and (typeof(data) == "Instance") and IsDescendantOf(data, game) then
+					-- Instanz existiert noch irgendwo im Spiel (Hauptmenü, Watermark, Keybinds-Liste, Notify usw.) -> behalten
+				elseif data and typeof(data) ~= "Instance" then
+					-- Kein Roblox-Instance (z. B. ein internes Modul-Table wie KeybindsListModule.MainColor) -> nie automatisch entfernen
 				elseif MayGC <= 0 then
 					RemoveTable(colored, DataIndex)
 				else
@@ -2465,7 +2468,6 @@ do
 			local Text = Instance.new("TextLabel")
 			NotificationObj.TextLabel = Text
 			local Bar = Instance.new("Frame")
-			local Close = Instance.new("ImageButton")
 			Notification.AnchorPoint = Vector2.new(1, 0)
 			Notification.BackgroundColor3 = library.colors.background
 			colored[1 + #colored] = {Notification, "BackgroundColor3", "background"}
@@ -2562,17 +2564,7 @@ do
 			Bar.Name = generateRandomName()
 			Bar.Parent = Border_2
 			Bar.Size = UDim2.new(0, 3, 1, 0)
-			Close.AnchorPoint = Vector2.new(1, 0.5)
-			Close.BackgroundTransparency = 1
-			Close.Image = "rbxassetid://5492252477"
-			Close.ImageColor3 = library.colors.elementText
-			colored[1 + #colored] = {Close, "ImageColor3", "elementText"}
-			Close.Name = generateRandomName()
-			Close.Parent = Border_2
-			Close.Position = UDim2.new(1, -6, 0.5, 0)
-			Close.ScaleType = Enum.ScaleType.Fit
-			Close.Size = UDim2.new(0, 10, 0, 10)
-			local targetWidth = 64 + textToSize(Text).X
+			local targetWidth = 44 + textToSize(Text).X
 			Notification.Size = UDim2.new(0, 0, 0, 32)
 			Notification.Parent = Popups
 			Notification.LayoutOrder = #Notification.Parent:GetChildren() * ((Inverse and 1) or -1)
@@ -2584,7 +2576,6 @@ do
 			tweenService:Create(Notification, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
 				Size = UDim2.new(0, targetWidth, 0, 32)
 			}):Play()
-			NotificationObj.OnClose = Close.Activated
 			NotificationObj.InputBegan = Notification.InputBegan
 			NotificationObj.Destroying = Notification.Destroying
 			NotificationObj.MouseEnter = Notification.MouseEnter
@@ -2597,7 +2588,7 @@ do
 				Str = ((Str == nil) and "No text given") or tostring(Str)
 				Text.Text, NotificationObj.Text = Str, Str
 				tweenService:Create(Notification, TweenInfo.new(0.3, library.configuration.easingStyle, library.configuration.easingDirection), {
-					Size = UDim2.new(0, 44 + Text.TextBounds.X, 0, 32)
+					Size = UDim2.new(0, 24 + Text.TextBounds.X, 0, 32)
 				}):Play()
 				return Str, Text
 			end
@@ -2706,7 +2697,6 @@ do
 				end
 			end
 			NotificationObj.Destroy = Destroy
-			Close.Activated:Connect(Destroy)
 			Notifications[1 + #Notifications] = NotificationObj
 			return NotificationObj, Notification, Text
 		end
