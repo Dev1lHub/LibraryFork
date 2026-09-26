@@ -675,23 +675,33 @@ function WatermarkModule:Create()
 	
 	local WatermarkOuter = Instance.new("Frame")
 	WatermarkOuter.Name = generateRandomName()
-	WatermarkOuter.BorderColor3 = Color3.new(0, 0, 0)
+	WatermarkOuter.BorderSizePixel = 0
 	WatermarkOuter.Position = UDim2.new(0, 100, 0, 50)
 	WatermarkOuter.Size = UDim2.new(0, 0, 0, 20)
 	WatermarkOuter.AutomaticSize = Enum.AutomaticSize.X
 	WatermarkOuter.ZIndex = 200
 	WatermarkOuter.Visible = true
 	WatermarkOuter.Parent = ScreenGui
-	
+	addCorner(WatermarkOuter, 4)
+	do
+		local WatermarkOuterStroke = Instance.new("UIStroke")
+		WatermarkOuterStroke.Name = generateRandomName()
+		WatermarkOuterStroke.Parent = WatermarkOuter
+		WatermarkOuterStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		WatermarkOuterStroke.Thickness = 1
+		WatermarkOuterStroke.Color = Color3.new(0, 0, 0)
+	end
+
 	local WatermarkInner = Instance.new("Frame")
 	WatermarkInner.Name = generateRandomName()
 	WatermarkInner.BackgroundColor3 = MainColor
-	WatermarkInner.BorderColor3 = MainColor
-	WatermarkInner.BorderMode = Enum.BorderMode.Inset
+	WatermarkInner.BorderSizePixel = 0
+	WatermarkInner.ClipsDescendants = true
 	WatermarkInner.Size = UDim2.new(1, 0, 1, 0)
 	WatermarkInner.ZIndex = 201
 	WatermarkInner.Parent = WatermarkOuter
-	
+	addCorner(WatermarkInner, 3)
+
 	local InnerFrame = Instance.new("Frame")
 	InnerFrame.Name = generateRandomName()
 	InnerFrame.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -700,6 +710,7 @@ function WatermarkModule:Create()
 	InnerFrame.Size = UDim2.new(1, -2, 1, -2)
 	InnerFrame.ZIndex = 202
 	InnerFrame.Parent = WatermarkInner
+	addCorner(InnerFrame, 3)
 	
 	local Gradient = Instance.new("UIGradient")
 	Gradient.Name = generateRandomName()
@@ -821,22 +832,40 @@ function KeybindsListModule:Create()
 	local Outer = Instance.new("Frame")
 	Outer.Name = generateRandomName()
 	Outer.AnchorPoint = Vector2.new(0, 0)
-	Outer.BorderColor3 = Color3.new(0, 0, 0)
+	Outer.BorderSizePixel = 0
 	Outer.Position = UDim2.new(0, 100, 0, 78) -- direkt unter dem Watermark (Position 100,50 + Höhe 20 + Abstand)
 	Outer.Size = UDim2.new(0, 180, 0, 20)
 	Outer.AutomaticSize = Enum.AutomaticSize.Y
 	Outer.ZIndex = 300
 	Outer.Visible = false
 	Outer.Parent = ScreenGui
-	
+	addCorner(Outer, 4)
+	do
+		local OuterStroke = Instance.new("UIStroke")
+		OuterStroke.Name = generateRandomName()
+		OuterStroke.Parent = Outer
+		OuterStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		OuterStroke.Thickness = 1
+		OuterStroke.Color = Color3.new(0, 0, 0)
+	end
+
 	local Inner = Instance.new("Frame")
 	Inner.Name = generateRandomName()
 	Inner.BackgroundColor3 = BottomGradColor
-	Inner.BorderColor3 = OutlineColor
-	Inner.BorderMode = Enum.BorderMode.Inset
+	Inner.BorderSizePixel = 0
+	Inner.ClipsDescendants = true
 	Inner.Size = UDim2.new(1, 0, 1, 0)
 	Inner.ZIndex = 301
 	Inner.Parent = Outer
+	addCorner(Inner, 3)
+	do
+		local InnerStroke = Instance.new("UIStroke")
+		InnerStroke.Name = generateRandomName()
+		InnerStroke.Parent = Inner
+		InnerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		InnerStroke.Thickness = 1
+		InnerStroke.Color = OutlineColor
+	end
 	
 	local ColorBar = Instance.new("Frame")
 	ColorBar.Name = generateRandomName()
@@ -2803,8 +2832,16 @@ function library:CreateWindow(options, ...)
 	searchBoxHolder.AnchorPoint = Vector2.new(1, 0)
 	searchBoxHolder.BackgroundColor3 = library.colors.topGradient
 	colored[1 + #colored] = {searchBoxHolder, "BackgroundColor3", "topGradient"}
-	searchBoxHolder.BorderColor3 = library.colors.elementBorder
-	colored[1 + #colored] = {searchBoxHolder, "BorderColor3", "elementBorder"}
+	searchBoxHolder.BorderSizePixel = 0
+	do
+		local searchBoxHolderStroke = Instance_new("UIStroke")
+		searchBoxHolderStroke.Name = generateRandomName()
+		searchBoxHolderStroke.Parent = searchBoxHolder
+		searchBoxHolderStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		searchBoxHolderStroke.Thickness = 1
+		searchBoxHolderStroke.Color = library.colors.elementBorder
+		colored[1 + #colored] = {searchBoxHolderStroke, "Color", "elementBorder"}
+	end
 	searchBoxHolder.Position = UDim2.new(1, -3, 0, 3)
 	searchBoxHolder.Selectable = true
 	searchBoxHolder.Size = UDim2.fromOffset(110, 17)
@@ -2819,8 +2856,16 @@ function library:CreateWindow(options, ...)
 	searchBoxInner.AnchorPoint = Vector2.new(0.5, 0.5)
 	searchBoxInner.BackgroundColor3 = library.colors.topGradient
 	colored[1 + #colored] = {searchBoxInner, "BackgroundColor3", "topGradient"}
-	searchBoxInner.BorderColor3 = library.colors.elementBorder
-	colored[1 + #colored] = {searchBoxInner, "BorderColor3", "elementBorder"}
+	searchBoxInner.BorderSizePixel = 0
+	do
+		local searchBoxInnerStroke = Instance_new("UIStroke")
+		searchBoxInnerStroke.Name = generateRandomName()
+		searchBoxInnerStroke.Parent = searchBoxInner
+		searchBoxInnerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		searchBoxInnerStroke.Thickness = 1
+		searchBoxInnerStroke.Color = library.colors.elementBorder
+		colored[1 + #colored] = {searchBoxInnerStroke, "Color", "elementBorder"}
+	end
 	searchBoxInner.Position = UDim2.fromScale(0.5, 0.5)
 	searchBoxInner.Selectable = true
 	searchBoxInner.Size = UDim2.new(1, -4, 1, -4)
@@ -3206,8 +3251,16 @@ function library:CreateWindow(options, ...)
 				toggle.BackgroundColor3 = library.colors.topGradient
 				local colored_toggle_BackgroundColor3 = {toggle, "BackgroundColor3", "topGradient"}
 				colored[1 + #colored] = colored_toggle_BackgroundColor3
-				toggle.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {toggle, "BorderColor3", "elementBorder"}
+				toggle.BorderSizePixel = 0
+				do
+					local toggleStroke = Instance_new("UIStroke")
+					toggleStroke.Name = generateRandomName()
+					toggleStroke.Parent = toggle
+					toggleStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+					toggleStroke.Thickness = 1
+					toggleStroke.Color = library.colors.elementBorder
+					colored[1 + #colored] = {toggleStroke, "Color", "elementBorder"}
+				end
 				toggle.Position = UDim2.fromScale(0.0308237672, 0.165842205)
 				toggle.Selectable = true
 				toggle.Size = UDim2.fromOffset(12, 12)
@@ -3223,8 +3276,16 @@ function library:CreateWindow(options, ...)
 				toggleInner.BackgroundColor3 = library.colors.topGradient
 				local colored_toggleInner_BackgroundColor3 = {toggleInner, "BackgroundColor3", "topGradient"}
 				colored[1 + #colored] = colored_toggleInner_BackgroundColor3
-				toggleInner.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {toggleInner, "BorderColor3", "elementBorder"}
+				toggleInner.BorderSizePixel = 0
+				do
+					local toggleInnerStroke = Instance_new("UIStroke")
+					toggleInnerStroke.Name = generateRandomName()
+					toggleInnerStroke.Parent = toggleInner
+					toggleInnerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+					toggleInnerStroke.Thickness = 1
+					toggleInnerStroke.Color = library.colors.elementBorder
+					colored[1 + #colored] = {toggleInnerStroke, "Color", "elementBorder"}
+				end
 				toggleInner.Position = UDim2.fromScale(0.5, 0.5)
 				toggleInner.Selectable = true
 				toggleInner.Size = UDim2.new(1, -4, 1, -4)
@@ -3862,8 +3923,16 @@ function library:CreateWindow(options, ...)
 					button.BackgroundColor3 = library.colors.topGradient
 					local colored_button_BackgroundColor3 = {button, "BackgroundColor3", "topGradient"}
 					colored[1 + #colored] = colored_button_BackgroundColor3
-					button.BorderColor3 = library.colors.elementBorder
-					colored[1 + #colored] = {button, "BorderColor3", "elementBorder"}
+					button.BorderSizePixel = 0
+					do
+						local buttonStroke = Instance_new("UIStroke")
+						buttonStroke.Name = generateRandomName()
+						buttonStroke.Parent = button
+						buttonStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+						buttonStroke.Thickness = 1
+						buttonStroke.Color = library.colors.elementBorder
+						colored[1 + #colored] = {buttonStroke, "Color", "elementBorder"}
+					end
 					button.Position = UDim2.new(0.031, offset, 0.166)
 					button.Selectable = true
 					button.Size = UDim2.fromOffset(28, 18)
@@ -3880,8 +3949,16 @@ function library:CreateWindow(options, ...)
 					buttonInner.BackgroundColor3 = library.colors.topGradient
 					local colored_buttonInner_BackgroundColor3 = {buttonInner, "BackgroundColor3", "topGradient"}
 					colored[1 + #colored] = colored_buttonInner_BackgroundColor3
-					buttonInner.BorderColor3 = library.colors.elementBorder
-					colored[1 + #colored] = {buttonInner, "BorderColor3", "elementBorder"}
+					buttonInner.BorderSizePixel = 0
+					do
+						local buttonInnerStroke = Instance_new("UIStroke")
+						buttonInnerStroke.Name = generateRandomName()
+						buttonInnerStroke.Parent = buttonInner
+						buttonInnerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+						buttonInnerStroke.Thickness = 1
+						buttonInnerStroke.Color = library.colors.elementBorder
+						colored[1 + #colored] = {buttonInnerStroke, "Color", "elementBorder"}
+					end
 					buttonInner.Position = UDim2.fromScale(0.5, 0.5)
 					buttonInner.Selectable = true
 					buttonInner.Size = UDim2.new(1, -4, 1, -4)
@@ -4163,8 +4240,16 @@ function library:CreateWindow(options, ...)
 				textbox.BackgroundColor3 = library.colors.topGradient
 				local colored_textbox_BackgroundColor3 = {textbox, "BackgroundColor3", "topGradient"}
 				colored[1 + #colored] = colored_textbox_BackgroundColor3
-				textbox.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {textbox, "BorderColor3", "elementBorder"}
+				textbox.BorderSizePixel = 0
+				do
+					local textboxStroke = Instance_new("UIStroke")
+					textboxStroke.Name = generateRandomName()
+					textboxStroke.Parent = textbox
+					textboxStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+					textboxStroke.Thickness = 1
+					textboxStroke.Color = library.colors.elementBorder
+					colored[1 + #colored] = {textboxStroke, "Color", "elementBorder"}
+				end
 				textbox.Position = UDim2.fromScale(0.031, 0.48)
 				textbox.Selectable = true
 				textbox.Size = UDim2.fromOffset(206, 18)
@@ -4179,8 +4264,16 @@ function library:CreateWindow(options, ...)
 				textboxInner.AnchorPoint = Vector2.new(0.5, 0.5)
 				textboxInner.BackgroundColor3 = library.colors.topGradient
 				colored[1 + #colored] = {textboxInner, "BackgroundColor3", "topGradient"}
-				textboxInner.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {textboxInner, "BorderColor3", "elementBorder"}
+				textboxInner.BorderSizePixel = 0
+				do
+					local textboxInnerStroke = Instance_new("UIStroke")
+					textboxInnerStroke.Name = generateRandomName()
+					textboxInnerStroke.Parent = textboxInner
+					textboxInnerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+					textboxInnerStroke.Thickness = 1
+					textboxInnerStroke.Color = library.colors.elementBorder
+					colored[1 + #colored] = {textboxInnerStroke, "Color", "elementBorder"}
+				end
 				textboxInner.Position = UDim2.fromScale(0.5, 0.5)
 				textboxInner.Selectable = true
 				textboxInner.Size = UDim2.new(1, -4, 1, -4)
@@ -4832,8 +4925,16 @@ function library:CreateWindow(options, ...)
 				slider.BackgroundColor3 = library.colors.topGradient
 				local colored_slider_BackgroundColor3 = {slider, "BackgroundColor3", "topGradient"}
 				colored[1 + #colored] = colored_slider_BackgroundColor3
-				slider.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {slider, "BorderColor3", "elementBorder"}
+				slider.BorderSizePixel = 0
+				do
+					local sliderStroke = Instance_new("UIStroke")
+					sliderStroke.Name = generateRandomName()
+					sliderStroke.Parent = slider
+					sliderStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+					sliderStroke.Thickness = 1
+					sliderStroke.Color = library.colors.elementBorder
+					colored[1 + #colored] = {sliderStroke, "Color", "elementBorder"}
+				end
 				slider.Position = UDim2.fromScale(0.031, 0.48)
 				slider.Selectable = true
 				slider.Size = (usetextbox and UDim2.fromOffset(156, 18)) or UDim2.fromOffset(206, 18)
@@ -4848,8 +4949,16 @@ function library:CreateWindow(options, ...)
 				sliderInner.AnchorPoint = Vector2.new(0.5, 0.5)
 				sliderInner.BackgroundColor3 = library.colors.topGradient
 				colored[1 + #colored] = {sliderInner, "BackgroundColor3", "topGradient"}
-				sliderInner.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {sliderInner, "BorderColor3", "elementBorder"}
+				sliderInner.BorderSizePixel = 0
+				do
+					local sliderInnerStroke = Instance_new("UIStroke")
+					sliderInnerStroke.Name = generateRandomName()
+					sliderInnerStroke.Parent = sliderInner
+					sliderInnerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+					sliderInnerStroke.Thickness = 1
+					sliderInnerStroke.Color = library.colors.elementBorder
+					colored[1 + #colored] = {sliderInnerStroke, "Color", "elementBorder"}
+				end
 				sliderInner.Position = UDim2.fromScale(0.5, 0.5)
 				sliderInner.Selectable = true
 				sliderInner.Size = UDim2.new(1, -4, 1, -4)
@@ -4934,8 +5043,16 @@ function library:CreateWindow(options, ...)
 					textbox.BackgroundColor3 = library.colors.topGradient
 					local colored_textbox_BackgroundColor3 = {textbox, "BackgroundColor3", "topGradient"}
 					colored[1 + #colored] = colored_textbox_BackgroundColor3
-					textbox.BorderColor3 = library.colors.elementBorder
-					colored[1 + #colored] = {textbox, "BorderColor3", "elementBorder"}
+					textbox.BorderSizePixel = 0
+					do
+						local textboxStroke = Instance_new("UIStroke")
+						textboxStroke.Name = generateRandomName()
+						textboxStroke.Parent = textbox
+						textboxStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+						textboxStroke.Thickness = 1
+						textboxStroke.Color = library.colors.elementBorder
+						colored[1 + #colored] = {textboxStroke, "Color", "elementBorder"}
+					end
 					textbox.Position = UDim2.new(1, -54, 0.48)
 					textbox.Selectable = true
 					textbox.Size = UDim2.fromOffset(43, 18)
@@ -4950,8 +5067,16 @@ function library:CreateWindow(options, ...)
 					textboxInner.AnchorPoint = Vector2.new(0.5, 0.5)
 					textboxInner.BackgroundColor3 = library.colors.topGradient
 					colored[1 + #colored] = {textboxInner, "BackgroundColor3", "topGradient"}
-					textboxInner.BorderColor3 = library.colors.elementBorder
-					colored[1 + #colored] = {textboxInner, "BorderColor3", "elementBorder"}
+					textboxInner.BorderSizePixel = 0
+					do
+						local textboxInnerStroke = Instance_new("UIStroke")
+						textboxInnerStroke.Name = generateRandomName()
+						textboxInnerStroke.Parent = textboxInner
+						textboxInnerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+						textboxInnerStroke.Thickness = 1
+						textboxInnerStroke.Color = library.colors.elementBorder
+						colored[1 + #colored] = {textboxInnerStroke, "Color", "elementBorder"}
+					end
 					textboxInner.Position = UDim2.fromScale(0.5, 0.5)
 					textboxInner.Selectable = true
 					textboxInner.Size = UDim2.new(1, -4, 1, -4)
@@ -5249,8 +5374,16 @@ function library:CreateWindow(options, ...)
 				dropdown.BackgroundColor3 = library.colors.topGradient
 				local colored_dropdown_BackgroundColor3 = {dropdown, "BackgroundColor3", "topGradient"}
 				colored[1 + #colored] = colored_dropdown_BackgroundColor3
-				dropdown.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {dropdown, "BorderColor3", "elementBorder"}
+				dropdown.BorderSizePixel = 0
+				do
+					local dropdownStroke = Instance_new("UIStroke")
+					dropdownStroke.Name = generateRandomName()
+					dropdownStroke.Parent = dropdown
+					dropdownStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+					dropdownStroke.Thickness = 1
+					dropdownStroke.Color = library.colors.elementBorder
+					colored[1 + #colored] = {dropdownStroke, "Color", "elementBorder"}
+				end
 				dropdown.Position = UDim2.fromScale(0.027, 0.45)
 				dropdown.Selectable = true
 				dropdown.Size = UDim2.fromOffset(206, 18)
@@ -5265,8 +5398,16 @@ function library:CreateWindow(options, ...)
 				dropdownInner.AnchorPoint = Vector2.new(0.5, 0.5)
 				dropdownInner.BackgroundColor3 = library.colors.topGradient
 				colored[1 + #colored] = {dropdownInner, "BackgroundColor3", "topGradient"}
-				dropdownInner.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {dropdownInner, "BorderColor3", "elementBorder"}
+				dropdownInner.BorderSizePixel = 0
+				do
+					local dropdownInnerStroke = Instance_new("UIStroke")
+					dropdownInnerStroke.Name = generateRandomName()
+					dropdownInnerStroke.Parent = dropdownInner
+					dropdownInnerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+					dropdownInnerStroke.Thickness = 1
+					dropdownInnerStroke.Color = library.colors.elementBorder
+					colored[1 + #colored] = {dropdownInnerStroke, "Color", "elementBorder"}
+				end
 				dropdownInner.Position = UDim2.fromScale(0.5, 0.5)
 				dropdownInner.Selectable = true
 				dropdownInner.Size = UDim2.new(1, -4, 1, -4)
@@ -5316,8 +5457,16 @@ function library:CreateWindow(options, ...)
 				dropdownHolderFrame.Active = true
 				dropdownHolderFrame.BackgroundColor3 = library.colors.topGradient
 				colored[1 + #colored] = {dropdownHolderFrame, "BackgroundColor3", "topGradient"}
-				dropdownHolderFrame.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {dropdownHolderFrame, "BorderColor3", "elementBorder"}
+				dropdownHolderFrame.BorderSizePixel = 0
+				do
+					local dropdownHolderFrameStroke = Instance_new("UIStroke")
+					dropdownHolderFrameStroke.Name = generateRandomName()
+					dropdownHolderFrameStroke.Parent = dropdownHolderFrame
+					dropdownHolderFrameStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+					dropdownHolderFrameStroke.Thickness = 1
+					dropdownHolderFrameStroke.Color = library.colors.elementBorder
+					colored[1 + #colored] = {dropdownHolderFrameStroke, "Color", "elementBorder"}
+				end
 				dropdownHolderFrame.Position = UDim2.fromScale(0.025, 1.012)
 				dropdownHolderFrame.Selectable = true
 				dropdownHolderFrame.Size = UDim2.fromOffset(206, 22)
@@ -5332,7 +5481,16 @@ function library:CreateWindow(options, ...)
 				dropdownHolderInner.AnchorPoint = Vector2.new(0.5, 0.5)
 				dropdownHolderInner.BackgroundColor3 = library.colors.topGradient
 				colored[1 + #colored] = {dropdownHolderInner, "BackgroundColor3", "topGradient"}
-				dropdownHolderInner.BorderColor3 = library.colors.elementBorder
+				dropdownHolderInner.BorderSizePixel = 0
+				do
+					local dropdownHolderInnerStroke = Instance_new("UIStroke")
+					dropdownHolderInnerStroke.Name = generateRandomName()
+					dropdownHolderInnerStroke.Parent = dropdownHolderInner
+					dropdownHolderInnerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+					dropdownHolderInnerStroke.Thickness = 1
+					dropdownHolderInnerStroke.Color = library.colors.elementBorder
+					colored[1 + #colored] = {dropdownHolderInnerStroke, "Color", "elementBorder"}
+				end
 				dropdownHolderInner.Position = UDim2.fromScale(0.5, 0.5)
 				dropdownHolderInner.Selectable = true
 				dropdownHolderInner.Size = UDim2.new(1, -4, 1, -4)
@@ -6011,8 +6169,16 @@ function library:CreateWindow(options, ...)
 					dropdown.BackgroundColor3 = library.colors.topGradient
 					local colored_dropdown_BackgroundColor3 = {dropdown, "BackgroundColor3", "topGradient"}
 					colored[1 + #colored] = colored_dropdown_BackgroundColor3
-					dropdown.BorderColor3 = library.colors.elementBorder
-					colored[1 + #colored] = {dropdown, "BorderColor3", "elementBorder"}
+					dropdown.BorderSizePixel = 0
+					do
+						local dropdownStroke = Instance_new("UIStroke")
+						dropdownStroke.Name = generateRandomName()
+						dropdownStroke.Parent = dropdown
+						dropdownStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+						dropdownStroke.Thickness = 1
+						dropdownStroke.Color = library.colors.elementBorder
+						colored[1 + #colored] = {dropdownStroke, "Color", "elementBorder"}
+					end
 					dropdown.Position = UDim2.fromScale(0.027, 0.45)
 					dropdown.Selectable = true
 					dropdown.Size = UDim2.fromOffset(206, 18)
@@ -6027,8 +6193,16 @@ function library:CreateWindow(options, ...)
 					dropdownInner.AnchorPoint = Vector2.new(0.5, 0.5)
 					dropdownInner.BackgroundColor3 = library.colors.topGradient
 					colored[1 + #colored] = {dropdownInner, "BackgroundColor3", "topGradient"}
-					dropdownInner.BorderColor3 = library.colors.elementBorder
-					colored[1 + #colored] = {dropdownInner, "BorderColor3", "elementBorder"}
+					dropdownInner.BorderSizePixel = 0
+					do
+						local dropdownInnerStroke = Instance_new("UIStroke")
+						dropdownInnerStroke.Name = generateRandomName()
+						dropdownInnerStroke.Parent = dropdownInner
+						dropdownInnerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+						dropdownInnerStroke.Thickness = 1
+						dropdownInnerStroke.Color = library.colors.elementBorder
+						colored[1 + #colored] = {dropdownInnerStroke, "Color", "elementBorder"}
+					end
 					dropdownInner.Position = UDim2.fromScale(0.5, 0.5)
 					dropdownInner.Selectable = true
 					dropdownInner.Size = UDim2.new(1, -4, 1, -4)
@@ -6077,8 +6251,16 @@ function library:CreateWindow(options, ...)
 					dropdownHolderFrame.Active = true
 					dropdownHolderFrame.BackgroundColor3 = library.colors.topGradient
 					colored[1 + #colored] = {dropdownHolderFrame, "BackgroundColor3", "topGradient"}
-					dropdownHolderFrame.BorderColor3 = library.colors.elementBorder
-					colored[1 + #colored] = {dropdownHolderFrame, "BorderColor3", "elementBorder"}
+					dropdownHolderFrame.BorderSizePixel = 0
+					do
+						local dropdownHolderFrameStroke = Instance_new("UIStroke")
+						dropdownHolderFrameStroke.Name = generateRandomName()
+						dropdownHolderFrameStroke.Parent = dropdownHolderFrame
+						dropdownHolderFrameStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+						dropdownHolderFrameStroke.Thickness = 1
+						dropdownHolderFrameStroke.Color = library.colors.elementBorder
+						colored[1 + #colored] = {dropdownHolderFrameStroke, "Color", "elementBorder"}
+					end
 					dropdownHolderFrame.Position = UDim2.fromScale(0.025, 1.012)
 					dropdownHolderFrame.Selectable = true
 					dropdownHolderFrame.Size = UDim2.fromOffset(206, 22)
@@ -6093,8 +6275,16 @@ function library:CreateWindow(options, ...)
 					dropdownHolderInner.AnchorPoint = Vector2.new(0.5, 0.5)
 					dropdownHolderInner.BackgroundColor3 = library.colors.topGradient
 					colored[1 + #colored] = {dropdownHolderInner, "BackgroundColor3", "topGradient"}
-					dropdownHolderInner.BorderColor3 = library.colors.elementBorder
-					colored[1 + #colored] = {dropdownHolderInner, "BorderColor3", "elementBorder"}
+					dropdownHolderInner.BorderSizePixel = 0
+					do
+						local dropdownHolderInnerStroke = Instance_new("UIStroke")
+						dropdownHolderInnerStroke.Name = generateRandomName()
+						dropdownHolderInnerStroke.Parent = dropdownHolderInner
+						dropdownHolderInnerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+						dropdownHolderInnerStroke.Thickness = 1
+						dropdownHolderInnerStroke.Color = library.colors.elementBorder
+						colored[1 + #colored] = {dropdownHolderInnerStroke, "Color", "elementBorder"}
+					end
 					dropdownHolderInner.Position = UDim2.fromScale(0.5, 0.5)
 					dropdownHolderInner.Selectable = true
 					dropdownHolderInner.Size = UDim2.new(1, -4, 1, -4)
@@ -6595,8 +6785,16 @@ function library:CreateWindow(options, ...)
 							button.BackgroundColor3 = library.colors.topGradient
 							local colored_button_BackgroundColor3 = {button, "BackgroundColor3", "topGradient"}
 							colored[1 + #colored] = colored_button_BackgroundColor3
-							button.BorderColor3 = library.colors.elementBorder
-							colored[1 + #colored] = {button, "BorderColor3", "elementBorder"}
+							button.BorderSizePixel = 0
+							do
+								local buttonStroke = Instance_new("UIStroke")
+								buttonStroke.Name = generateRandomName()
+								buttonStroke.Parent = button
+								buttonStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+								buttonStroke.Thickness = 1
+								buttonStroke.Color = library.colors.elementBorder
+								colored[1 + #colored] = {buttonStroke, "Color", "elementBorder"}
+							end
 							button.Position = UDim2.new(0.031, offset, 0.166)
 							button.Selectable = true
 							button.Size = UDim2.fromOffset(28, 18)
@@ -6612,8 +6810,16 @@ function library:CreateWindow(options, ...)
 							buttonInner.AnchorPoint = Vector2.new(0.5, 0.5)
 							buttonInner.BackgroundColor3 = library.colors.topGradient
 							colored[1 + #colored] = {buttonInner, "BackgroundColor3", "topGradient"}
-							buttonInner.BorderColor3 = library.colors.elementBorder
-							colored[1 + #colored] = {buttonInner, "BorderColor3", "elementBorder"}
+							buttonInner.BorderSizePixel = 0
+							do
+								local buttonInnerStroke = Instance_new("UIStroke")
+								buttonInnerStroke.Name = generateRandomName()
+								buttonInnerStroke.Parent = buttonInner
+								buttonInnerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+								buttonInnerStroke.Thickness = 1
+								buttonInnerStroke.Color = library.colors.elementBorder
+								colored[1 + #colored] = {buttonInnerStroke, "Color", "elementBorder"}
+							end
 							buttonInner.Position = UDim2.fromScale(0.5, 0.5)
 							buttonInner.Selectable = true
 							buttonInner.Size = UDim2.new(1, -4, 1, -4)
@@ -6836,8 +7042,16 @@ function library:CreateWindow(options, ...)
 				dropdown.BackgroundColor3 = library.colors.topGradient
 				local colored_dropdown_BackgroundColor3 = {dropdown, "BackgroundColor3", "topGradient"}
 				colored[1 + #colored] = colored_dropdown_BackgroundColor3
-				dropdown.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {dropdown, "BorderColor3", "elementBorder"}
+				dropdown.BorderSizePixel = 0
+				do
+					local dropdownStroke = Instance_new("UIStroke")
+					dropdownStroke.Name = generateRandomName()
+					dropdownStroke.Parent = dropdown
+					dropdownStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+					dropdownStroke.Thickness = 1
+					dropdownStroke.Color = library.colors.elementBorder
+					colored[1 + #colored] = {dropdownStroke, "Color", "elementBorder"}
+				end
 				dropdown.Position = UDim2.fromScale(0.027, 0.45)
 				dropdown.Selectable = true
 				dropdown.Size = UDim2.fromOffset(206, 18)
@@ -6852,8 +7066,16 @@ function library:CreateWindow(options, ...)
 				dropdownInner.AnchorPoint = Vector2.new(0.5, 0.5)
 				dropdownInner.BackgroundColor3 = library.colors.topGradient
 				colored[1 + #colored] = {dropdownInner, "BackgroundColor3", "topGradient"}
-				dropdownInner.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {dropdownInner, "BorderColor3", "elementBorder"}
+				dropdownInner.BorderSizePixel = 0
+				do
+					local dropdownInnerStroke = Instance_new("UIStroke")
+					dropdownInnerStroke.Name = generateRandomName()
+					dropdownInnerStroke.Parent = dropdownInner
+					dropdownInnerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+					dropdownInnerStroke.Thickness = 1
+					dropdownInnerStroke.Color = library.colors.elementBorder
+					colored[1 + #colored] = {dropdownInnerStroke, "Color", "elementBorder"}
+				end
 				dropdownInner.Position = UDim2.fromScale(0.5, 0.5)
 				dropdownInner.Selectable = true
 				dropdownInner.Size = UDim2.new(1, -4, 1, -4)
@@ -6903,8 +7125,16 @@ function library:CreateWindow(options, ...)
 				dropdownHolderFrame.Active = true
 				dropdownHolderFrame.BackgroundColor3 = library.colors.topGradient
 				colored[1 + #colored] = {dropdownHolderFrame, "BackgroundColor3", "topGradient"}
-				dropdownHolderFrame.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {dropdownHolderFrame, "BorderColor3", "elementBorder"}
+				dropdownHolderFrame.BorderSizePixel = 0
+				do
+					local dropdownHolderFrameStroke = Instance_new("UIStroke")
+					dropdownHolderFrameStroke.Name = generateRandomName()
+					dropdownHolderFrameStroke.Parent = dropdownHolderFrame
+					dropdownHolderFrameStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+					dropdownHolderFrameStroke.Thickness = 1
+					dropdownHolderFrameStroke.Color = library.colors.elementBorder
+					colored[1 + #colored] = {dropdownHolderFrameStroke, "Color", "elementBorder"}
+				end
 				dropdownHolderFrame.Position = UDim2.fromScale(0.025, 1.012)
 				dropdownHolderFrame.Selectable = true
 				dropdownHolderFrame.Size = UDim2.fromOffset(206, 22)
@@ -6919,8 +7149,16 @@ function library:CreateWindow(options, ...)
 				dropdownHolderInner.AnchorPoint = Vector2.new(0.5, 0.5)
 				dropdownHolderInner.BackgroundColor3 = library.colors.topGradient
 				colored[1 + #colored] = {dropdownHolderInner, "BackgroundColor3", "topGradient"}
-				dropdownHolderInner.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {dropdownHolderInner, "BorderColor3", "elementBorder"}
+				dropdownHolderInner.BorderSizePixel = 0
+				do
+					local dropdownHolderInnerStroke = Instance_new("UIStroke")
+					dropdownHolderInnerStroke.Name = generateRandomName()
+					dropdownHolderInnerStroke.Parent = dropdownHolderInner
+					dropdownHolderInnerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+					dropdownHolderInnerStroke.Thickness = 1
+					dropdownHolderInnerStroke.Color = library.colors.elementBorder
+					colored[1 + #colored] = {dropdownHolderInnerStroke, "Color", "elementBorder"}
+				end
 				dropdownHolderInner.Position = UDim2.fromScale(0.5, 0.5)
 				dropdownHolderInner.Selectable = true
 				dropdownHolderInner.Size = UDim2.new(1, -4, 1, -4)
@@ -7557,8 +7795,16 @@ function library:CreateWindow(options, ...)
 				colorPicker.BackgroundColor3 = library.colors.topGradient
 				local colored_colorPicker_BackgroundColor3 = {colorPicker, "BackgroundColor3", "topGradient"}
 				colored[1 + #colored] = colored_colorPicker_BackgroundColor3
-				colorPicker.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {colorPicker, "BorderColor3", "elementBorder"}
+				colorPicker.BorderSizePixel = 0
+				do
+					local colorPickerStroke = Instance_new("UIStroke")
+					colorPickerStroke.Name = generateRandomName()
+					colorPickerStroke.Parent = colorPicker
+					colorPickerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+					colorPickerStroke.Thickness = 1
+					colorPickerStroke.Color = library.colors.elementBorder
+					colored[1 + #colored] = {colorPickerStroke, "Color", "elementBorder"}
+				end
 				colorPicker.Position = UDim2.fromScale(0.842, 0.113)
 				colorPicker.Selectable = true
 				colorPicker.Size = UDim2.fromOffset(24, 12)
@@ -7571,8 +7817,16 @@ function library:CreateWindow(options, ...)
 				colorPickerInner.Parent = colorPicker
 				colorPickerInner.Active = true
 				colorPickerInner.AnchorPoint = Vector2.new(0.5, 0.5)
-				colorPickerInner.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {colorPickerInner, "BorderColor3", "elementBorder"}
+				colorPickerInner.BorderSizePixel = 0
+				do
+					local colorPickerInnerStroke = Instance_new("UIStroke")
+					colorPickerInnerStroke.Name = generateRandomName()
+					colorPickerInnerStroke.Parent = colorPickerInner
+					colorPickerInnerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+					colorPickerInnerStroke.Thickness = 1
+					colorPickerInnerStroke.Color = library.colors.elementBorder
+					colored[1 + #colored] = {colorPickerInnerStroke, "Color", "elementBorder"}
+				end
 				colorPickerInner.Position = UDim2.fromScale(0.5, 0.5)
 				colorPickerInner.Selectable = true
 				colorPickerInner.Size = UDim2.new(1, -4, 1, -4)
@@ -7603,7 +7857,16 @@ function library:CreateWindow(options, ...)
 				colorPickerButton.TextColor3 = Color3.new()
 				colorPickerButton.TextSize = 14
 				colorPickerButton.TextTransparency = 1
-				colorPickerButton.BorderColor3 = library.colors.elementBorder
+				colorPickerButton.BorderSizePixel = 0
+				do
+					local colorPickerButtonStroke = Instance_new("UIStroke")
+					colorPickerButtonStroke.Name = generateRandomName()
+					colorPickerButtonStroke.Parent = colorPickerButton
+					colorPickerButtonStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+					colorPickerButtonStroke.Thickness = 1
+					colorPickerButtonStroke.Color = library.colors.elementBorder
+					colored[1 + #colored] = {colorPickerButtonStroke, "Color", "elementBorder"}
+				end
 				local colored_colorPickerButton_BorderColor3 = {colorPickerButton, "BorderColor3", "elementBorder"}
 				colored[1 + #colored] = colored_colorPickerButton_BorderColor3
 				local function UpdateColorPicker(force, rainbsow)
@@ -7655,7 +7918,16 @@ function library:CreateWindow(options, ...)
 							submenuOpen = nil
 							newColorPicker.ZIndex = 0
 							newSection.ZIndex = newSection.ZIndex - 100
-							colorPickerButton.BorderColor3 = library.colors.elementBorder
+							colorPickerButton.BorderSizePixel = 0
+							do
+								local colorPickerButtonStroke = Instance_new("UIStroke")
+								colorPickerButtonStroke.Name = generateRandomName()
+								colorPickerButtonStroke.Parent = colorPickerButton
+								colorPickerButtonStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+								colorPickerButtonStroke.Thickness = 1
+								colorPickerButtonStroke.Color = library.colors.elementBorder
+								colored[1 + #colored] = {colorPickerButtonStroke, "Color", "elementBorder"}
+							end
 							colored_colorPickerButton_BorderColor3[3] = "elementBorder"
 						end
 					end
@@ -7665,8 +7937,16 @@ function library:CreateWindow(options, ...)
 				colorPickerHolderFrame.Active = true
 				colorPickerHolderFrame.BackgroundColor3 = library.colors.topGradient
 				colored[1 + #colored] = {colorPickerHolderFrame, "BackgroundColor3", "topGradient"}
-				colorPickerHolderFrame.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {colorPickerHolderFrame, "BorderColor3", "elementBorder"}
+				colorPickerHolderFrame.BorderSizePixel = 0
+				do
+					local colorPickerHolderFrameStroke = Instance_new("UIStroke")
+					colorPickerHolderFrameStroke.Name = generateRandomName()
+					colorPickerHolderFrameStroke.Parent = colorPickerHolderFrame
+					colorPickerHolderFrameStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+					colorPickerHolderFrameStroke.Thickness = 1
+					colorPickerHolderFrameStroke.Color = library.colors.elementBorder
+					colored[1 + #colored] = {colorPickerHolderFrameStroke, "Color", "elementBorder"}
+				end
 				colorPickerHolderFrame.Selectable = true
 				colorPickerHolderFrame.Position = UDim2.fromScale(0.025, 1.012)
 				colorPickerHolderFrame.Size = UDim2.fromOffset(206, 250)
@@ -7684,8 +7964,16 @@ function library:CreateWindow(options, ...)
 				colorPickerHolderInner.AnchorPoint = Vector2.new(0.5, 0.5)
 				colorPickerHolderInner.BackgroundColor3 = library.colors.topGradient
 				colored[1 + #colored] = {colorPickerHolderInner, "BackgroundColor3", "topGradient"}
-				colorPickerHolderInner.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {colorPickerHolderInner, "BorderColor3", "elementBorder"}
+				colorPickerHolderInner.BorderSizePixel = 0
+				do
+					local colorPickerHolderInnerStroke = Instance_new("UIStroke")
+					colorPickerHolderInnerStroke.Name = generateRandomName()
+					colorPickerHolderInnerStroke.Parent = colorPickerHolderInner
+					colorPickerHolderInnerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+					colorPickerHolderInnerStroke.Thickness = 1
+					colorPickerHolderInnerStroke.Color = library.colors.elementBorder
+					colored[1 + #colored] = {colorPickerHolderInnerStroke, "Color", "elementBorder"}
+				end
 				colorPickerHolderInner.Position = UDim2.fromScale(0.5, 0.5)
 				colorPickerHolderInner.Selectable = true
 				colorPickerHolderInner.Size = UDim2.new(1, -4, 1, -4)
@@ -7731,8 +8019,16 @@ function library:CreateWindow(options, ...)
 				hexInput.Active = true
 				hexInput.BackgroundColor3 = library.colors.topGradient
 				colored[1 + #colored] = {hexInput, "BackgroundColor3", "topGradient"}
-				hexInput.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {hexInput, "BorderColor3", "elementBorder"}
+				hexInput.BorderSizePixel = 0
+				do
+					local hexInputStroke = Instance_new("UIStroke")
+					hexInputStroke.Name = generateRandomName()
+					hexInputStroke.Parent = hexInput
+					hexInputStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+					hexInputStroke.Thickness = 1
+					hexInputStroke.Color = library.colors.elementBorder
+					colored[1 + #colored] = {hexInputStroke, "Color", "elementBorder"}
+				end
 				hexInput.Position = UDim2.fromOffset(5, 223)
 				hexInput.Selectable = true
 				hexInput.Size = UDim2.fromOffset(150, 18)
@@ -7746,8 +8042,16 @@ function library:CreateWindow(options, ...)
 				hexInputInner.AnchorPoint = Vector2.new(0.5, 0.5)
 				hexInputInner.BackgroundColor3 = library.colors.topGradient
 				colored[1 + #colored] = {hexInputInner, "BackgroundColor3", "topGradient"}
-				hexInputInner.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {hexInputInner, "BorderColor3", "elementBorder"}
+				hexInputInner.BorderSizePixel = 0
+				do
+					local hexInputInnerStroke = Instance_new("UIStroke")
+					hexInputInnerStroke.Name = generateRandomName()
+					hexInputInnerStroke.Parent = hexInputInner
+					hexInputInnerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+					hexInputInnerStroke.Thickness = 1
+					hexInputInnerStroke.Color = library.colors.elementBorder
+					colored[1 + #colored] = {hexInputInnerStroke, "Color", "elementBorder"}
+				end
 				hexInputInner.Position = UDim2.fromScale(0.5, 0.5)
 				hexInputInner.Selectable = true
 				hexInputInner.Size = UDim2.new(1, -4, 1, -4)
@@ -7773,8 +8077,16 @@ function library:CreateWindow(options, ...)
 				randomColor.Active = true
 				randomColor.BackgroundColor3 = library.colors.topGradient
 				colored[1 + #colored] = {randomColor, "BackgroundColor3", "topGradient"}
-				randomColor.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {randomColor, "BorderColor3", "elementBorder"}
+				randomColor.BorderSizePixel = 0
+				do
+					local randomColorStroke = Instance_new("UIStroke")
+					randomColorStroke.Name = generateRandomName()
+					randomColorStroke.Parent = randomColor
+					randomColorStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+					randomColorStroke.Thickness = 1
+					randomColorStroke.Color = library.colors.elementBorder
+					colored[1 + #colored] = {randomColorStroke, "Color", "elementBorder"}
+				end
 				randomColor.Position = UDim2.fromOffset(158, 223)
 				randomColor.Selectable = true
 				randomColor.Size = UDim2.fromOffset(18, 18)
@@ -7788,8 +8100,16 @@ function library:CreateWindow(options, ...)
 				randomColorInner.AnchorPoint = Vector2.new(0.5, 0.5)
 				randomColorInner.BackgroundColor3 = library.colors.topGradient
 				colored[1 + #colored] = {randomColorInner, "BackgroundColor3", "topGradient"}
-				randomColorInner.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {randomColorInner, "BorderColor3", "elementBorder"}
+				randomColorInner.BorderSizePixel = 0
+				do
+					local randomColorInnerStroke = Instance_new("UIStroke")
+					randomColorInnerStroke.Name = generateRandomName()
+					randomColorInnerStroke.Parent = randomColorInner
+					randomColorInnerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+					randomColorInnerStroke.Thickness = 1
+					randomColorInnerStroke.Color = library.colors.elementBorder
+					colored[1 + #colored] = {randomColorInnerStroke, "Color", "elementBorder"}
+				end
 				randomColorInner.Position = UDim2.fromScale(0.5, 0.5)
 				randomColorInner.Selectable = true
 				randomColorInner.Size = UDim2.new(1, -4, 1, -4)
@@ -7809,8 +8129,16 @@ function library:CreateWindow(options, ...)
 				rainbow.Active = true
 				rainbow.BackgroundColor3 = library.colors.topGradient
 				colored[1 + #colored] = {rainbow, "BackgroundColor3", "topGradient"}
-				rainbow.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {rainbow, "BorderColor3", "elementBorder"}
+				rainbow.BorderSizePixel = 0
+				do
+					local rainbowStroke = Instance_new("UIStroke")
+					rainbowStroke.Name = generateRandomName()
+					rainbowStroke.Parent = rainbow
+					rainbowStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+					rainbowStroke.Thickness = 1
+					rainbowStroke.Color = library.colors.elementBorder
+					colored[1 + #colored] = {rainbowStroke, "Color", "elementBorder"}
+				end
 				rainbow.Position = UDim2.fromOffset(158 + 18 + 4, 223)
 				rainbow.Selectable = true
 				rainbow.Size = UDim2.fromOffset(18, 18)
@@ -7824,8 +8152,16 @@ function library:CreateWindow(options, ...)
 				rainbowInner.AnchorPoint = Vector2.new(0.5, 0.5)
 				rainbowInner.BackgroundColor3 = library.colors.topGradient
 				colored[1 + #colored] = {rainbowInner, "BackgroundColor3", "topGradient"}
-				rainbowInner.BorderColor3 = library.colors.elementBorder
-				colored[1 + #colored] = {rainbowInner, "BorderColor3", "elementBorder"}
+				rainbowInner.BorderSizePixel = 0
+				do
+					local rainbowInnerStroke = Instance_new("UIStroke")
+					rainbowInnerStroke.Name = generateRandomName()
+					rainbowInnerStroke.Parent = rainbowInner
+					rainbowInnerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+					rainbowInnerStroke.Thickness = 1
+					rainbowInnerStroke.Color = library.colors.elementBorder
+					colored[1 + #colored] = {rainbowInnerStroke, "Color", "elementBorder"}
+				end
 				rainbowInner.Position = UDim2.fromScale(0.5, 0.5)
 				rainbowInner.Selectable = true
 				rainbowInner.Size = UDim2.new(1, -4, 1, -4)
