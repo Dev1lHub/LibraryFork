@@ -8523,7 +8523,7 @@ function library:CreateWindow(options, ...)
 		options = (options and type(options) == "string" and resolvevararg("Tab", options, ...)) or options
 		assert(shared.bypasstablimit or (library.Designer == nil), "Designer already exists")
 		options = options or {}
-		options.Image = options.Image or 7483871523
+		options.Name = options.Name or "Settings"
 		options.LastTab = true
 		local designer = windowFunctions:CreateTab(options)
 		local colorsection = designer:CreateSection({
