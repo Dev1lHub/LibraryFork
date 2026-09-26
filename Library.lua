@@ -669,14 +669,14 @@ function WatermarkModule:Create()
 	
 	protectAndParentGui(ScreenGui)
 	
-	local MainColor = Color3.fromRGB(168, 85, 247)
+	local MainColor = (self.GetMainColor and self.GetMainColor()) or Color3.fromRGB(168, 85, 247)
 	local TopGradColor = Color3.fromRGB(45, 35, 65)
 	local BottomGradColor = Color3.fromRGB(14, 11, 20)
-	
+
 	local WatermarkOuter = Instance.new("Frame")
 	WatermarkOuter.Name = generateRandomName()
 	WatermarkOuter.BorderSizePixel = 0
-	WatermarkOuter.Position = UDim2.new(0, 100, 0, 50)
+	WatermarkOuter.Position = UDim2.new(0, 20, 0, 150) -- weiter unten links statt oben
 	WatermarkOuter.Size = UDim2.new(0, 0, 0, 20)
 	WatermarkOuter.AutomaticSize = Enum.AutomaticSize.X
 	WatermarkOuter.ZIndex = 200
@@ -701,6 +701,9 @@ function WatermarkModule:Create()
 	WatermarkInner.ZIndex = 201
 	WatermarkInner.Parent = WatermarkOuter
 	addCorner(WatermarkInner, 3)
+	if self.RegisterColor then
+		self.RegisterColor(WatermarkInner, "BackgroundColor3")
+	end
 
 	local InnerFrame = Instance.new("Frame")
 	InnerFrame.Name = generateRandomName()
@@ -727,13 +730,16 @@ function WatermarkModule:Create()
 	WatermarkLabel.Size = UDim2.new(0, 0, 1, 0)
 	WatermarkLabel.AutomaticSize = Enum.AutomaticSize.X
 	WatermarkLabel.BackgroundTransparency = 1
-	WatermarkLabel.TextColor3 = Color3.fromRGB(168, 85, 247)
+	WatermarkLabel.TextColor3 = MainColor
 	WatermarkLabel.Font = Enum.Font.Code
 	WatermarkLabel.TextSize = 13
 	WatermarkLabel.TextXAlignment = Enum.TextXAlignment.Left
 	WatermarkLabel.ZIndex = 203
 	WatermarkLabel.Text = "D3v1lHub | Loading... | FPS: 0 | Ping: 0ms"
 	WatermarkLabel.Parent = InnerFrame
+	if self.RegisterColor then
+		self.RegisterColor(WatermarkLabel, "TextColor3")
+	end
 	
 	local UIPadding = Instance.new("UIPadding")
 	UIPadding.Name = generateRandomName()
@@ -828,12 +834,16 @@ function KeybindsListModule:Create()
 	local TopGradColor = Color3.fromRGB(45, 35, 65)
 	local BottomGradColor = Color3.fromRGB(14, 11, 20)
 	local OutlineColor = Color3.fromRGB(35, 30, 45)
-	
+
+	if self.GetMainColor then
+		self.MainColor = self.GetMainColor()
+	end
+
 	local Outer = Instance.new("Frame")
 	Outer.Name = generateRandomName()
 	Outer.AnchorPoint = Vector2.new(0, 0)
 	Outer.BorderSizePixel = 0
-	Outer.Position = UDim2.new(0, 100, 0, 78) -- direkt unter dem Watermark (Position 100,50 + Höhe 20 + Abstand)
+	Outer.Position = UDim2.new(0, 20, 0, 178) -- direkt unter dem Watermark (Position 20,150 + Höhe 20 + Abstand), weiter unten links
 	Outer.Size = UDim2.new(0, 180, 0, 20)
 	Outer.AutomaticSize = Enum.AutomaticSize.Y
 	Outer.ZIndex = 300
@@ -874,7 +884,7 @@ function KeybindsListModule:Create()
 	ColorBar.Size = UDim2.new(1, 0, 0, 2)
 	ColorBar.ZIndex = 302
 	ColorBar.Parent = Inner
-	
+
 	local Title = Instance.new("TextLabel")
 	Title.Name = generateRandomName()
 	Title.BackgroundTransparency = 1
@@ -887,6 +897,11 @@ function KeybindsListModule:Create()
 	Title.Text = "Keybinds"
 	Title.ZIndex = 302
 	Title.Parent = Inner
+	if self.RegisterColor then
+		self.RegisterColor(self, "MainColor")
+		self.RegisterColor(ColorBar, "BackgroundColor3")
+		self.RegisterColor(Title, "TextColor3")
+	end
 	
 	local Container = Instance.new("Frame")
 	Container.Name = generateRandomName()
@@ -1250,6 +1265,16 @@ end
 library.subs.ResolveID = resolveid
 library.resolvercache = resolvercache
 local colored, colors = library.colored, library.colors
+-- Watermark & Keybinds-Liste wurden vor "library" definiert und können dessen Farb-System
+-- daher nicht direkt referenzieren; wir reichen ihnen hier nachträglich Zugriff durch.
+WatermarkModule.GetMainColor = function()
+	return library.colors.main
+end
+WatermarkModule.RegisterColor = function(inst, prop)
+	colored[1 + #colored] = {inst, prop, "main"}
+end
+KeybindsListModule.GetMainColor = WatermarkModule.GetMainColor
+KeybindsListModule.RegisterColor = WatermarkModule.RegisterColor
 local tweenService = game:GetService("TweenService")
 local updatecolors, MainScreenGui = nil
 do
@@ -2347,7 +2372,7 @@ do
 		UIListLayout.Padding = UDim.new(0, 5)
 		UIListLayout.Parent = Popups
 		UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-		UIListLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+		UIListLayout.VerticalAlignment = Enum.VerticalAlignment.Top
 		Popups.Parent = MainScreenGui
 		library.NotificationsFrame = Popups
 		local Inverse = true
@@ -2441,43 +2466,79 @@ do
 			NotificationObj.TextLabel = Text
 			local Bar = Instance.new("Frame")
 			local Close = Instance.new("ImageButton")
-			Notification.AnchorPoint = Vector2.one
+			Notification.AnchorPoint = Vector2.new(1, 0)
 			Notification.BackgroundColor3 = library.colors.background
 			colored[1 + #colored] = {Notification, "BackgroundColor3", "background"}
-			Notification.BorderColor3 = library.colors.outerBorder
-			colored[1 + #colored] = {Notification, "BorderColor3", "outerBorder"}
+			Notification.BorderSizePixel = 0
 			Notification.Name = generateRandomName()
-			Notification.Position = UDim2.new(1, -10, 1, -10)
+			Notification.Position = UDim2.new(1, -10, 0, 10)
 			Notification.Size = UDim2.new(0, 5e4, 0, 32)
+			addCorner(Notification, 6)
+			do
+				local NotificationStroke = Instance.new("UIStroke")
+				NotificationStroke.Name = generateRandomName()
+				NotificationStroke.Parent = Notification
+				NotificationStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+				NotificationStroke.Thickness = 1
+				NotificationStroke.Color = library.colors.outerBorder
+				colored[1 + #colored] = {NotificationStroke, "Color", "outerBorder"}
+			end
 			Border.AnchorPoint = Vector2.new(0.5, 0.5)
 			Border.BackgroundColor3 = library.colors.background
 			colored[1 + #colored] = {Border, "BackgroundColor3", "background"}
-			Border.BorderColor3 = library.colors.innerBorder
-			colored[1 + #colored] = {Border, "BorderColor3", "innerBorder"}
-			Border.BorderMode = Enum.BorderMode.Inset
+			Border.BorderSizePixel = 0
 			Border.Name = generateRandomName()
 			Border.Parent = Notification
 			Border.Position = UDim2.new(0.5, 0, 0.5, 0)
 			Border.Size = UDim2.new(1, 0, 1, 0)
+			addCorner(Border, 6)
+			do
+				local BorderStroke = Instance.new("UIStroke")
+				BorderStroke.Name = generateRandomName()
+				BorderStroke.Parent = Border
+				BorderStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+				BorderStroke.Thickness = 1
+				BorderStroke.Color = library.colors.innerBorder
+				colored[1 + #colored] = {BorderStroke, "Color", "innerBorder"}
+			end
 			Inner.AnchorPoint = Vector2.one / 2
 			Inner.BackgroundColor3 = library.colors.background
 			colored[1 + #colored] = {Inner, "BackgroundColor3", "background"}
-			Inner.BorderColor3 = library.colors.outerBorder
-			colored[1 + #colored] = {Inner, "BorderColor3", "outerBorder"}
+			Inner.BorderSizePixel = 0
+			Inner.ClipsDescendants = true
 			Inner.Name = generateRandomName()
 			Inner.Parent = Notification
 			Inner.Position = UDim2.new(0.5, 0, 0.5, 0)
 			Inner.Size = UDim2.new(1, -8, 1, -8)
+			addCorner(Inner, 5)
+			do
+				local InnerStroke = Instance.new("UIStroke")
+				InnerStroke.Name = generateRandomName()
+				InnerStroke.Parent = Inner
+				InnerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+				InnerStroke.Thickness = 1
+				InnerStroke.Color = library.colors.outerBorder
+				colored[1 + #colored] = {InnerStroke, "Color", "outerBorder"}
+			end
 			Border_2.AnchorPoint = Vector2.one / 2
 			Border_2.BackgroundColor3 = library.colors.background
 			colored[1 + #colored] = {Border_2, "BackgroundColor3", "background"}
-			Border_2.BorderColor3 = library.colors.innerBorder
-			colored[1 + #colored] = {Border_2, "BorderColor3", "innerBorder"}
-			Border_2.BorderMode = Enum.BorderMode.Inset
+			Border_2.BorderSizePixel = 0
+			Border_2.ClipsDescendants = true
 			Border_2.Name = generateRandomName()
 			Border_2.Parent = Inner
 			Border_2.Position = UDim2.new(0.5, 0, 0.5, 0)
 			Border_2.Size = UDim2.new(1, 0, 1, 0)
+			addCorner(Border_2, 5)
+			do
+				local Border_2Stroke = Instance.new("UIStroke")
+				Border_2Stroke.Name = generateRandomName()
+				Border_2Stroke.Parent = Border_2
+				Border_2Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+				Border_2Stroke.Thickness = 1
+				Border_2Stroke.Color = library.colors.innerBorder
+				colored[1 + #colored] = {Border_2Stroke, "Color", "innerBorder"}
+			end
 			Text.AnchorPoint = Vector2.new(0, 0.5)
 			Text.BackgroundTransparency = 1
 			Text.Font = Enum.Font.Code
