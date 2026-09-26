@@ -1639,6 +1639,45 @@ end) or function(...)
 	return unpack(x)
 end
 library.subs.Instance_new = Instance_new
+-- Laufschrift/Marquee: wenn ein Text-Label breiter ist als der ihm zugewiesene Platz,
+-- wird der Text stattdessen in einer geclippten Box hin und her animiert statt zu überlappen/umzubrechen.
+local function makeMarquee(headline)
+	local wrapper = Instance_new("Frame")
+	wrapper.Name = generateRandomName()
+	wrapper.BackgroundTransparency = 1
+	wrapper.ClipsDescendants = true
+	wrapper.Position = headline.Position
+	wrapper.Size = headline.Size
+	wrapper.AnchorPoint = headline.AnchorPoint
+	wrapper.ZIndex = headline.ZIndex
+	wrapper.Parent = headline.Parent
+	headline.Parent = wrapper
+	headline.AnchorPoint = Vector2.new(0, 0.5)
+	headline.Position = UDim2.new(0, 0, 0.5, 0)
+	headline.Size = UDim2.new(0, 0, 1, 0)
+	headline.AutomaticSize = Enum.AutomaticSize.X
+	headline.TextXAlignment = Enum.TextXAlignment.Left
+	local activeTween = nil
+	local function refresh()
+		if activeTween then
+			activeTween:Cancel()
+			activeTween = nil
+		end
+		headline.Position = UDim2.new(0, 0, 0.5, 0)
+		task.defer(function()
+			local overflow = headline.AbsoluteSize.X - wrapper.AbsoluteSize.X
+			if overflow > 2 then
+				local duration = math.clamp(overflow / 30, 1.5, 8)
+				activeTween = tweenService:Create(headline, TweenInfo.new(duration, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1, true, 1), {
+					Position = UDim2.new(0, -overflow, 0.5, 0)
+				})
+				activeTween:Play()
+			end
+		end)
+	end
+	refresh()
+	return refresh
+end
 local playersservice = game:GetService("Players")
 local function getresolver(listt, filter, method, _)
 	local huo, args = type(filter), {}
@@ -2750,7 +2789,7 @@ function library:CreateWindow(options, ...)
 	main.BorderSizePixel = 0
 	main.ClipsDescendants = true -- verhindert, dass Inhalte über die abgerundeten Ecken hinausragen
 	main.Position = UDim2.fromScale(0.5, 0.5)
-	main.Size = UDim2.fromOffset(500, 571)
+	main.Size = UDim2.fromOffset(470, 571) -- schmaler, da an den Rändern zu viel ungenutzter Platz war
 	addCorner(main, 8)
 	do
 		local mainStroke = Instance_new("UIStroke")
@@ -2821,8 +2860,8 @@ function library:CreateWindow(options, ...)
 	innerMainHolder.Parent = innerMain
 	innerMainHolder.BackgroundColor3 = Color3.new(1, 1, 1)
 	innerMainHolder.BackgroundTransparency = 1
-	innerMainHolder.Position = UDim2.new(0, 25, 0, 50)
-	innerMainHolder.Size = UDim2.new(1, -50, 1, -50) -- gleicher Abstand (25px) links UND rechts für echte Symmetrie
+	innerMainHolder.Position = UDim2.new(0, 16, 0, 50)
+	innerMainHolder.Size = UDim2.new(1, -32, 1, -50) -- gleicher Abstand (16px) links UND rechts für echte Symmetrie, weniger toter Rand als vorher (25px)
 	innerBackdrop.Name = generateRandomName()
 	innerBackdrop.Parent = innerMainHolder
 	innerBackdrop.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -3313,7 +3352,7 @@ function library:CreateWindow(options, ...)
 			newSection.BackgroundColor3 = library.colors.sectionBackground
 			colored[1 + #colored] = {newSection, "BackgroundColor3", "sectionBackground"}
 			newSection.BorderSizePixel = 0
-			newSection.Size = UDim2.new(1, -20)
+			newSection.Size = UDim2.new(1, -10) -- kleinerer Abstand zwischen Groupbox und Spaltenrand, damit weniger Platz verschwendet wird
 			newSection.Visible = false
 			addCorner(newSection, 6)
 			do
@@ -3510,6 +3549,7 @@ function library:CreateWindow(options, ...)
 				toggleHeadline.Size = UDim2.fromOffset(170, 11)
 				toggleHeadline.Font = Enum.Font.Code
 				toggleHeadline.Text = toggleName or "???"
+				makeMarquee(toggleHeadline)
 				toggleHeadline.TextColor3 = library.colors.elementText
 				local colored_toggleHeadline_TextColor3 = {toggleHeadline, "TextColor3", "elementText", (lockedup and 0.5) or nil}
 				colored[1 + #colored] = colored_toggleHeadline_TextColor3
@@ -4532,6 +4572,7 @@ function library:CreateWindow(options, ...)
 				textboxHeadline.Font = Enum.Font.Code
 				textboxHeadline.LineHeight = 1.15
 				textboxHeadline.Text = (textboxName and tostring(textboxName)) or "???"
+				makeMarquee(textboxHeadline)
 				textboxHeadline.TextColor3 = library.colors.elementText
 				colored[1 + #colored] = {textboxHeadline, "TextColor3", "elementText"}
 				textboxHeadline.TextSize = 14
@@ -4726,6 +4767,7 @@ function library:CreateWindow(options, ...)
 				keybindHeadline.Size = UDim2.fromOffset(215, 12)
 				keybindHeadline.Font = Enum.Font.Code
 				keybindHeadline.Text = (keybindName and tostring(keybindName)) or "???"
+				makeMarquee(keybindHeadline)
 				keybindHeadline.TextColor3 = library.colors.elementText
 				colored[1 + #colored] = {keybindHeadline, "TextColor3", "elementText"}
 				keybindHeadline.TextSize = 14
@@ -5009,6 +5051,7 @@ function library:CreateWindow(options, ...)
 				labelHeadline.Size = UDim2.fromOffset(215, 12)
 				labelHeadline.Font = Enum.Font.Code
 				labelHeadline.Text = (labelName and tostring(labelName)) or "Empty Text"
+				local labelHeadlineRefresh = makeMarquee(labelHeadline)
 				labelHeadline.TextColor3 = library.colors.elementText
 				colored[1 + #colored] = {labelHeadline, "TextColor3", "elementText"}
 				labelHeadline.TextSize = 14
@@ -5025,6 +5068,7 @@ function library:CreateWindow(options, ...)
 						str = t
 					end
 					labelHeadline.Text = (nil ~= str and tostring(str)) or "Empty Text"
+					labelHeadlineRefresh()
 					return str
 				end
 				local default = labelHeadline.Text
@@ -5187,6 +5231,7 @@ function library:CreateWindow(options, ...)
 				sliderHeadline.Font = Enum.Font.Code
 				sliderHeadline.LineHeight = 1.15
 				sliderHeadline.Text = resolvedisplay(startingValue)
+				local sliderHeadlineRefresh = makeMarquee(sliderHeadline)
 				sliderHeadline.TextColor3 = library.colors.elementText
 				colored[1 + #colored] = {sliderHeadline, "TextColor3", "elementText"}
 				sliderHeadline.TextSize = 14
@@ -5210,6 +5255,7 @@ function library:CreateWindow(options, ...)
 							}):Play()
 						end
 						sliderHeadline.Text = resolvedisplay(newValue, last_val)
+						sliderHeadlineRefresh()
 						if usetextbox and realTextbox then
 							realTextbox.Text = tostring(newValue)
 						end
@@ -5388,6 +5434,7 @@ function library:CreateWindow(options, ...)
 						options.Location[options.LocationFlag or flagName] = sliderValue
 					end
 					sliderHeadline.Text = resolvedisplay(sliderValue, last_val)
+					sliderHeadlineRefresh()
 					if usetextbox and realTextbox then
 						realTextbox.Text = tostring(sliderValue)
 					end
@@ -5433,6 +5480,7 @@ function library:CreateWindow(options, ...)
 						}):Play()
 					end
 					sliderHeadline.Text = resolvedisplay(newValue, last_val)
+					sliderHeadlineRefresh()
 					if usetextbox and realTextbox then
 						realTextbox.Text = tostring(newValue)
 					end
@@ -5645,6 +5693,7 @@ function library:CreateWindow(options, ...)
 				dropdownHeadline.Size = UDim2.new(0.932, 0, 0, 11)
 				dropdownHeadline.Font = Enum.Font.Code
 				dropdownHeadline.Text = (dropdownName and tostring(dropdownName)) or "???"
+				makeMarquee(dropdownHeadline)
 				dropdownHeadline.TextColor3 = library.colors.elementText
 				colored[1 + #colored] = {dropdownHeadline, "TextColor3", "elementText"}
 				dropdownHeadline.TextSize = 14
@@ -6439,6 +6488,7 @@ function library:CreateWindow(options, ...)
 					dropdownHeadline.Size = UDim2.new(0.932, 0, 0, 11)
 					dropdownHeadline.Font = Enum.Font.Code
 					dropdownHeadline.Text = (dropdownName and tostring(dropdownName)) or "???"
+					makeMarquee(dropdownHeadline)
 					dropdownHeadline.TextColor3 = library.colors.elementText
 					colored[1 + #colored] = {dropdownHeadline, "TextColor3", "elementText"}
 					dropdownHeadline.TextSize = 14
@@ -7313,6 +7363,7 @@ function library:CreateWindow(options, ...)
 				dropdownHeadline.Size = UDim2.new(0.932, 0, 0, 11)
 				dropdownHeadline.Font = Enum.Font.Code
 				dropdownHeadline.Text = (dropdownName and tostring(dropdownName)) or "???"
+				makeMarquee(dropdownHeadline)
 				dropdownHeadline.TextColor3 = library.colors.elementText
 				colored[1 + #colored] = {dropdownHeadline, "TextColor3", "elementText"}
 				dropdownHeadline.TextSize = 14
@@ -8039,6 +8090,7 @@ function library:CreateWindow(options, ...)
 				colorPickerHeadline.Size = UDim2.fromOffset(173, 11)
 				colorPickerHeadline.Font = Enum.Font.Code
 				colorPickerHeadline.Text = colorPickerName or "???"
+				makeMarquee(colorPickerHeadline)
 				colorPickerHeadline.TextColor3 = library.colors.elementText
 				colored[1 + #colored] = {colorPickerHeadline, "TextColor3", "elementText"}
 				colorPickerHeadline.TextSize = 14
