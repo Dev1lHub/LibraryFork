@@ -2748,6 +2748,7 @@ function library:CreateWindow(options, ...)
 	main.BackgroundColor3 = library.colors.background
 	colored[1 + #colored] = {main, "BackgroundColor3", "background"}
 	main.BorderSizePixel = 0
+	main.ClipsDescendants = true -- verhindert, dass Inhalte über die abgerundeten Ecken hinausragen
 	main.Position = UDim2.fromScale(0.5, 0.5)
 	main.Size = UDim2.fromOffset(500, 571)
 	addCorner(main, 8)
@@ -2785,6 +2786,7 @@ function library:CreateWindow(options, ...)
 	innerMain.BackgroundColor3 = library.colors.background
 	colored[1 + #colored] = {innerMain, "BackgroundColor3", "background"}
 	innerMain.BorderSizePixel = 0
+	innerMain.ClipsDescendants = true -- Groupboxen/Hintergrundbild etc. bleiben innerhalb der runden Ecken
 	innerMain.Position = UDim2.fromScale(0.5, 0.5)
 	innerMain.Size = UDim2.new(1, -14, 1, -14)
 	addCorner(innerMain, 6)
