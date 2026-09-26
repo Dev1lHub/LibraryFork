@@ -2860,8 +2860,8 @@ function library:CreateWindow(options, ...)
 	innerMainHolder.Parent = innerMain
 	innerMainHolder.BackgroundColor3 = Color3.new(1, 1, 1)
 	innerMainHolder.BackgroundTransparency = 1
-	innerMainHolder.Position = UDim2.new(0, 16, 0, 50)
-	innerMainHolder.Size = UDim2.new(1, -32, 1, -50) -- gleicher Abstand (16px) links UND rechts für echte Symmetrie, weniger toter Rand als vorher (25px)
+	innerMainHolder.Position = UDim2.new(0, 8, 0, 50)
+	innerMainHolder.Size = UDim2.new(1, -16, 1, -50) -- gleicher Abstand (8px) links UND rechts, Groupboxen sitzen näher am Fensterrand
 	innerBackdrop.Name = generateRandomName()
 	innerBackdrop.Parent = innerMainHolder
 	innerBackdrop.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -3352,7 +3352,7 @@ function library:CreateWindow(options, ...)
 			newSection.BackgroundColor3 = library.colors.sectionBackground
 			colored[1 + #colored] = {newSection, "BackgroundColor3", "sectionBackground"}
 			newSection.BorderSizePixel = 0
-			newSection.Size = UDim2.new(1, -10) -- kleinerer Abstand zwischen Groupbox und Spaltenrand, damit weniger Platz verschwendet wird
+			newSection.Size = UDim2.new(1, -4) -- minimaler Abstand zwischen Groupbox und Spaltenrand, Groupboxen füllen die Spalte fast komplett aus
 			newSection.Visible = false
 			addCorner(newSection, 6)
 			do
