@@ -4449,7 +4449,7 @@ function library:CreateWindow(options, ...)
 				end
 				textbox.Position = UDim2.fromScale(0.031, 0.48)
 				textbox.Selectable = true
-				textbox.Size = UDim2.fromOffset(206, 18)
+				textbox.Size = UDim2.new(0.938, 0, 0, 18) -- relativ statt fest 206px, sonst ragt es in schmalen Groupboxen raus
 				textbox.Image = "rbxassetid://2454009026"
 				addCorner(textbox, 4)
 				textbox.ImageColor3 = library.colors.bottomGradient
@@ -4527,7 +4527,7 @@ function library:CreateWindow(options, ...)
 				textboxHeadline.BackgroundTransparency = 1
 				textboxHeadline.Position = UDim2.new(0.031)
 				textboxHeadline.Selectable = true
-				textboxHeadline.Size = UDim2.fromOffset(206, 20)
+				textboxHeadline.Size = UDim2.new(0.938, 0, 0, 20)
 				textboxHeadline.ZIndex = 5
 				textboxHeadline.Font = Enum.Font.Code
 				textboxHeadline.LineHeight = 1.15
@@ -5134,7 +5134,7 @@ function library:CreateWindow(options, ...)
 				end
 				slider.Position = UDim2.fromScale(0.031, 0.48)
 				slider.Selectable = true
-				slider.Size = (usetextbox and UDim2.fromOffset(156, 18)) or UDim2.fromOffset(206, 18)
+				slider.Size = (usetextbox and UDim2.new(0.969, -60, 0, 18)) or UDim2.new(0.938, 0, 0, 18) -- relativ statt fest 156/206px, sonst ragt es in schmalen Groupboxen raus
 				slider.Image = "rbxassetid://2454009026"
 				addCorner(slider, 4)
 				slider.ImageColor3 = library.colors.bottomGradient
@@ -5182,7 +5182,7 @@ function library:CreateWindow(options, ...)
 				sliderHeadline.BackgroundTransparency = 1
 				sliderHeadline.Position = UDim2.new(0.031)
 				sliderHeadline.Selectable = true
-				sliderHeadline.Size = UDim2.fromOffset(206, 20)
+				sliderHeadline.Size = UDim2.new(0.938, 0, 0, 20)
 				sliderHeadline.ZIndex = 5
 				sliderHeadline.Font = Enum.Font.Code
 				sliderHeadline.LineHeight = 1.15
@@ -5583,7 +5583,7 @@ function library:CreateWindow(options, ...)
 				end
 				dropdown.Position = UDim2.fromScale(0.027, 0.45)
 				dropdown.Selectable = true
-				dropdown.Size = UDim2.fromOffset(206, 18)
+				dropdown.Size = UDim2.new(0.946, 0, 0, 18) -- relativ statt fest 206px, sonst ragt es in schmalen Groupboxen raus
 				dropdown.Image = "rbxassetid://2454009026"
 				addCorner(dropdown, 4)
 				dropdown.ImageColor3 = library.colors.bottomGradient
@@ -5642,7 +5642,7 @@ function library:CreateWindow(options, ...)
 				dropdownHeadline.BackgroundColor3 = Color3.new(1, 1, 1)
 				dropdownHeadline.BackgroundTransparency = 1
 				dropdownHeadline.Position = UDim2.fromScale(0.034, 0.03)
-				dropdownHeadline.Size = UDim2.fromOffset(167, 11)
+				dropdownHeadline.Size = UDim2.new(0.932, 0, 0, 11)
 				dropdownHeadline.Font = Enum.Font.Code
 				dropdownHeadline.Text = (dropdownName and tostring(dropdownName)) or "???"
 				dropdownHeadline.TextColor3 = library.colors.elementText
@@ -5666,7 +5666,7 @@ function library:CreateWindow(options, ...)
 				end
 				dropdownHolderFrame.Position = UDim2.fromScale(0.025, 1.012)
 				dropdownHolderFrame.Selectable = true
-				dropdownHolderFrame.Size = UDim2.fromOffset(206, 22)
+				dropdownHolderFrame.Size = UDim2.new(0.95, 0, 0, 22)
 				dropdownHolderFrame.Visible = false
 				dropdownHolderFrame.Image = "rbxassetid://2454009026"
 				addCorner(dropdownHolderFrame, 6)
@@ -5740,7 +5740,7 @@ function library:CreateWindow(options, ...)
 					if optionCount >= 6 then
 						realDropdownHolder.CanvasSize = UDim2:fromOffset(realDropdownHolderList.AbsoluteContentSize.Y + 2)
 					elseif optionCount <= 5 then
-						dropdownHolderFrame.Size = UDim2.fromOffset(206, realDropdownHolderList.AbsoluteContentSize.Y + 4)
+						dropdownHolderFrame.Size = UDim2.new(0.95, 0, 0, realDropdownHolderList.AbsoluteContentSize.Y + 4)
 					end
 				end
 				local validate = nil
@@ -5831,7 +5831,7 @@ function library:CreateWindow(options, ...)
 							local togged = (not multiselect and selectedOption == v) or (multiselect and table.find(selectedOption, v))
 							newOption.BackgroundColor3 = (togged and library.colors.selectedOption) or library.colors.topGradient
 							newOption.BorderSizePixel = 0
-							newOption.Size = UDim2.fromOffset(202, 18)
+							newOption.Size = UDim2.new(1, -4, 0, 18)
 							newOption.Image = "rbxassetid://2454009026"
 							addCorner(newOption, 3)
 							newOption.ImageColor3 = (togged and library.colors.unselectedOption) or library.colors.bottomGradient
@@ -6378,7 +6378,7 @@ function library:CreateWindow(options, ...)
 					end
 					dropdown.Position = UDim2.fromScale(0.027, 0.45)
 					dropdown.Selectable = true
-					dropdown.Size = UDim2.fromOffset(206, 18)
+					dropdown.Size = UDim2.new(0.946, 0, 0, 18) -- relativ statt fest 206px, sonst ragt es in schmalen Groupboxen raus
 					dropdown.Image = "rbxassetid://2454009026"
 					addCorner(dropdown, 4)
 					dropdown.ImageColor3 = library.colors.bottomGradient
@@ -6436,7 +6436,7 @@ function library:CreateWindow(options, ...)
 					dropdownHeadline.BackgroundColor3 = Color3.new(1, 1, 1)
 					dropdownHeadline.BackgroundTransparency = 1
 					dropdownHeadline.Position = UDim2.fromScale(0.034, 0.03)
-					dropdownHeadline.Size = UDim2.fromOffset(167, 11)
+					dropdownHeadline.Size = UDim2.new(0.932, 0, 0, 11)
 					dropdownHeadline.Font = Enum.Font.Code
 					dropdownHeadline.Text = (dropdownName and tostring(dropdownName)) or "???"
 					dropdownHeadline.TextColor3 = library.colors.elementText
@@ -6460,7 +6460,7 @@ function library:CreateWindow(options, ...)
 					end
 					dropdownHolderFrame.Position = UDim2.fromScale(0.025, 1.012)
 					dropdownHolderFrame.Selectable = true
-					dropdownHolderFrame.Size = UDim2.fromOffset(206, 22)
+					dropdownHolderFrame.Size = UDim2.new(0.95, 0, 0, 22)
 					dropdownHolderFrame.Visible = false
 					dropdownHolderFrame.Image = "rbxassetid://2454009026"
 					addCorner(dropdownHolderFrame, 6)
@@ -6534,7 +6534,7 @@ function library:CreateWindow(options, ...)
 						if optionCount >= 6 then
 							realDropdownHolder.CanvasSize = UDim2:fromOffset(realDropdownHolderList.AbsoluteContentSize.Y + 2)
 						elseif optionCount <= 5 then
-							dropdownHolderFrame.Size = UDim2.fromOffset(206, (realDropdownHolderList.AbsoluteContentSize.Y + 4))
+							dropdownHolderFrame.Size = UDim2.new(0.95, 0, 0, (realDropdownHolderList.AbsoluteContentSize.Y + 4))
 						end
 					end
 					local function AddOptions(optionsTable, filter)
@@ -6583,7 +6583,7 @@ function library:CreateWindow(options, ...)
 								newOption.Parent = realDropdownHolder
 								newOption.BackgroundColor3 = (selectedOption == v and library.colors.selectedOption or library.colors.topGradient)
 								newOption.BorderSizePixel = 0
-								newOption.Size = UDim2.fromOffset(202, 18)
+								newOption.Size = UDim2.new(1, -4, 0, 18)
 								newOption.Image = "rbxassetid://2454009026"
 								addCorner(newOption, 3)
 								newOption.ImageColor3 = (selectedOption == v and library.colors.unselectedOption or library.colors.bottomGradient)
@@ -7251,7 +7251,7 @@ function library:CreateWindow(options, ...)
 				end
 				dropdown.Position = UDim2.fromScale(0.027, 0.45)
 				dropdown.Selectable = true
-				dropdown.Size = UDim2.fromOffset(206, 18)
+				dropdown.Size = UDim2.new(0.946, 0, 0, 18) -- relativ statt fest 206px, sonst ragt es in schmalen Groupboxen raus
 				dropdown.Image = "rbxassetid://2454009026"
 				addCorner(dropdown, 4)
 				dropdown.ImageColor3 = library.colors.bottomGradient
@@ -7310,7 +7310,7 @@ function library:CreateWindow(options, ...)
 				dropdownHeadline.BackgroundColor3 = Color3.new(1, 1, 1)
 				dropdownHeadline.BackgroundTransparency = 1
 				dropdownHeadline.Position = UDim2.fromScale(0.034, 0.03)
-				dropdownHeadline.Size = UDim2.fromOffset(167, 11)
+				dropdownHeadline.Size = UDim2.new(0.932, 0, 0, 11)
 				dropdownHeadline.Font = Enum.Font.Code
 				dropdownHeadline.Text = (dropdownName and tostring(dropdownName)) or "???"
 				dropdownHeadline.TextColor3 = library.colors.elementText
@@ -7334,7 +7334,7 @@ function library:CreateWindow(options, ...)
 				end
 				dropdownHolderFrame.Position = UDim2.fromScale(0.025, 1.012)
 				dropdownHolderFrame.Selectable = true
-				dropdownHolderFrame.Size = UDim2.fromOffset(206, 22)
+				dropdownHolderFrame.Size = UDim2.new(0.95, 0, 0, 22)
 				dropdownHolderFrame.Visible = false
 				dropdownHolderFrame.Image = "rbxassetid://2454009026"
 				addCorner(dropdownHolderFrame, 6)
@@ -7386,7 +7386,7 @@ function library:CreateWindow(options, ...)
 					if optionCount >= 6 then
 						realDropdownHolder.CanvasSize = UDim2:fromOffset(realDropdownHolderList.AbsoluteContentSize.Y + 2)
 					elseif optionCount <= 5 then
-						dropdownHolderFrame.Size = UDim2.fromOffset(206, realDropdownHolderList.AbsoluteContentSize.Y + 4)
+						dropdownHolderFrame.Size = UDim2.new(0.95, 0, 0, realDropdownHolderList.AbsoluteContentSize.Y + 4)
 					end
 				end
 				local validate = nil
@@ -7559,7 +7559,7 @@ function library:CreateWindow(options, ...)
 						local togged = (not multiselect and selectedOption == v) or (multiselect and table.find(selectedOption, v))
 						newOption.BackgroundColor3 = (togged and library.colors.selectedOption) or library.colors.topGradient
 						newOption.BorderSizePixel = 0
-						newOption.Size = UDim2.fromOffset(202, 18)
+						newOption.Size = UDim2.new(1, -4, 0, 18)
 						newOption.Image = "rbxassetid://2454009026"
 						addCorner(newOption, 3)
 						newOption.ImageColor3 = (togged and library.colors.unselectedOption) or library.colors.bottomGradient
