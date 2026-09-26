@@ -2660,44 +2660,74 @@ function library:CreateWindow(options, ...)
 	main.AnchorPoint = Vector2.new(0.5, 0.5)
 	main.BackgroundColor3 = library.colors.background
 	colored[1 + #colored] = {main, "BackgroundColor3", "background"}
-	main.BorderColor3 = library.colors.outerBorder
-	colored[1 + #colored] = {main, "BorderColor3", "outerBorder"}
+	main.BorderSizePixel = 0
 	main.Position = UDim2.fromScale(0.5, 0.5)
 	main.Size = UDim2.fromOffset(500, 545)
 	addCorner(main, 8)
+	do
+		local mainStroke = Instance_new("UIStroke")
+		mainStroke.Name = generateRandomName()
+		mainStroke.Parent = main
+		mainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		mainStroke.Thickness = 1
+		mainStroke.Color = library.colors.outerBorder
+		colored[1 + #colored] = {mainStroke, "Color", "outerBorder"}
+	end
 	makeDraggable(main, main)
 	mainBorder.Name = generateRandomName()
 	mainBorder.Parent = main
 	mainBorder.AnchorPoint = Vector2.new(0.5, 0.5)
 	mainBorder.BackgroundColor3 = library.colors.background
 	colored[1 + #colored] = {mainBorder, "BackgroundColor3", "background"}
-	mainBorder.BorderColor3 = library.colors.innerBorder
-	colored[1 + #colored] = {mainBorder, "BorderColor3", "innerBorder"}
-	mainBorder.BorderMode = Enum.BorderMode.Inset
+	mainBorder.BorderSizePixel = 0
 	mainBorder.Position = UDim2.fromScale(0.5, 0.5)
 	mainBorder.Size = UDim2.fromScale(1, 1)
 	addCorner(mainBorder, 8)
+	do
+		local mainBorderStroke = Instance_new("UIStroke")
+		mainBorderStroke.Name = generateRandomName()
+		mainBorderStroke.Parent = mainBorder
+		mainBorderStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		mainBorderStroke.Thickness = 1
+		mainBorderStroke.Color = library.colors.innerBorder
+		colored[1 + #colored] = {mainBorderStroke, "Color", "innerBorder"}
+	end
 	innerMain.Name = generateRandomName()
 	innerMain.Parent = main
 	innerMain.AnchorPoint = Vector2.new(0.5, 0.5)
 	innerMain.BackgroundColor3 = library.colors.background
 	colored[1 + #colored] = {innerMain, "BackgroundColor3", "background"}
-	innerMain.BorderColor3 = library.colors.outerBorder
-	colored[1 + #colored] = {innerMain, "BorderColor3", "outerBorder"}
+	innerMain.BorderSizePixel = 0
 	innerMain.Position = UDim2.fromScale(0.5, 0.5)
 	innerMain.Size = UDim2.new(1, -14, 1, -14)
 	addCorner(innerMain, 6)
+	do
+		local innerMainStroke = Instance_new("UIStroke")
+		innerMainStroke.Name = generateRandomName()
+		innerMainStroke.Parent = innerMain
+		innerMainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		innerMainStroke.Thickness = 1
+		innerMainStroke.Color = library.colors.outerBorder
+		colored[1 + #colored] = {innerMainStroke, "Color", "outerBorder"}
+	end
 	innerMainBorder.Name = generateRandomName()
 	innerMainBorder.Parent = innerMain
 	innerMainBorder.AnchorPoint = Vector2.new(0.5, 0.5)
 	innerMainBorder.BackgroundColor3 = library.colors.background
 	colored[1 + #colored] = {innerMainBorder, "BackgroundColor3", "background"}
-	innerMainBorder.BorderColor3 = library.colors.innerBorder
-	colored[1 + #colored] = {innerMainBorder, "BorderColor3", "innerBorder"}
-	innerMainBorder.BorderMode = Enum.BorderMode.Inset
+	innerMainBorder.BorderSizePixel = 0
 	innerMainBorder.Position = UDim2.fromScale(0.5, 0.5)
 	innerMainBorder.Size = UDim2.fromScale(1, 1)
 	addCorner(innerMainBorder, 6)
+	do
+		local innerMainBorderStroke = Instance_new("UIStroke")
+		innerMainBorderStroke.Name = generateRandomName()
+		innerMainBorderStroke.Parent = innerMainBorder
+		innerMainBorderStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		innerMainBorderStroke.Thickness = 1
+		innerMainBorderStroke.Color = library.colors.innerBorder
+		colored[1 + #colored] = {innerMainBorderStroke, "Color", "innerBorder"}
+	end
 	innerMainHolder.Name = generateRandomName()
 	innerMainHolder.Parent = innerMain
 	innerMainHolder.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -3040,20 +3070,35 @@ function library:CreateWindow(options, ...)
 			newSection.Parent = (holderSide and (((holderSide:lower() == "left") and left) or right)) or left
 			newSection.BackgroundColor3 = library.colors.sectionBackground
 			colored[1 + #colored] = {newSection, "BackgroundColor3", "sectionBackground"}
-			newSection.BorderColor3 = library.colors.outerBorder
-			colored[1 + #colored] = {newSection, "BorderColor3", "outerBorder"}
+			newSection.BorderSizePixel = 0
 			newSection.Size = UDim2.new(1, -20)
 			newSection.Visible = false
 			addCorner(newSection, 6)
+			do
+				local newSectionStroke = Instance_new("UIStroke")
+				newSectionStroke.Name = generateRandomName()
+				newSectionStroke.Parent = newSection
+				newSectionStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+				newSectionStroke.Thickness = 1
+				newSectionStroke.Color = library.colors.outerBorder
+				colored[1 + #colored] = {newSectionStroke, "Color", "outerBorder"}
+			end
 			newSectionBorder.Name = generateRandomName()
 			newSectionBorder.Parent = newSection
 			newSectionBorder.BackgroundColor3 = library.colors.sectionBackground
 			colored[1 + #colored] = {newSectionBorder, "BackgroundColor3", "sectionBackground"}
-			newSectionBorder.BorderColor3 = library.colors.innerBorder
-			colored[1 + #colored] = {newSectionBorder, "BorderColor3", "innerBorder"}
-			newSectionBorder.BorderMode = Enum.BorderMode.Inset
+			newSectionBorder.BorderSizePixel = 0
 			newSectionBorder.Size = UDim2.fromScale(1, 1)
 			addCorner(newSectionBorder, 6)
+			do
+				local newSectionBorderStroke = Instance_new("UIStroke")
+				newSectionBorderStroke.Name = generateRandomName()
+				newSectionBorderStroke.Parent = newSectionBorder
+				newSectionBorderStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+				newSectionBorderStroke.Thickness = 1
+				newSectionBorderStroke.Color = library.colors.innerBorder
+				colored[1 + #colored] = {newSectionBorderStroke, "Color", "innerBorder"}
+			end
 			sectionHolder.Name = generateRandomName()
 			sectionHolder.Parent = newSection
 			sectionHolder.BackgroundColor3 = Color3.new(1, 1, 1)
