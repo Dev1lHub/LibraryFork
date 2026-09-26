@@ -2822,7 +2822,7 @@ function library:CreateWindow(options, ...)
 	innerMainHolder.BackgroundColor3 = Color3.new(1, 1, 1)
 	innerMainHolder.BackgroundTransparency = 1
 	innerMainHolder.Position = UDim2.new(0, 25, 0, 50)
-	innerMainHolder.Size = UDim2.new(1, 0, 1, -50)
+	innerMainHolder.Size = UDim2.new(1, -25, 1, -50) -- Breite muss um den linken Versatz (25) verkleinert werden, sonst ragt der Inhalt rechts raus
 	innerBackdrop.Name = generateRandomName()
 	innerBackdrop.Parent = innerMainHolder
 	innerBackdrop.BackgroundColor3 = Color3.new(1, 1, 1)
