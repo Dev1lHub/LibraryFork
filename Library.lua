@@ -1152,7 +1152,7 @@ function KeystrokesModule:Create()
 	Holder.BackgroundTransparency = 1
 	Holder.Active = true
 	Holder.Position = UDim2.new(1, -20, 1, -20) -- unten rechts, gleicher 20px-Abstand wie zuvor unten links
-	Holder.Size = UDim2.fromOffset(150, 165)
+	Holder.Size = UDim2.fromOffset(150, 171) -- +6px Höhe, damit die W-Taste inkl. Border oben nicht mehr an der CanvasGroup-Kante anliegt (siehe Top-Padding unten)
 	Holder.ZIndex = 300
 	Holder.Visible = true
 	Holder.Parent = ScreenGui
@@ -1268,12 +1268,14 @@ function KeystrokesModule:Create()
 		return {Label = Key, Stroke = KeyStroke, Scale = OuterScale, Active = false}
 	end
 
+	-- +6px Top-Padding für alle Tasten (Y-Offset), damit die W-Taste samt Border und dem 1.08x-Scale-"Pop"
+	-- nicht mehr oben von der CanvasGroup (Content) abgeschnitten wird; Holder.Size.Y wurde entsprechend erhöht
 	self.Keys = {
-		W = makeKey("W", "W", UDim2.fromOffset(42, 42), UDim2.fromOffset(54, 0)),
-		A = makeKey("A", "A", UDim2.fromOffset(42, 42), UDim2.fromOffset(4, 50)),
-		S = makeKey("S", "S", UDim2.fromOffset(42, 42), UDim2.fromOffset(54, 50)),
-		D = makeKey("D", "D", UDim2.fromOffset(42, 42), UDim2.fromOffset(104, 50)),
-		SPACE = makeKey("SPACE", "SPACE", UDim2.fromOffset(90, 42), UDim2.fromOffset(30, 100))
+		W = makeKey("W", "W", UDim2.fromOffset(42, 42), UDim2.fromOffset(54, 6)),
+		A = makeKey("A", "A", UDim2.fromOffset(42, 42), UDim2.fromOffset(4, 56)),
+		S = makeKey("S", "S", UDim2.fromOffset(42, 42), UDim2.fromOffset(54, 56)),
+		D = makeKey("D", "D", UDim2.fromOffset(42, 42), UDim2.fromOffset(104, 56)),
+		SPACE = makeKey("SPACE", "SPACE", UDim2.fromOffset(90, 42), UDim2.fromOffset(30, 106))
 	}
 
 	function self:SetKeyState(name, on)
@@ -3439,6 +3441,15 @@ function library:CreateWindow(options, ...)
 	if windowName and #windowName > 0 and library.WorkspaceName == "D3v1lHub Lib" then
 		library.WorkspaceName = convertfilename(windowName, "D3v1lHub Lib")
 	end
+	-- Anti-Double-Loading: falls die Library (z.B. durch erneutes Ausführen des Skripts) bereits einmal
+	-- geladen wurde, wird die alte Instanz sauber über ihre eigene Unload-Logik entfernt, bevor eine neue entsteht
+	if typeof(getgenv) == "function" then
+		local genv = getgenv()
+		if genv.D3v1lHub_ActiveTerminate then
+			pcall(genv.D3v1lHub_ActiveTerminate)
+			genv.D3v1lHub_ActiveTerminate = nil
+		end
+	end
 	local d3v1lLibrary = Instance_new("ScreenGui")
 	library.MainScreenGui, MainScreenGui = d3v1lLibrary, d3v1lLibrary
 	local main = Instance_new("Frame")
@@ -3590,7 +3601,19 @@ function library:CreateWindow(options, ...)
 				KeystrokesModule.JumpButton = nil
 			end)
 		end
+		if library.MainScreenGui then
+			pcall(function()
+				library.MainScreenGui:Destroy()
+				library.MainScreenGui = nil
+				MainScreenGui = nil
+			end)
+		end
 		library.unload()
+	end
+	-- Anti-Double-Loading: diese Instanz als "aktiv" registrieren, damit ein erneutes Laden des Skripts
+	-- sie über terminateGui() sauber entfernen kann, bevor die neue GUI aufgebaut wird
+	if typeof(getgenv) == "function" then
+		getgenv().D3v1lHub_ActiveTerminate = terminateGui
 	end
 	-- Neue obere Leiste: Unload-Button | D3v1lHub | Spiel | Executor -------- Search
 	local MarketplaceService = game:GetService("MarketplaceService")
