@@ -670,7 +670,7 @@ function WatermarkModule:Create()
 	protectAndParentGui(ScreenGui)
 	
 	local MainColor = (self.GetMainColor and self.GetMainColor()) or Color3.fromRGB(168, 85, 247)
-	local TopGradColor = Color3.fromRGB(110, 110, 120) -- grau
+	local TopGradColor = Color3.fromRGB(65, 65, 72) -- grau, dunkler
 	local BottomGradColor = Color3.fromRGB(20, 20, 24) -- schwarz
 
 	local WatermarkOuter = Instance.new("Frame")
@@ -831,7 +831,7 @@ function KeybindsListModule:Create()
 	
 	protectAndParentGui(ScreenGui)
 	
-	local TopGradColor = Color3.fromRGB(110, 110, 120) -- grau, wie beim Watermark
+	local TopGradColor = Color3.fromRGB(65, 65, 72) -- grau, dunkler, wie beim Watermark
 	local BottomGradColor = Color3.fromRGB(20, 20, 24) -- schwarz, wie beim Watermark
 
 	if self.GetMainColor then
@@ -930,19 +930,49 @@ function KeybindsListModule:Create()
 		self.RegisterColor(ToggleArrow, "TextColor3")
 	end
 
+	-- CollapseWrapper klemmt/animiert die Höhe, damit das Ein-/Ausklappen sanft statt abrupt passiert
+	local CollapseWrapper = Instance.new("Frame")
+	CollapseWrapper.Name = generateRandomName()
+	CollapseWrapper.BackgroundTransparency = 1
+	CollapseWrapper.ClipsDescendants = true
+	CollapseWrapper.Position = UDim2.new(0, 0, 0, 20)
+	CollapseWrapper.Size = UDim2.new(1, 0, 0, 0)
+	CollapseWrapper.ZIndex = 303
+	CollapseWrapper.Parent = GradientFrame
+
 	local Container = Instance.new("Frame")
 	Container.Name = generateRandomName()
 	Container.BackgroundTransparency = 1
-	Container.Position = UDim2.new(0, 0, 0, 20)
+	Container.Position = UDim2.new(0, 0, 0, 0)
 	Container.Size = UDim2.new(1, 0, 0, 0)
 	Container.AutomaticSize = Enum.AutomaticSize.Y
 	Container.ZIndex = 303
-	Container.Parent = GradientFrame
+	Container.Parent = CollapseWrapper
 
+	local TweenService = game:GetService("TweenService")
+	local collapseTween = nil
 	local collapsed = false
+	-- Höhe live an den Inhalt anpassen (neue Keybinds können jederzeit über Upsert() dazukommen),
+	-- solange nicht eingeklappt ist; im eingeklappten Zustand bleibt sie bei 0
+	Container:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+		if not collapsed then
+			CollapseWrapper.Size = UDim2.new(1, 0, 0, Container.AbsoluteSize.Y)
+		end
+	end)
+	task.defer(function()
+		-- Startgröße auf die tatsächliche Inhaltshöhe setzen, sobald sie feststeht
+		CollapseWrapper.Size = UDim2.new(1, 0, 0, Container.AbsoluteSize.Y)
+	end)
 	ToggleArrow.MouseButton1Click:Connect(function()
 		collapsed = not collapsed
-		Container.Visible = not collapsed
+		if collapseTween then
+			collapseTween:Cancel()
+		end
+		local targetHeight = (not collapsed) and Container.AbsoluteSize.Y or 0
+		collapseTween = TweenService:Create(CollapseWrapper, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Size = UDim2.new(1, 0, 0, targetHeight)
+		})
+		collapseTween:Play()
 		ToggleArrow.Text = collapsed and "^" or "v"
 	end)
 
@@ -3292,6 +3322,20 @@ function library:CreateWindow(options, ...)
 			newTab.TextStrokeColor3 = Color3.fromRGB(42, 42, 42)
 			newTab.TextStrokeTransparency = 0.75
 			newTab.Size = UDim2:new(textToSize(newTab).X + 4, 1)
+		end
+		if windowFunctions.tabCount > 1 then
+			-- kleiner Trennstrich links vom Tab, damit man die einzelnen Tabs klar auseinanderhalten kann
+			local tabDivider = Instance_new("Frame")
+			tabDivider.Name = generateRandomName()
+			tabDivider.AnchorPoint = Vector2.new(0, 0.5)
+			tabDivider.Position = UDim2.new(0, -3, 0.5, 0)
+			tabDivider.Size = UDim2.new(0, 1, 0, 14)
+			tabDivider.BackgroundColor3 = library.colors.elementBorder
+			colored[1 + #colored] = {tabDivider, "BackgroundColor3", "elementBorder"}
+			tabDivider.BackgroundTransparency = 0.3
+			tabDivider.BorderSizePixel = 0
+			tabDivider.ZIndex = 2
+			tabDivider.Parent = newTab
 		end
 		local function goto()
 			if not library.colorpicker and not submenuOpen and (windowFunctions.selected.button ~= newTab) and newTab.Parent and newTabHolder.Parent then
