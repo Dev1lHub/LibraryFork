@@ -1642,18 +1642,21 @@ library.subs.Instance_new = Instance_new
 -- Laufschrift/Marquee: wenn ein Text-Label breiter ist als der ihm zugewiesene Platz,
 -- wird der Text stattdessen in einer geclippten Box hin und her animiert statt zu überlappen/umzubrechen.
 local function makeMarquee(headline)
+	local originalPosition = headline.Position
+	local originalSize = headline.Size
 	local wrapper = Instance_new("Frame")
 	wrapper.Name = generateRandomName()
 	wrapper.BackgroundTransparency = 1
 	wrapper.ClipsDescendants = true
-	wrapper.Position = headline.Position
-	wrapper.Size = headline.Size
+	-- Y um 8px vergrößern (und mittig ausgleichen), damit Unterlängen wie g/y/p nicht abgeschnitten werden
+	wrapper.Position = UDim2.new(originalPosition.X.Scale, originalPosition.X.Offset, originalPosition.Y.Scale, originalPosition.Y.Offset - 4)
+	wrapper.Size = UDim2.new(originalSize.X.Scale, originalSize.X.Offset, originalSize.Y.Scale, originalSize.Y.Offset + 8)
 	wrapper.AnchorPoint = headline.AnchorPoint
 	wrapper.ZIndex = headline.ZIndex
 	wrapper.Parent = headline.Parent
 	headline.Parent = wrapper
 	headline.AnchorPoint = Vector2.new(0, 0.5)
-	headline.Position = UDim2.new(0, 0, 0.5, 0)
+	headline.Position = UDim2.new(0, 2, 0.5, 0)
 	headline.Size = UDim2.new(0, 0, 1, 0)
 	headline.AutomaticSize = Enum.AutomaticSize.X
 	headline.TextXAlignment = Enum.TextXAlignment.Left
@@ -1666,12 +1669,13 @@ local function makeMarquee(headline)
 			activeTween:Cancel()
 			activeTween = nil
 		end
-		headline.Position = UDim2.new(0, 0, 0.5, 0)
+		headline.Position = UDim2.new(0, 2, 0.5, 0)
 		task.defer(function()
 			if generation ~= myGeneration then
 				return
 			end
-			local overflow = headline.AbsoluteSize.X - wrapper.AbsoluteSize.X
+			-- 2px Puffer auf beiden Seiten, damit der Text schon kurz vor dem eigentlichen Rand verschwindet statt exakt darauf zu enden
+			local overflow = (headline.AbsoluteSize.X - wrapper.AbsoluteSize.X) + 4
 			if overflow > 2 then
 				local duration = math.clamp(overflow / 30, 1.5, 8)
 				-- Ablauf: 2 Sek. warten -> hin scrollen -> 2 Sek. warten -> zurück scrollen -> wiederholen
@@ -1682,7 +1686,7 @@ local function makeMarquee(headline)
 							break
 						end
 						activeTween = tweenService:Create(headline, TweenInfo.new(duration, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut), {
-							Position = UDim2.new(0, -overflow, 0.5, 0)
+							Position = UDim2.new(0, 2 - overflow, 0.5, 0)
 						})
 						activeTween:Play()
 						activeTween.Completed:Wait()
@@ -1694,7 +1698,7 @@ local function makeMarquee(headline)
 							break
 						end
 						activeTween = tweenService:Create(headline, TweenInfo.new(duration, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut), {
-							Position = UDim2.new(0, 0, 0.5, 0)
+							Position = UDim2.new(0, 2, 0.5, 0)
 						})
 						activeTween:Play()
 						activeTween.Completed:Wait()
