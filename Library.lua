@@ -670,8 +670,8 @@ function WatermarkModule:Create()
 	protectAndParentGui(ScreenGui)
 	
 	local MainColor = (self.GetMainColor and self.GetMainColor()) or Color3.fromRGB(168, 85, 247)
-	local TopGradColor = Color3.fromRGB(65, 65, 72) -- grau, dunkler
-	local BottomGradColor = Color3.fromRGB(20, 20, 24) -- schwarz
+	local TopGradColor = Color3.fromRGB(32, 32, 37) -- grau, noch dunkler
+	local BottomGradColor = Color3.fromRGB(6, 6, 8) -- schwarz
 
 	local WatermarkOuter = Instance.new("Frame")
 	WatermarkOuter.Name = generateRandomName()
@@ -831,8 +831,8 @@ function KeybindsListModule:Create()
 	
 	protectAndParentGui(ScreenGui)
 	
-	local TopGradColor = Color3.fromRGB(65, 65, 72) -- grau, dunkler, wie beim Watermark
-	local BottomGradColor = Color3.fromRGB(20, 20, 24) -- schwarz, wie beim Watermark
+	local TopGradColor = Color3.fromRGB(32, 32, 37) -- grau, noch dunkler, wie beim Watermark
+	local BottomGradColor = Color3.fromRGB(6, 6, 8) -- schwarz, wie beim Watermark
 
 	if self.GetMainColor then
 		self.MainColor = self.GetMainColor()
@@ -843,8 +843,7 @@ function KeybindsListModule:Create()
 	Outer.AnchorPoint = Vector2.new(0, 0)
 	Outer.BorderSizePixel = 0
 	Outer.Position = UDim2.new(0, 20, 0, 178) -- direkt unter dem Watermark (Position 20,150 + Höhe 20 + Abstand), weiter unten links
-	Outer.Size = UDim2.new(0, 180, 0, 20)
-	Outer.AutomaticSize = Enum.AutomaticSize.Y
+	Outer.Size = UDim2.new(0, 180, 0, 20) -- Höhe wird ab jetzt manuell verwaltet (siehe applyHeight weiter unten), AutomaticSize hat den äußeren Rahmen beim Einklappen nicht mitschrumpfen lassen
 	Outer.ZIndex = 300
 	Outer.Visible = false
 	Outer.Parent = ScreenGui
@@ -930,7 +929,7 @@ function KeybindsListModule:Create()
 		self.RegisterColor(ToggleArrow, "TextColor3")
 	end
 
-	-- CollapseWrapper klemmt/animiert die Höhe, damit das Ein-/Ausklappen sanft statt abrupt passiert
+	-- CollapseWrapper klemmt/animiert die Höhe des Inhalts, damit das Ein-/Ausklappen sanft statt abrupt passiert
 	local CollapseWrapper = Instance.new("Frame")
 	CollapseWrapper.Name = generateRandomName()
 	CollapseWrapper.BackgroundTransparency = 1
@@ -949,30 +948,47 @@ function KeybindsListModule:Create()
 	Container.ZIndex = 303
 	Container.Parent = CollapseWrapper
 
+	-- Der ganze äußere Rahmen (Outer) wird jetzt selbst mitanimiert, nicht nur der Inhalt dahinter -
+	-- vorher schrumpfte nur der Text weg, die Box drumherum blieb gleich groß.
 	local TweenService = game:GetService("TweenService")
-	local collapseTween = nil
+	local BASE_HEIGHT = 20 -- Höhe der Titelzeile allein (eingeklappter Zustand)
+	local collapseTween, outerTween = nil, nil
 	local collapsed = false
+	local function applyHeight(height, animate)
+		if collapseTween then
+			collapseTween:Cancel()
+		end
+		if outerTween then
+			outerTween:Cancel()
+		end
+		local wrapperTarget = UDim2.new(1, 0, 0, math.max(height - BASE_HEIGHT, 0))
+		local outerTarget = UDim2.new(0, 180, 0, height)
+		if animate then
+			local info = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+			collapseTween = TweenService:Create(CollapseWrapper, info, {Size = wrapperTarget})
+			outerTween = TweenService:Create(Outer, info, {Size = outerTarget})
+			collapseTween:Play()
+			outerTween:Play()
+		else
+			CollapseWrapper.Size = wrapperTarget
+			Outer.Size = outerTarget
+		end
+	end
 	-- Höhe live an den Inhalt anpassen (neue Keybinds können jederzeit über Upsert() dazukommen),
-	-- solange nicht eingeklappt ist; im eingeklappten Zustand bleibt sie bei 0
+	-- solange nicht eingeklappt ist; im eingeklappten Zustand bleibt sie bei BASE_HEIGHT
 	Container:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
 		if not collapsed then
-			CollapseWrapper.Size = UDim2.new(1, 0, 0, Container.AbsoluteSize.Y)
+			applyHeight(BASE_HEIGHT + Container.AbsoluteSize.Y, false)
 		end
 	end)
 	task.defer(function()
 		-- Startgröße auf die tatsächliche Inhaltshöhe setzen, sobald sie feststeht
-		CollapseWrapper.Size = UDim2.new(1, 0, 0, Container.AbsoluteSize.Y)
+		applyHeight(BASE_HEIGHT + Container.AbsoluteSize.Y, false)
 	end)
 	ToggleArrow.MouseButton1Click:Connect(function()
 		collapsed = not collapsed
-		if collapseTween then
-			collapseTween:Cancel()
-		end
-		local targetHeight = (not collapsed) and Container.AbsoluteSize.Y or 0
-		collapseTween = TweenService:Create(CollapseWrapper, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-			Size = UDim2.new(1, 0, 0, targetHeight)
-		})
-		collapseTween:Play()
+		local targetHeight = collapsed and BASE_HEIGHT or (BASE_HEIGHT + Container.AbsoluteSize.Y)
+		applyHeight(targetHeight, true)
 		ToggleArrow.Text = collapsed and "^" or "v"
 	end)
 
@@ -3330,9 +3346,8 @@ function library:CreateWindow(options, ...)
 			tabDivider.AnchorPoint = Vector2.new(0, 0.5)
 			tabDivider.Position = UDim2.new(0, -3, 0.5, 0)
 			tabDivider.Size = UDim2.new(0, 1, 0, 14)
-			tabDivider.BackgroundColor3 = library.colors.elementBorder
-			colored[1 + #colored] = {tabDivider, "BackgroundColor3", "elementBorder"}
-			tabDivider.BackgroundTransparency = 0.3
+			tabDivider.BackgroundColor3 = Color3.fromRGB(150, 150, 160) -- heller/sichtbarer als vorher
+			tabDivider.BackgroundTransparency = 0
 			tabDivider.BorderSizePixel = 0
 			tabDivider.ZIndex = 2
 			tabDivider.Parent = newTab
