@@ -1106,9 +1106,304 @@ function KeybindsListModule:SetActive(id, active)
 	if not entry then
 		return
 	end
-	
+
 	entry.Active = active and true or false
 	entry.Label.TextColor3 = entry.Active and self.MainColor or self.IdleColor
+end
+
+-- ============================================================
+-- KEYSTROKES MODULE (WASD + SPACE Tastatur-Anzeige, Look angelehnt an Watermark/Keybinds-Liste)
+-- ============================================================
+local KeystrokesModule = {}
+KeystrokesModule.ScreenGui = nil
+KeystrokesModule.Holder = nil
+KeystrokesModule.Keys = {}
+KeystrokesModule.Connection = nil
+KeystrokesModule.JumpButton = nil
+KeystrokesModule.JumpDown = false
+KeystrokesModule.MainColor = Color3.fromRGB(168, 85, 247)
+
+function KeystrokesModule:Create()
+	if self.Holder then
+		return self.Holder
+	end
+
+	local Players = game:GetService("Players")
+	local UserInputService = game:GetService("UserInputService")
+	local plr = Players.LocalPlayer
+	local pg = plr:WaitForChild("PlayerGui")
+
+	if self.GetMainColor then
+		self.MainColor = self.GetMainColor()
+	end
+
+	local ScreenGui = Instance.new("ScreenGui")
+	ScreenGui.Name = generateRandomName()
+	ScreenGui.IgnoreGuiInset = true
+	ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+	protectAndParentGui(ScreenGui, pg)
+
+	local Holder = Instance.new("Frame")
+	Holder.Name = generateRandomName()
+	Holder.AnchorPoint = Vector2.new(0, 0)
+	Holder.BackgroundTransparency = 1
+	Holder.Active = true
+	Holder.Position = UDim2.new(0, 20, 1, -185) -- unten links, Abstand angelehnt an Watermark/Keybinds-Liste
+	Holder.Size = UDim2.fromOffset(150, 165)
+	Holder.ZIndex = 300
+	Holder.Visible = true
+	Holder.Parent = ScreenGui
+
+	local dragging, dragInput, dragStart, startPos
+	Holder.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = Holder.Position
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+				end
+			end)
+		end
+	end)
+
+	Holder.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+			dragInput = input
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+		if input == dragInput and dragging then
+			local delta = input.Position - dragStart
+			Holder.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+		end
+	end)
+
+	local NormalColor = Color3.fromRGB(28, 28, 32)
+	local NormalTextColor = Color3.fromRGB(200, 200, 210) -- gleicher Grauton wie KeybindsListModule.IdleColor
+	local ActiveTextColor = Color3.fromRGB(255, 255, 255)
+
+	local function makeKey(name, text, size, pos)
+		local Outer = Instance.new("Frame")
+		Outer.Name = generateRandomName()
+		Outer.BackgroundColor3 = Color3.fromRGB(6, 6, 8) -- schwarz, wie beim Watermark/Keybinds-Liste
+		Outer.BorderSizePixel = 0
+		Outer.Size = UDim2.new(0, size.X.Offset + 4, 0, size.Y.Offset + 4)
+		Outer.Position = UDim2.new(0, pos.X.Offset - 2, 0, pos.Y.Offset - 2)
+		Outer.ZIndex = 300
+		Outer.Parent = Holder
+		addCorner(Outer, 4)
+		do
+			local OuterStroke = Instance.new("UIStroke")
+			OuterStroke.Name = generateRandomName()
+			OuterStroke.Parent = Outer
+			OuterStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+			OuterStroke.Thickness = 1
+			OuterStroke.Color = Color3.new(0, 0, 0)
+		end
+
+		local Key = Instance.new("TextLabel")
+		Key.Name = name
+		Key.BackgroundColor3 = NormalColor
+		Key.BorderSizePixel = 0
+		Key.Position = UDim2.fromOffset(2, 2)
+		Key.Size = UDim2.new(1, -4, 1, -4)
+		Key.Font = Enum.Font.Code
+		Key.Text = text
+		Key.TextColor3 = NormalTextColor
+		Key.TextSize = name == "SPACE" and 13 or 20
+		Key.TextXAlignment = Enum.TextXAlignment.Center
+		Key.TextYAlignment = Enum.TextYAlignment.Center
+		Key.ZIndex = 301
+		Key.Parent = Outer
+		addCorner(Key, 3)
+
+		local KeyStroke = Instance.new("UIStroke")
+		KeyStroke.Name = generateRandomName()
+		KeyStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		KeyStroke.Thickness = 1
+		KeyStroke.Color = self.MainColor
+		KeyStroke.Parent = Key
+		if self.RegisterColor then
+			self.RegisterColor(KeyStroke, "Color")
+		end
+
+		return {Label = Key, Stroke = KeyStroke}
+	end
+
+	self.Keys = {
+		W = makeKey("W", "W", UDim2.fromOffset(42, 42), UDim2.fromOffset(54, 0)),
+		A = makeKey("A", "A", UDim2.fromOffset(42, 42), UDim2.fromOffset(4, 50)),
+		S = makeKey("S", "S", UDim2.fromOffset(42, 42), UDim2.fromOffset(54, 50)),
+		D = makeKey("D", "D", UDim2.fromOffset(42, 42), UDim2.fromOffset(104, 50)),
+		SPACE = makeKey("SPACE", "SPACE", UDim2.fromOffset(90, 42), UDim2.fromOffset(30, 100))
+	}
+
+	function self:SetKeyState(name, on)
+		local key = self.Keys[name]
+		if not key then
+			return
+		end
+
+		if on then
+			key.Label.BackgroundColor3 = self.MainColor
+			key.Label.TextColor3 = ActiveTextColor
+		else
+			key.Label.BackgroundColor3 = NormalColor
+			key.Label.TextColor3 = NormalTextColor
+		end
+	end
+
+	if self.RegisterColor then
+		self.RegisterColor(self, "MainColor")
+	end
+
+	self.ScreenGui = ScreenGui
+	self.Holder = Holder
+
+	return Holder
+end
+
+-- Ermittelt die Mobile-Bewegungsrichtung (WASD-Äquivalent) relativ zur Kamera
+function KeystrokesModule:GetMobileMovement()
+	local Players = game:GetService("Players")
+	local plr = Players.LocalPlayer
+	local char = plr and plr.Character
+	if not char then
+		return Vector3.zero
+	end
+
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if not hum then
+		return Vector3.zero
+	end
+
+	local move = hum.MoveDirection
+	if move.Magnitude < 0.05 then
+		return Vector3.zero
+	end
+
+	local cam = workspace.CurrentCamera
+	if not cam then
+		return Vector3.zero
+	end
+
+	local look = Vector3.new(cam.CFrame.LookVector.X, 0, cam.CFrame.LookVector.Z)
+	local right = Vector3.new(cam.CFrame.RightVector.X, 0, cam.CFrame.RightVector.Z)
+
+	if look.Magnitude > 0 then
+		look = look.Unit
+	end
+
+	if right.Magnitude > 0 then
+		right = right.Unit
+	end
+
+	return Vector3.new(move:Dot(right), 0, move:Dot(look))
+end
+
+-- Hängt sich an den mobilen Sprung-Button (TouchGui) für das SPACE-Äquivalent auf Mobile
+function KeystrokesModule:SetupJumpButton()
+	if self.JumpButton then
+		return
+	end
+
+	local Players = game:GetService("Players")
+	local plr = Players.LocalPlayer
+	local pg = plr:WaitForChild("PlayerGui")
+
+	local touchGui = pg:FindFirstChild("TouchGui")
+	if not touchGui then
+		return
+	end
+
+	local controlFrame = touchGui:FindFirstChild("TouchControlFrame")
+	if not controlFrame then
+		return
+	end
+
+	local button = controlFrame:FindFirstChild("JumpButton")
+	if not button or not button:IsA("GuiButton") then
+		return
+	end
+
+	self.JumpButton = button
+
+	button.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch then
+			self.JumpDown = true
+		end
+	end)
+
+	button.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch then
+			self.JumpDown = false
+		end
+	end)
+end
+
+-- Startet die RenderStepped-Abfrage der Tasten (wird nur ausgeführt, solange das Feature sichtbar ist)
+function KeystrokesModule:StartLoop()
+	if self.Connection then
+		return
+	end
+
+	local RunService = game:GetService("RunService")
+	local UserInputService = game:GetService("UserInputService")
+	local mobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+
+	if mobile and not self.JumpButton then
+		task.spawn(function()
+			while self.Holder and self.Connection and not self.JumpButton do
+				self:SetupJumpButton()
+				task.wait(0.25)
+			end
+		end)
+	end
+
+	self.Connection = RunService.RenderStepped:Connect(function()
+		if mobile then
+			local move = self:GetMobileMovement()
+			self:SetKeyState("W", move.Z > 0.35)
+			self:SetKeyState("S", move.Z < -0.35)
+			self:SetKeyState("A", move.X < -0.35)
+			self:SetKeyState("D", move.X > 0.35)
+			self:SetKeyState("SPACE", self.JumpDown)
+		else
+			self:SetKeyState("W", UserInputService:IsKeyDown(Enum.KeyCode.W))
+			self:SetKeyState("A", UserInputService:IsKeyDown(Enum.KeyCode.A))
+			self:SetKeyState("S", UserInputService:IsKeyDown(Enum.KeyCode.S))
+			self:SetKeyState("D", UserInputService:IsKeyDown(Enum.KeyCode.D))
+			self:SetKeyState("SPACE", UserInputService:IsKeyDown(Enum.KeyCode.Space))
+		end
+	end)
+end
+
+-- Stoppt die RenderStepped-Abfrage, damit im ausgeblendeten Zustand keine Performance verschwendet wird
+function KeystrokesModule:StopLoop()
+	if self.Connection then
+		self.Connection:Disconnect()
+		self.Connection = nil
+	end
+end
+
+function KeystrokesModule:Show()
+	if not self.Holder then
+		self:Create()
+	end
+
+	self.Holder.Visible = true
+	self:StartLoop()
+end
+
+function KeystrokesModule:Hide()
+	if self.Holder then
+		self.Holder.Visible = false
+	end
+	self:StopLoop()
 end
 
 local library = {
@@ -1355,6 +1650,8 @@ WatermarkModule.RegisterColor = function(inst, prop)
 end
 KeybindsListModule.GetMainColor = WatermarkModule.GetMainColor
 KeybindsListModule.RegisterColor = WatermarkModule.RegisterColor
+KeystrokesModule.GetMainColor = WatermarkModule.GetMainColor
+KeystrokesModule.RegisterColor = WatermarkModule.RegisterColor
 local tweenService = game:GetService("TweenService")
 local updatecolors, MainScreenGui = nil
 do
@@ -3137,6 +3434,15 @@ function library:CreateWindow(options, ...)
 				KeybindsListModule.ScreenGui:Destroy()
 				KeybindsListModule.Frame = nil
 				KeybindsListModule.ScreenGui = nil
+			end)
+		end
+		if KeystrokesModule and KeystrokesModule.ScreenGui then
+			pcall(function()
+				KeystrokesModule:StopLoop()
+				KeystrokesModule.ScreenGui:Destroy()
+				KeystrokesModule.Holder = nil
+				KeystrokesModule.ScreenGui = nil
+				KeystrokesModule.JumpButton = nil
 			end)
 		end
 		library.unload()
@@ -9276,6 +9582,21 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 					CursorModule:Enable()
 				else
 					CursorModule:Disable()
+				end
+			end
+		}}, {"AddToggle", "__Designer.Toggle.KeystrokesToggle", backgroundsection, {
+			Name = "Show Keystrokes",
+			Flag = "__Designer.Keystrokes.Enabled",
+			Value = false,
+			Callback = function(value)
+				if value then
+					pcall(function()
+						KeystrokesModule:Show()
+					end)
+				else
+					pcall(function()
+						KeystrokesModule:Hide()
+					end)
 				end
 			end
 		}}, {"AddToggle", "__Designer.Toggle.WatermarkToggle", backgroundsection, {
