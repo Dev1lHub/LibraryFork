@@ -1551,150 +1551,52 @@ function KeystrokesModule:Hide()
 end
 
 -- ============================================================
--- STREAMERMODE MODULE (blendet den echten Roblox-Namen in der eigenen UI aus,
--- zeigt stattdessen "D3v1lHub User" mit einem kosmetischen "verifiziert"-Badge)
+-- STREAMERMODE MODULE (ändert den echten Roblox-DisplayName des LocalPlayers,
+-- damit der maskierte Name überall in der nativen Roblox-UI erscheint -
+-- Tab-Spielerliste, ESC-Menü und Chat -, inklusive Verified-Badge-Symbol
+-- direkt im Namen; rein clientseitig, repliziert nicht zu anderen Spielern)
 -- ============================================================
 local StreamerModeModule = {}
-StreamerModeModule.ScreenGui = nil
-StreamerModeModule.Holder = nil
-StreamerModeModule.NameLabel = nil
-StreamerModeModule.BadgeOuter = nil
 StreamerModeModule.Enabled = false
-StreamerModeModule.FakeName = "D3v1lHub User"
+StreamerModeModule.OriginalDisplayName = nil
 
--- Liefert den Namen, der aktuell angezeigt werden soll (echter Anzeigename oder der maskierte StreamerMode-Name)
-function StreamerModeModule:GetDisplayName()
-	if self.Enabled then
-		return self.FakeName
+-- Anpassbare Konstanten: gespoofter Name + Badge-Symbol (Unicode Private-Use-Area-Codepoint 0xE000,
+-- landet direkt im DisplayName und wird von Robloxs Legacy-Font als natives Verified-Badge-Icon
+-- gerendert, da eine echte Roblox-CoreGui-Badge-Injektion in Tab-Liste/ESC-Menü/Chat nicht robust
+-- möglich ist)
+local STREAMERMODE_SPOOF_NAME = "D3v1lHub User"
+local STREAMERMODE_VERIFIED_BADGE = utf8.char(0xE000)
+StreamerModeModule.SpoofName = STREAMERMODE_SPOOF_NAME
+StreamerModeModule.FakeName = STREAMERMODE_VERIFIED_BADGE .. " " .. STREAMERMODE_SPOOF_NAME
+
+-- Zentrale Schaltstelle: setzt/entfernt den maskierten DisplayName direkt am LocalPlayer,
+-- wodurch Roblox' eigene UI (Tab-Spielerliste, ESC-Menü, Chat) den maskierten Namen übernimmt
+function StreamerModeModule:SetEnabled(value)
+	value = value and true or false
+	if value == self.Enabled then
+		return
 	end
+
 	local ok, plr = pcall(function()
 		return game:GetService("Players").LocalPlayer
 	end)
-	if ok and plr then
-		return plr.DisplayName or plr.Name
-	end
-	return "Unknown"
-end
-
-function StreamerModeModule:Create()
-	if self.Holder then
-		return self.Holder
-	end
-
-	local ScreenGui = Instance.new("ScreenGui")
-	ScreenGui.Name = generateRandomName()
-	ScreenGui.IgnoreGuiInset = true
-	ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-
-	protectAndParentGui(ScreenGui)
-
-	local Holder = Instance.new("Frame")
-	Holder.Name = generateRandomName()
-	Holder.BackgroundColor3 = Color3.fromRGB(18, 16, 24) -- gleicher dunkler Ton wie das Watermark
-	Holder.BorderSizePixel = 0
-	Holder.Position = UDim2.new(0, 20, 0, 176) -- direkt unter dem Watermark (das bei y=150 sitzt)
-	Holder.Size = UDim2.new(0, 0, 0, 20)
-	Holder.AutomaticSize = Enum.AutomaticSize.X
-	Holder.ZIndex = 200
-	Holder.Visible = false
-	Holder.Parent = ScreenGui
-	addCorner(Holder, 4)
-	do
-		local HolderStroke = Instance.new("UIStroke")
-		HolderStroke.Name = generateRandomName()
-		HolderStroke.Parent = Holder
-		HolderStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-		HolderStroke.Thickness = 1
-		HolderStroke.Color = Color3.new(0, 0, 0)
-	end
-
-	local HolderList = Instance.new("UIListLayout")
-	HolderList.Name = generateRandomName()
-	HolderList.Parent = Holder
-	HolderList.FillDirection = Enum.FillDirection.Horizontal
-	HolderList.SortOrder = Enum.SortOrder.LayoutOrder
-	HolderList.VerticalAlignment = Enum.VerticalAlignment.Center
-	HolderList.Padding = UDim.new(0, 4)
-
-	local HolderPadding = Instance.new("UIPadding")
-	HolderPadding.Name = generateRandomName()
-	HolderPadding.Parent = Holder
-	HolderPadding.PaddingLeft = UDim.new(0, 6)
-	HolderPadding.PaddingRight = UDim.new(0, 6)
-
-	local NameLabel = Instance.new("TextLabel")
-	NameLabel.Name = generateRandomName()
-	NameLabel.Parent = Holder
-	NameLabel.LayoutOrder = 1
-	NameLabel.BackgroundTransparency = 1
-	NameLabel.Font = Enum.Font.Code
-	NameLabel.Text = self:GetDisplayName()
-	NameLabel.TextColor3 = Color3.fromRGB(230, 220, 245)
-	NameLabel.TextSize = 14
-	NameLabel.AutomaticSize = Enum.AutomaticSize.X
-	NameLabel.Size = UDim2.fromOffset(0, 20)
-	if self.RegisterColor then
-		self.RegisterColor(NameLabel, "TextColor3")
-	end
-
-	-- Kosmetisches "verifiziert"-Badge (blauer Kreis + weißer Haken), rein optisch, keine echte Roblox-Verifizierung
-	local BadgeOuter = Instance.new("Frame")
-	BadgeOuter.Name = generateRandomName()
-	BadgeOuter.Parent = Holder
-	BadgeOuter.LayoutOrder = 2
-	BadgeOuter.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
-	BadgeOuter.BorderSizePixel = 0
-	BadgeOuter.Size = UDim2.fromOffset(14, 14)
-	BadgeOuter.Visible = self.Enabled
-	addCorner(BadgeOuter, 7) -- 7 = halber Kantenwert -> ergibt einen Kreis
-
-	local BadgeCheck = Instance.new("TextLabel")
-	BadgeCheck.Name = generateRandomName()
-	BadgeCheck.Parent = BadgeOuter
-	BadgeCheck.BackgroundTransparency = 1
-	BadgeCheck.Size = UDim2.new(1, 0, 1, 0)
-	BadgeCheck.Font = Enum.Font.GothamBold
-	BadgeCheck.Text = "✓"
-	BadgeCheck.TextColor3 = Color3.new(1, 1, 1)
-	BadgeCheck.TextSize = 10
-
-	self.ScreenGui = ScreenGui
-	self.Holder = Holder
-	self.NameLabel = NameLabel
-	self.BadgeOuter = BadgeOuter
-
-	return Holder
-end
-
--- Aktualisiert Text & Badge-Sichtbarkeit anhand des aktuellen Enabled-Status (ohne Neuerstellung)
-function StreamerModeModule:Refresh()
-	if self.NameLabel then
-		self.NameLabel.Text = self:GetDisplayName()
-	end
-	if self.BadgeOuter then
-		self.BadgeOuter.Visible = self.Enabled
-	end
-end
-
-function StreamerModeModule:Show()
-	if not self.Holder then
-		self:Create()
-	end
-	self:Refresh()
-	self.Holder.Visible = true
-end
-
-function StreamerModeModule:Hide()
-	if not self.Holder then
+	if not ok or not plr then
 		return
 	end
-	self.Holder.Visible = false
-end
 
--- Zentrale Schaltstelle: schaltet die Namensmaskierung ein/aus und aktualisiert eine bereits sichtbare Anzeige live
-function StreamerModeModule:SetEnabled(value)
-	self.Enabled = value and true or false
-	self:Refresh()
+	if value then
+		self.OriginalDisplayName = plr.DisplayName
+		self.Enabled = true
+		pcall(function()
+			plr.DisplayName = self.FakeName
+		end)
+	else
+		self.Enabled = false
+		pcall(function()
+			plr.DisplayName = self.OriginalDisplayName or plr.DisplayName
+		end)
+		self.OriginalDisplayName = nil
+	end
 end
 
 local library = {
@@ -1946,8 +1848,6 @@ KeystrokesModule.RegisterColor = WatermarkModule.RegisterColor
 KeystrokesModule.GetEasing = function()
 	return library.configuration.easingStyle, library.configuration.easingDirection
 end
-StreamerModeModule.GetMainColor = WatermarkModule.GetMainColor
-StreamerModeModule.RegisterColor = WatermarkModule.RegisterColor
 local tweenService = game:GetService("TweenService")
 local updatecolors, MainScreenGui = nil
 do
@@ -3750,13 +3650,9 @@ function library:CreateWindow(options, ...)
 				KeystrokesModule.JumpButton = nil
 			end)
 		end
-		if StreamerModeModule and StreamerModeModule.ScreenGui then
+		if StreamerModeModule and StreamerModeModule.Enabled then
 			pcall(function()
-				StreamerModeModule.ScreenGui:Destroy()
-				StreamerModeModule.Holder = nil
-				StreamerModeModule.NameLabel = nil
-				StreamerModeModule.BadgeOuter = nil
-				StreamerModeModule.ScreenGui = nil
+				StreamerModeModule:SetEnabled(false)
 			end)
 		end
 		if library.MainScreenGui then
@@ -9971,12 +9867,13 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 				if value then
 					pcall(function()
 						StreamerModeModule:SetEnabled(true)
-						StreamerModeModule:Show()
+					end)
+					pcall(function()
+						library:Notify({Text = 'Name Spoofed: "' .. StreamerModeModule.SpoofName .. '"'})
 					end)
 				else
 					pcall(function()
 						StreamerModeModule:SetEnabled(false)
-						StreamerModeModule:Hide()
 					end)
 				end
 			end
