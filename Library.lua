@@ -670,8 +670,8 @@ function WatermarkModule:Create()
 	protectAndParentGui(ScreenGui)
 	
 	local MainColor = (self.GetMainColor and self.GetMainColor()) or Color3.fromRGB(168, 85, 247)
-	local TopGradColor = Color3.fromRGB(210, 210, 220) -- grau
-	local BottomGradColor = Color3.fromRGB(236, 72, 153) -- pink
+	local TopGradColor = Color3.fromRGB(110, 110, 120) -- grau
+	local BottomGradColor = Color3.fromRGB(20, 20, 24) -- schwarz
 
 	local WatermarkOuter = Instance.new("Frame")
 	WatermarkOuter.Name = generateRandomName()
@@ -734,8 +734,6 @@ function WatermarkModule:Create()
 	WatermarkLabel.Font = Enum.Font.Code
 	WatermarkLabel.TextSize = 13
 	WatermarkLabel.TextXAlignment = Enum.TextXAlignment.Left
-	WatermarkLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
-	WatermarkLabel.TextStrokeTransparency = 0.5 -- besserer Kontrast auf dem hellen Grau/Pink-Gradient
 	WatermarkLabel.ZIndex = 203
 	WatermarkLabel.Text = "D3v1lHub | Loading... | FPS: 0 | Ping: 0ms"
 	WatermarkLabel.Parent = InnerFrame
@@ -833,8 +831,8 @@ function KeybindsListModule:Create()
 	
 	protectAndParentGui(ScreenGui)
 	
-	local TopGradColor = Color3.fromRGB(210, 210, 220) -- grau, wie beim Watermark
-	local BottomGradColor = Color3.fromRGB(236, 72, 153) -- pink, wie beim Watermark
+	local TopGradColor = Color3.fromRGB(110, 110, 120) -- grau, wie beim Watermark
+	local BottomGradColor = Color3.fromRGB(20, 20, 24) -- schwarz, wie beim Watermark
 
 	if self.GetMainColor then
 		self.MainColor = self.GetMainColor()
@@ -906,8 +904,6 @@ function KeybindsListModule:Create()
 	Title.Font = Enum.Font.Code
 	Title.TextSize = 13
 	Title.TextColor3 = self.MainColor
-	Title.TextStrokeColor3 = Color3.new(0, 0, 0)
-	Title.TextStrokeTransparency = 0.5
 	Title.TextXAlignment = Enum.TextXAlignment.Left
 	Title.Text = "Keybinds"
 	Title.ZIndex = 303
@@ -924,8 +920,6 @@ function KeybindsListModule:Create()
 	ToggleArrow.TextSize = 13
 	ToggleArrow.Text = "v"
 	ToggleArrow.TextColor3 = self.MainColor
-	ToggleArrow.TextStrokeColor3 = Color3.new(0, 0, 0)
-	ToggleArrow.TextStrokeTransparency = 0.5
 	ToggleArrow.ZIndex = 303
 	ToggleArrow.Parent = GradientFrame
 	if self.RegisterColor then
