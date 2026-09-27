@@ -1550,55 +1550,6 @@ function KeystrokesModule:Hide()
 	end
 end
 
--- ============================================================
--- STREAMERMODE MODULE (ändert den echten Roblox-DisplayName des LocalPlayers,
--- damit der maskierte Name überall in der nativen Roblox-UI erscheint -
--- Tab-Spielerliste, ESC-Menü und Chat -, inklusive Verified-Badge-Symbol
--- direkt im Namen; rein clientseitig, repliziert nicht zu anderen Spielern)
--- ============================================================
-local StreamerModeModule = {}
-StreamerModeModule.Enabled = false
-StreamerModeModule.OriginalDisplayName = nil
-
--- Anpassbare Konstanten: gespoofter Name + Badge-Symbol (Unicode Private-Use-Area-Codepoint 0xE000,
--- landet direkt im DisplayName und wird von Robloxs Legacy-Font als natives Verified-Badge-Icon
--- gerendert, da eine echte Roblox-CoreGui-Badge-Injektion in Tab-Liste/ESC-Menü/Chat nicht robust
--- möglich ist)
-local STREAMERMODE_SPOOF_NAME = "D3v1lHub User"
-local STREAMERMODE_VERIFIED_BADGE = utf8.char(0xE000)
-StreamerModeModule.SpoofName = STREAMERMODE_SPOOF_NAME
-StreamerModeModule.FakeName = STREAMERMODE_VERIFIED_BADGE .. " " .. STREAMERMODE_SPOOF_NAME
-
--- Zentrale Schaltstelle: setzt/entfernt den maskierten DisplayName direkt am LocalPlayer,
--- wodurch Roblox' eigene UI (Tab-Spielerliste, ESC-Menü, Chat) den maskierten Namen übernimmt
-function StreamerModeModule:SetEnabled(value)
-	value = value and true or false
-	if value == self.Enabled then
-		return
-	end
-
-	local ok, plr = pcall(function()
-		return game:GetService("Players").LocalPlayer
-	end)
-	if not ok or not plr then
-		return
-	end
-
-	if value then
-		self.OriginalDisplayName = plr.DisplayName
-		self.Enabled = true
-		pcall(function()
-			plr.DisplayName = self.FakeName
-		end)
-	else
-		self.Enabled = false
-		pcall(function()
-			plr.DisplayName = self.OriginalDisplayName or plr.DisplayName
-		end)
-		self.OriginalDisplayName = nil
-	end
-end
-
 local library = {
 	Version = "0.66",
 	WorkspaceName = "D3v1lHub Lib",
@@ -3648,11 +3599,6 @@ function library:CreateWindow(options, ...)
 				KeystrokesModule.Holder = nil
 				KeystrokesModule.ScreenGui = nil
 				KeystrokesModule.JumpButton = nil
-			end)
-		end
-		if StreamerModeModule and StreamerModeModule.Enabled then
-			pcall(function()
-				StreamerModeModule:SetEnabled(false)
 			end)
 		end
 		if library.MainScreenGui then
@@ -9856,24 +9802,6 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 				else
 					pcall(function()
 						KeybindsListModule:Hide()
-					end)
-				end
-			end
-		}}, {"AddToggle", "__Designer.Toggle.StreamerModeToggle", backgroundsection, {
-			Name = "Enable StreamerMode",
-			Flag = "__Designer.StreamerMode.Enabled",
-			Value = false,
-			Callback = function(value)
-				if value then
-					pcall(function()
-						StreamerModeModule:SetEnabled(true)
-					end)
-					pcall(function()
-						library:Notify({Text = 'Name Spoofed: "' .. StreamerModeModule.SpoofName .. '"'})
-					end)
-				else
-					pcall(function()
-						StreamerModeModule:SetEnabled(false)
 					end)
 				end
 			end
