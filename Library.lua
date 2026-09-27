@@ -7384,7 +7384,48 @@ function library:CreateWindow(options, ...)
 				local clrcallback = options.ItemsCleared or options.ClearedCallback
 				local modcallback = options.ItemChanged or options.ChangedCallback
 				local blankstring = not multiselect and (options.BlankValue or options.NoValueString or options.Nothing)
-				local resolvelist = getresolver(listt, options.Filter, options.Method)
+								-- Linoria-Feature-Port: SpecialType (Player/Team) ueberschreibt die Liste mit einer Live-Funktion
+				if options.SpecialType == "Player" then
+					local excludeLocalPlayer = options.ExcludeLocalPlayer and true or false
+					listt = function()
+						local names = {}
+						for _, plr in ipairs(playersservice:GetPlayers()) do
+							if not (excludeLocalPlayer and plr == playersservice.LocalPlayer) then
+								names[1 + #names] = plr.Name
+							end
+						end
+						table.sort(names, function(a, b) return a:lower() < b:lower() end)
+						return names
+					end
+				elseif options.SpecialType == "Team" then
+					listt = function()
+						local teamsservice = game:GetService("Teams")
+						local names = {}
+						for _, tm in ipairs(teamsservice:GetTeams()) do
+							names[1 + #names] = tm.Name
+						end
+						table.sort(names, function(a, b) return a:lower() < b:lower() end)
+						return names
+					end
+				end
+				-- Linoria-Feature-Port: DisabledValues (gesperrte, aber sichtbare Optionen)
+				local disabledValues = (type(options.DisabledValues) == "table" and options.DisabledValues) or {}
+				local function isValueDisabled(v)
+					return table.find(disabledValues, tostring(v)) ~= nil
+				end
+				-- Linoria-Feature-Port: FormatDisplayValue (eigener Anzeigetext statt Rohwert)
+				local function formatValue(v)
+					if v ~= nil and type(options.FormatDisplayValue) == "function" then
+						local ok, res = pcall(options.FormatDisplayValue, v)
+						if ok and res ~= nil then
+							return tostring(res)
+						end
+					end
+					return tostring(v)
+				end
+				-- Linoria-Feature-Port: MaxVisibleDropdownItems (Hoehe der geoeffneten Liste begrenzen)
+				local userMaxVisibleItems = (type(options.MaxVisibleDropdownItems) == "number" and math.clamp(options.MaxVisibleDropdownItems, 4, 16)) or nil
+local resolvelist = getresolver(listt, options.Filter, options.Method)
 				local list = resolvelist()
 				if next(list) then
 				else
@@ -7478,11 +7519,36 @@ function library:CreateWindow(options, ...)
 				dropdownSelection.Size = UDim2.fromScale(0.97, 1)
 				dropdownSelection.ZIndex = 5
 				dropdownSelection.Font = Enum.Font.Code
-				dropdownSelection.Text = (passed_multiselect == "string" and multiselect) or (multiselect and tostring(blankstring or "Select Item(s)")) or (selectedOption and tostring(selectedOption)) or tostring(blankstring or "No Blank String")
+				dropdownSelection.Text = (passed_multiselect == "string" and multiselect) or (multiselect and tostring(blankstring or "Select Item(s)")) or (selectedOption and formatValue(selectedOption)) or tostring(blankstring or "No Blank String")
 				dropdownSelection.TextColor3 = library.colors.otherElementText
 				colored[1 + #colored] = {dropdownSelection, "TextColor3", "otherElementText"}
 				dropdownSelection.TextSize = 14
 				dropdownSelection.TextXAlignment = Enum.TextXAlignment.Left
+				local dropdownSearchBox = nil
+				if options.Searchable then
+					dropdownSearchBox = Instance_new("TextBox")
+					dropdownSearchBox.Name = generateRandomName()
+					dropdownSearchBox.Parent = dropdown
+					dropdownSearchBox.Active = true
+					dropdownSearchBox.BackgroundColor3 = Color3.new(1, 1, 1)
+					dropdownSearchBox.BackgroundTransparency = 1
+					dropdownSearchBox.Position = dropdownSelection.Position
+					dropdownSearchBox.Selectable = true
+					dropdownSearchBox.Size = dropdownSelection.Size
+					dropdownSearchBox.ZIndex = 6
+					dropdownSearchBox.Font = Enum.Font.Code
+					dropdownSearchBox.ClearTextOnFocus = false
+					dropdownSearchBox.Text = ""
+					dropdownSearchBox.PlaceholderText = "Suchen..."
+					dropdownSearchBox.PlaceholderColor3 = library.colors.otherElementText
+					colored[1 + #colored] = {dropdownSearchBox, "PlaceholderColor3", "otherElementText"}
+					dropdownSearchBox.TextColor3 = library.colors.otherElementText
+					colored[1 + #colored] = {dropdownSearchBox, "TextColor3", "otherElementText"}
+					dropdownSearchBox.TextSize = 14
+					dropdownSearchBox.TextXAlignment = Enum.TextXAlignment.Left
+					dropdownSearchBox.Visible = false
+				end
+
 				dropdownHeadline.Name = generateRandomName()
 				dropdownHeadline.Parent = newDropdown
 				dropdownHeadline.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -7564,6 +7630,10 @@ function library:CreateWindow(options, ...)
 				local function UpdateDropdownHolder()
 					if optionCount >= 6 then
 						realDropdownHolder.CanvasSize = UDim2:fromOffset(realDropdownHolderList.AbsoluteContentSize.Y + 2)
+						if userMaxVisibleItems then
+							-- Linoria-Feature-Port: MaxVisibleDropdownItems begrenzt die sichtbare Hoehe, der Rest scrollt
+							dropdownHolderFrame.Size = UDim2.new(0.95, 0, 0, math.min(optionCount, userMaxVisibleItems) * 18 + 4)
+						end
 					elseif optionCount <= 5 then
 						dropdownHolderFrame.Size = UDim2.new(0.95, 0, 0, realDropdownHolderList.AbsoluteContentSize.Y + 4)
 					end
@@ -7668,7 +7738,7 @@ function library:CreateWindow(options, ...)
 					if options.Location then
 						options.Location[options.LocationFlag or flagName] = str
 					end
-					local sstr = (selectedOption and tostring(selectedOption)) or blankstring or "No Blank String"
+					local sstr = (selectedOption and formatValue(selectedOption)) or blankstring or "No Blank String"
 					if dropdownSelection.Text ~= sstr then
 						dropdownSelection.Text = sstr
 					end
@@ -7691,7 +7761,24 @@ function library:CreateWindow(options, ...)
 						SetupValidation()
 					end
 				end
-				local function AddOptions(optionsTable)
+								local displayTextByButton = setmetatable({}, {__mode = "k"})
+				local function GetFilteredList()
+					if options.Searchable and dropdownSearchBox and dropdownSearchBox.Text ~= "" then
+						local term = string.lower(dropdownSearchBox.Text)
+						local filtered = {}
+						for _, v in next, list do
+							local ok, matched = pcall(function()
+								return string.lower(tostring(v)):match(term)
+							end)
+							if ok and matched then
+								filtered[1 + #filtered] = v
+							end
+						end
+						return filtered
+					end
+					return list
+				end
+local function AddOptions(optionsTable)
 					if options.Sort then
 						local didstuff, dosort = nil, options.Sort
 						if type(dosort) == "function" then
@@ -7743,6 +7830,8 @@ function library:CreateWindow(options, ...)
 						addCorner(newOption, 3)
 						newOption.ImageColor3 = (togged and library.colors.unselectedOption) or library.colors.bottomGradient
 						local stringed = tostring(v)
+						local displayed = formatValue(v)
+						local isDisabled = isValueDisabled(v)
 						optionButton.Name = stringed
 						optionButton.Parent = newOption
 						optionButton.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -7752,11 +7841,18 @@ function library:CreateWindow(options, ...)
 						optionButton.Size = UDim2.new(1, -10, 1)
 						optionButton.ZIndex = 5
 						optionButton.Font = Enum.Font.Code
-						optionButton.Text = (togged and (" " .. stringed)) or stringed
-						optionButton.TextColor3 = (togged and library.colors.main) or library.colors.otherElementText
+						optionButton.Text = (togged and (" " .. displayed)) or displayed
+						optionButton.TextColor3 = (isDisabled and darkenColor(library.colors.otherElementText, 1.8)) or (togged and library.colors.main) or library.colors.otherElementText
 						optionButton.TextSize = 14
 						optionButton.TextXAlignment = Enum.TextXAlignment.Left
+						displayTextByButton[optionButton] = displayed
+						if isDisabled then
+							newOption.ImageTransparency = 0.4
+						end
 						library.signals[1 + #library.signals] = optionButton.MouseButton1Click:Connect(function()
+							if isDisabled then
+								return
+							end
 							if not library.colorpicker then
 								restorezindex[newSection] = restorezindex[newSection] or newSection.ZIndex
 								restorezindex[newDropdown] = restorezindex[newDropdown] or newDropdown.ZIndex
@@ -7770,10 +7866,10 @@ function library:CreateWindow(options, ...)
 										selectedOption[1 + #selectedOption] = v
 									end
 									togged = table.find(selectedOption, v)
-									optionButton.Text = (togged and (" " .. stringed)) or stringed
+									optionButton.Text = (togged and (" " .. displayed)) or displayed
 									newOption.BackgroundColor3 = (togged and library.colors.selectedOption) or library.colors.topGradient
 									newOption.ImageColor3 = (togged and library.colors.unselectedOption) or library.colors.bottomGradient
-									optionButton.TextColor3 = (togged and library.colors.main) or library.colors.otherElementText
+									optionButton.TextColor3 = (isDisabled and darkenColor(library.colors.otherElementText, 1.8)) or (togged and library.colors.main) or library.colors.otherElementText
 									dropdownSelection.Text = (passed_multiselect == "string" and multiselect) or tostring(blankstring or "Select Item(s)")
 									if callback then
 										task.spawn(callback, selectedOption, cloned)
@@ -7797,15 +7893,15 @@ function library:CreateWindow(options, ...)
 										local last_v = library_flags[flagName]
 										selectedObjects[1].BackgroundColor3 = library.colors.topGradient
 										selectedObjects[1].ImageColor3 = library.colors.bottomGradient
-										selectedObjects[2].Text = selectedObjects[2].Name
+										selectedObjects[2].Text = displayTextByButton[selectedObjects[2]] or selectedObjects[2].Name
 										selectedObjects[2].TextColor3 = library.colors.otherElementText
 										selectedOption = v
-										dropdownSelection.Text = stringed
+										dropdownSelection.Text = displayed
 										selectedObjects[1] = newOption
 										selectedObjects[2] = optionButton
 										newOption.BackgroundColor3 = library.colors.selectedOption
 										newOption.ImageColor3 = library.colors.unselectedOption
-										optionButton.Text = " " .. stringed
+										optionButton.Text = " " .. displayed
 										optionButton.TextColor3 = library.colors.main
 										dropdownHolderFrame.Visible = false
 										dropdownToggle.Rotation = 90
@@ -7877,7 +7973,12 @@ function library:CreateWindow(options, ...)
 						end
 					end
 					if dropdownEnabled then
-						AddOptions(list)
+						if options.Searchable and dropdownSearchBox then
+							dropdownSearchBox.Text = ""
+							dropdownSearchBox.Visible = true
+							dropdownSelection.Visible = false
+						end
+						AddOptions(GetFilteredList())
 						submenuOpen = dropdown
 						dropdownToggle.Rotation = 270
 						restorezindex[newSection] = restorezindex[newSection] or newSection.ZIndex
@@ -7916,6 +8017,11 @@ function library:CreateWindow(options, ...)
 							library.signals[1 + #library.signals] = precisionscrolling
 						end
 					else
+						if options.Searchable and dropdownSearchBox then
+							dropdownSearchBox.Text = ""
+							dropdownSearchBox.Visible = false
+							dropdownSelection.Visible = true
+						end
 						submenuOpen = nil
 						dropdownToggle.Rotation = 90
 						colored_dropdown_BackgroundColor3[3] = "topGradient"
@@ -7940,6 +8046,11 @@ function library:CreateWindow(options, ...)
 					else
 						delay(0.01, update)
 					end
+				end
+				if options.Searchable and dropdownSearchBox then
+					library.signals[1 + #library.signals] = dropdownSearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+						AddOptions(GetFilteredList())
+					end)
 				end
 				library.signals[1 + #library.signals] = newDropdown.InputEnded:Connect(function(input)
 					if not library.colorpicker and input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -7975,11 +8086,11 @@ function library:CreateWindow(options, ...)
 						display(showing)
 					end
 				end)
-				AddOptions(list)
+				AddOptions(GetFilteredList())
 				local default = library_flags[flagName]
 				function update()
 					dropdownName, callback = options.Name or dropdownName, options.Callback
-					local sstr = (passed_multiselect == "string" and multiselect) or (library_flags[flagName] and tostring(library_flags[flagName])) or (selectedOption and tostring(selectedOption)) or blankstring or "nil"
+					local sstr = (passed_multiselect == "string" and multiselect) or (library_flags[flagName] and formatValue(library_flags[flagName])) or (selectedOption and formatValue(selectedOption)) or blankstring or "nil"
 					if dropdownSelection.Text ~= sstr then
 						dropdownSelection.Text = sstr
 					end
@@ -8096,7 +8207,52 @@ function library:CreateWindow(options, ...)
 					end
 					return list
 				end
-				tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagName] = objectdata, objectdata, objectdata
+								function objectdata.SetDisabledValues(t, newDisabledValues)
+					if nil == newDisabledValues and t ~= nil then
+						newDisabledValues = t
+					end
+					if type(newDisabledValues) == "table" then
+						disabledValues = newDisabledValues
+					end
+					if showing then
+						AddOptions(GetFilteredList())
+					end
+					return disabledValues
+				end
+				function objectdata.AddDisabledValues(t, newDisabledValues)
+					if nil == newDisabledValues and t ~= nil then
+						newDisabledValues = t
+					end
+					if type(newDisabledValues) == "table" then
+						for _, v in next, newDisabledValues do
+							disabledValues[1 + #disabledValues] = v
+						end
+					elseif type(newDisabledValues) == "string" then
+						disabledValues[1 + #disabledValues] = newDisabledValues
+					end
+					if showing then
+						AddOptions(GetFilteredList())
+					end
+					return disabledValues
+				end
+				-- Linoria-Feature-Port: SpecialType Live-Update bei Spieler-/Team-Aenderungen
+				if options.SpecialType == "Player" or options.SpecialType == "Team" then
+					local function RefreshSpecialList()
+						list = resolvelist()
+						if showing then
+							AddOptions(GetFilteredList())
+						end
+					end
+					if options.SpecialType == "Player" then
+						library.signals[1 + #library.signals] = playersservice.PlayerAdded:Connect(RefreshSpecialList)
+						library.signals[1 + #library.signals] = playersservice.PlayerRemoving:Connect(RefreshSpecialList)
+					else
+						local teamsservice = game:GetService("Teams")
+						library.signals[1 + #library.signals] = teamsservice.ChildAdded:Connect(RefreshSpecialList)
+						library.signals[1 + #library.signals] = teamsservice.ChildRemoved:Connect(RefreshSpecialList)
+					end
+				end
+tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagName] = objectdata, objectdata, objectdata
 				return objectdata
 			end
 			sectionFunctions.AddDropDown = sectionFunctions.AddDropdown
