@@ -1144,16 +1144,39 @@ function KeystrokesModule:Create()
 
 	protectAndParentGui(ScreenGui, pg)
 
+	local TweenService = game:GetService("TweenService")
+
 	local Holder = Instance.new("Frame")
 	Holder.Name = generateRandomName()
-	Holder.AnchorPoint = Vector2.new(0, 0)
+	Holder.AnchorPoint = Vector2.new(1, 1)
 	Holder.BackgroundTransparency = 1
 	Holder.Active = true
-	Holder.Position = UDim2.new(0, 20, 1, -185) -- unten links, Abstand angelehnt an Watermark/Keybinds-Liste
+	Holder.Position = UDim2.new(1, -20, 1, -20) -- unten rechts, gleicher 20px-Abstand wie zuvor unten links
 	Holder.Size = UDim2.fromOffset(150, 165)
 	Holder.ZIndex = 300
 	Holder.Visible = true
 	Holder.Parent = ScreenGui
+
+	-- CanvasGroup als Inhalts-Container: erlaubt ein einziges GroupTransparency-Tween fürs Ein-/Ausblenden
+	-- des gesamten Panels, statt jede Taste einzeln faden zu müssen. Deckt exakt das Holder-Rechteck ab
+	-- und ist am gleichen Eck (unten rechts) verankert, damit der Scale-In/Out optisch aus der Ecke wächst.
+	local Content = Instance.new("CanvasGroup")
+	Content.Name = generateRandomName()
+	Content.AnchorPoint = Vector2.new(1, 1)
+	Content.BackgroundTransparency = 1
+	Content.GroupTransparency = 0
+	Content.Position = UDim2.new(1, 0, 1, 0)
+	Content.Size = UDim2.new(1, 0, 1, 0)
+	Content.ZIndex = 300
+	Content.Parent = Holder
+
+	local ContentScale = Instance.new("UIScale")
+	ContentScale.Name = generateRandomName()
+	ContentScale.Scale = 1
+	ContentScale.Parent = Content
+
+	self.Content = Content
+	self.ContentScale = ContentScale
 
 	local dragging, dragInput, dragStart, startPos
 	Holder.InputBegan:Connect(function(input)
@@ -1187,15 +1210,25 @@ function KeystrokesModule:Create()
 	local ActiveTextColor = Color3.fromRGB(255, 255, 255)
 
 	local function makeKey(name, text, size, pos)
+		local outerSizeX, outerSizeY = size.X.Offset + 4, size.Y.Offset + 4
+
 		local Outer = Instance.new("Frame")
 		Outer.Name = generateRandomName()
 		Outer.BackgroundColor3 = Color3.fromRGB(6, 6, 8) -- schwarz, wie beim Watermark/Keybinds-Liste
 		Outer.BorderSizePixel = 0
-		Outer.Size = UDim2.new(0, size.X.Offset + 4, 0, size.Y.Offset + 4)
-		Outer.Position = UDim2.new(0, pos.X.Offset - 2, 0, pos.Y.Offset - 2)
+		Outer.Size = UDim2.new(0, outerSizeX, 0, outerSizeY)
+		-- mittig verankert (statt oben-links), damit der UIScale-"Pop" beim Tastendruck symmetrisch
+		-- aus der Mitte wächst statt sich nach unten rechts zu verschieben
+		Outer.AnchorPoint = Vector2.new(0.5, 0.5)
+		Outer.Position = UDim2.new(0, pos.X.Offset - 2 + outerSizeX / 2, 0, pos.Y.Offset - 2 + outerSizeY / 2)
 		Outer.ZIndex = 300
-		Outer.Parent = Holder
+		Outer.Parent = Content
 		addCorner(Outer, 4)
+
+		local OuterScale = Instance.new("UIScale")
+		OuterScale.Name = generateRandomName()
+		OuterScale.Scale = 1
+		OuterScale.Parent = Outer
 		do
 			local OuterStroke = Instance.new("UIStroke")
 			OuterStroke.Name = generateRandomName()
@@ -1226,12 +1259,13 @@ function KeystrokesModule:Create()
 		KeyStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		KeyStroke.Thickness = 1
 		KeyStroke.Color = self.MainColor
+		KeyStroke.Transparency = 0.5 -- idle: dezent gedimmter Rand, wird beim Tastendruck weggetweent
 		KeyStroke.Parent = Key
 		if self.RegisterColor then
 			self.RegisterColor(KeyStroke, "Color")
 		end
 
-		return {Label = Key, Stroke = KeyStroke}
+		return {Label = Key, Stroke = KeyStroke, Scale = OuterScale, Active = false}
 	end
 
 	self.Keys = {
@@ -1248,12 +1282,57 @@ function KeystrokesModule:Create()
 			return
 		end
 
+		on = on and true or false
+		if key.Active == on then
+			return -- wird pro RenderStepped-Frame aufgerufen; ohne diese Sperre würde das Tween jeden Frame neu starten
+		end
+		key.Active = on
+
+		local targetColor = on and self.MainColor or NormalColor
+		local targetTextColor = on and ActiveTextColor or NormalTextColor
+		local targetStrokeTransparency = on and 0 or 0.5
+		-- kurze, knackige Dauer (0.08-0.12s), damit schnelles WASD-Tippen nicht "hinterherhinkt"
+		local feedbackInfo = TweenInfo.new(on and 0.08 or 0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+		if key.ColorTween then
+			key.ColorTween:Cancel()
+		end
+		key.ColorTween = TweenService:Create(key.Label, feedbackInfo, {BackgroundColor3 = targetColor, TextColor3 = targetTextColor})
+		key.ColorTween:Play()
+
+		if key.StrokeTween then
+			key.StrokeTween:Cancel()
+		end
+		key.StrokeTween = TweenService:Create(key.Stroke, feedbackInfo, {Transparency = targetStrokeTransparency})
+		key.StrokeTween:Play()
+
+		-- Scale-"Pop": kurz hoch- und wieder runtertweenen. Läuft eine vorherige Pop-Animation noch,
+		-- wird sie sauber abgebrochen (Tween + Completed-Connection), damit sich bei schnellem
+		-- Drücken/Loslassen nichts überlagert oder hängen bleibt.
+		if key.PopConnection then
+			key.PopConnection:Disconnect()
+			key.PopConnection = nil
+		end
+		if key.ScaleTween then
+			key.ScaleTween:Cancel()
+		end
+
 		if on then
-			key.Label.BackgroundColor3 = self.MainColor
-			key.Label.TextColor3 = ActiveTextColor
+			local popTween = TweenService:Create(key.Scale, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Scale = 1.08})
+			key.ScaleTween = popTween
+			popTween:Play()
+			key.PopConnection = popTween.Completed:Connect(function(state)
+				key.PopConnection = nil
+				if state == Enum.PlaybackState.Completed then
+					local settleTween = TweenService:Create(key.Scale, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Scale = 1})
+					key.ScaleTween = settleTween
+					settleTween:Play()
+				end
+			end)
 		else
-			key.Label.BackgroundColor3 = NormalColor
-			key.Label.TextColor3 = NormalTextColor
+			local settleTween = TweenService:Create(key.Scale, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Scale = 1})
+			key.ScaleTween = settleTween
+			settleTween:Play()
 		end
 	end
 
@@ -1390,20 +1469,83 @@ function KeystrokesModule:StopLoop()
 	end
 end
 
+-- Liefert den Easing-Stil des Panel-Fades (angelehnt an das Ein-/Ausblenden der Notify-Popups);
+-- wird erst nach Erstellung von "library" via KeystrokesModule.GetEasing gesetzt, daher der Fallback
+function KeystrokesModule:GetPanelEasing()
+	if self.GetEasing then
+		local style, direction = self.GetEasing()
+		if style and direction then
+			return style, direction
+		end
+	end
+	return Enum.EasingStyle.Quart, Enum.EasingDirection.Out
+end
+
 function KeystrokesModule:Show()
 	if not self.Holder then
 		self:Create()
 	end
 
+	self.HideGeneration = (self.HideGeneration or 0) + 1
 	self.Holder.Visible = true
+
+	if self.Content and self.ContentScale then
+		local TweenService = game:GetService("TweenService")
+		local style, direction = self:GetPanelEasing()
+
+		if self.PanelFadeTween then
+			self.PanelFadeTween:Cancel()
+		end
+		if self.PanelScaleTween then
+			self.PanelScaleTween:Cancel()
+		end
+
+		local info = TweenInfo.new(0.25, style, direction)
+		self.PanelFadeTween = TweenService:Create(self.Content, info, {GroupTransparency = 0})
+		self.PanelFadeTween:Play()
+		self.PanelScaleTween = TweenService:Create(self.ContentScale, info, {Scale = 1})
+		self.PanelScaleTween:Play()
+	end
+
 	self:StartLoop()
 end
 
 function KeystrokesModule:Hide()
-	if self.Holder then
+	if not self.Holder then
+		return
+	end
+
+	self:StopLoop()
+
+	if self.Content and self.ContentScale then
+		local TweenService = game:GetService("TweenService")
+		local style, direction = self:GetPanelEasing()
+
+		if self.PanelFadeTween then
+			self.PanelFadeTween:Cancel()
+		end
+		if self.PanelScaleTween then
+			self.PanelScaleTween:Cancel()
+		end
+
+		local Holder = self.Holder
+		local info = TweenInfo.new(0.2, style, direction)
+		self.PanelFadeTween = TweenService:Create(self.Content, info, {GroupTransparency = 1})
+		self.PanelFadeTween:Play()
+		self.PanelScaleTween = TweenService:Create(self.ContentScale, info, {Scale = 0.85})
+		self.PanelScaleTween:Play()
+
+		-- Generation-Token (gleiches Prinzip wie makeMarquee): verhindert, dass ein verspätetes
+		-- "jetzt ausblenden" den Holder wieder versteckt, falls zwischenzeitlich erneut Show() kam
+		local generation = self.HideGeneration or 0
+		task.delay(0.2, function()
+			if self.HideGeneration == generation and Holder then
+				Holder.Visible = false
+			end
+		end)
+	else
 		self.Holder.Visible = false
 	end
-	self:StopLoop()
 end
 
 local library = {
@@ -1652,6 +1794,9 @@ KeybindsListModule.GetMainColor = WatermarkModule.GetMainColor
 KeybindsListModule.RegisterColor = WatermarkModule.RegisterColor
 KeystrokesModule.GetMainColor = WatermarkModule.GetMainColor
 KeystrokesModule.RegisterColor = WatermarkModule.RegisterColor
+KeystrokesModule.GetEasing = function()
+	return library.configuration.easingStyle, library.configuration.easingDirection
+end
 local tweenService = game:GetService("TweenService")
 local updatecolors, MainScreenGui = nil
 do
