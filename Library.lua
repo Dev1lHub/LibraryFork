@@ -1215,15 +1215,15 @@ do
 		Window = {"Name", "Theme"},
 		Tab = {"Name", "Image"},
 		Section = {"Name", "Side"},
-		Label = {"Text", "Flag", "UnloadValue", "UnloadFunc"},
-		Toggle = {"Name", "Value", "Callback", "Flag", "Location", "LocationFlag", "UnloadValue", "UnloadFunc", "Locked", "Keybind", "Condition", "AllowDuplicateCalls"},
-		Textbox = {"Name", "Value", "Callback", "Flag", "Location", "LocationFlag", "UnloadValue", "UnloadFunc", "Placeholder", "Type", "Min", "Max", "Decimals", "Hex", "Binary", "Base", "RichTextBox", "MultiLine", "TextScaled", "TextFont", "PreFormat", "PostFormat", "CustomProperties", "AllowDuplicateCalls"},
-		Slider = {"Name", "Value", "Callback", "Flag", "Location", "LocationFlag", "UnloadValue", "UnloadFunc", "Min", "Max", "Decimals", "Format", "IllegalInput", "Textbox", "AllowDuplicateCalls"},
-		Button = {"Name", "Callback", "Locked", "Condition"},
-		Keybind = {"Name", "Value", "Callback", "Flag", "Location", "LocationFlag", "UnloadValue", "UnloadFunc", "Pressed", "KeyNames", "AllowDuplicateCalls"},
-		Dropdown = {"Name", "Value", "Callback", "Flag", "Location", "LocationFlag", "UnloadValue", "UnloadFunc", "List", "Filter", "Method", "Nothing", "Sort", "MultiSelect", "ItemAdded", "ItemRemoved", "ItemChanged", "ItemsCleared", "ScrollUpButton", "ScrollDownButton", "ScrollButtonRate", "DisablePrecisionScrolling", "AllowDuplicateCalls"},
+		Label = {"Text", "Flag", "UnloadValue", "UnloadFunc", "Tooltip", "DisabledTooltip"},
+		Toggle = {"Name", "Value", "Callback", "Flag", "Location", "LocationFlag", "UnloadValue", "UnloadFunc", "Locked", "Disabled", "Keybind", "Condition", "AllowDuplicateCalls", "Tooltip", "DisabledTooltip"},
+		Textbox = {"Name", "Value", "Callback", "Flag", "Location", "LocationFlag", "UnloadValue", "UnloadFunc", "Placeholder", "Type", "Min", "Max", "Decimals", "Hex", "Binary", "Base", "RichTextBox", "MultiLine", "TextScaled", "TextFont", "PreFormat", "PostFormat", "CustomProperties", "AllowDuplicateCalls", "Tooltip", "DisabledTooltip"},
+		Slider = {"Name", "Value", "Callback", "Flag", "Location", "LocationFlag", "UnloadValue", "UnloadFunc", "Min", "Max", "Decimals", "Format", "IllegalInput", "Textbox", "AllowDuplicateCalls", "Tooltip", "DisabledTooltip"},
+		Button = {"Name", "Callback", "Locked", "Disabled", "Condition", "Tooltip", "DisabledTooltip"},
+		Keybind = {"Name", "Value", "Callback", "Flag", "Location", "LocationFlag", "UnloadValue", "UnloadFunc", "Pressed", "KeyNames", "AllowDuplicateCalls", "Tooltip", "DisabledTooltip"},
+		Dropdown = {"Name", "Value", "Callback", "Flag", "Location", "LocationFlag", "UnloadValue", "UnloadFunc", "List", "Filter", "Method", "Nothing", "Sort", "MultiSelect", "ItemAdded", "ItemRemoved", "ItemChanged", "ItemsCleared", "ScrollUpButton", "ScrollDownButton", "ScrollButtonRate", "DisablePrecisionScrolling", "AllowDuplicateCalls", "Searchable", "DisabledValues", "FormatDisplayValue", "MaxVisibleDropdownItems", "SpecialType", "ExcludeLocalPlayer", "Tooltip", "DisabledTooltip"},
 		SearchBox = {"Name", "Value", "Callback", "Flag", "Location", "LocationFlag", "UnloadValue", "UnloadFunc", "List", "Filter", "Method", "Nothing", "Sort", "MultiSelect", "ItemAdded", "ItemRemoved", "ItemChanged", "ItemsCleared", "ScrollUpButton", "ScrollDownButton", "ScrollButtonRate", "DisablePrecisionScrolling", "RegEx", "AllowDuplicateCalls"},
-		Colorpicker = {"Name", "Value", "Callback", "Flag", "Location", "LocationFlag", "UnloadValue", "UnloadFunc", "Rainbow", "Random", "AllowDuplicateCalls"},
+		Colorpicker = {"Name", "Value", "Callback", "Flag", "Location", "LocationFlag", "UnloadValue", "UnloadFunc", "Rainbow", "Random", "AllowDuplicateCalls", "Tooltip", "DisabledTooltip"},
 		Persistence = {"Name", "Value", "Callback", "Flag", "Location", "LocationFlag", "UnloadValue", "UnloadFunc", "Workspace", "Persistive", "Suffix", "LoadCallback", "SaveCallback", "PostLoadCallback", "PostSaveCallback", "ScrollUpButton", "ScrollDownButton", "ScrollButtonRate", "DisablePrecisionScrolling", "AllowDuplicateCalls"},
 		Designer = {"Backdrop", "Image", "Info", "Credit"}
 	}
@@ -1937,6 +1937,140 @@ do
 	end
 end
 library.subs.textToSize = textToSize
+-- ============================================================
+-- Linoria-Feature-Port: Tooltip-System (AddToolTip)
+-- Zeigt eine kleine schwebende Box neben dem Mauszeiger, sobald man
+-- über HoverInstance hovert. DisabledInfoStr wird stattdessen gezeigt,
+-- wenn TooltipTable.Disabled == true ist (z.B. bei gesperrten/deaktivierten Elementen).
+-- ============================================================
+local Tooltips = {}
+function library:AddToolTip(InfoStr, DisabledInfoStr, HoverInstance)
+	InfoStr = (typeof(InfoStr) == "string" and InfoStr ~= "" and InfoStr) or nil
+	DisabledInfoStr = (typeof(DisabledInfoStr) == "string" and DisabledInfoStr ~= "" and DisabledInfoStr) or nil
+	if not InfoStr and not DisabledInfoStr then
+		return nil
+	end
+	if not HoverInstance then
+		return nil
+	end
+
+	local TooltipOuter = Instance_new("Frame")
+	TooltipOuter.Name = generateRandomName()
+	TooltipOuter.BackgroundColor3 = library.colors.background
+	colored[1 + #colored] = {TooltipOuter, "BackgroundColor3", "background"}
+	TooltipOuter.BorderSizePixel = 0
+	TooltipOuter.ZIndex = 1000
+	TooltipOuter.Visible = false
+	TooltipOuter.Parent = MainScreenGui
+	addCorner(TooltipOuter, 4)
+	do
+		local TooltipOuterStroke = Instance_new("UIStroke")
+		TooltipOuterStroke.Name = generateRandomName()
+		TooltipOuterStroke.Parent = TooltipOuter
+		TooltipOuterStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		TooltipOuterStroke.Thickness = 1
+		TooltipOuterStroke.Color = library.colors.outerBorder
+		colored[1 + #colored] = {TooltipOuterStroke, "Color", "outerBorder"}
+	end
+
+	local TooltipLabel = Instance_new("TextLabel")
+	TooltipLabel.Name = generateRandomName()
+	TooltipLabel.Parent = TooltipOuter
+	TooltipLabel.BackgroundTransparency = 1
+	TooltipLabel.Position = UDim2.fromOffset(6, 3)
+	TooltipLabel.Font = Enum.Font.Code
+	TooltipLabel.Text = InfoStr or DisabledInfoStr or ""
+	TooltipLabel.TextColor3 = library.colors.elementText
+	colored[1 + #colored] = {TooltipLabel, "TextColor3", "elementText"}
+	TooltipLabel.TextSize = 14
+	TooltipLabel.ZIndex = TooltipOuter.ZIndex + 1
+	TooltipLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+	local TooltipTable = {
+		Instance = TooltipOuter,
+		Disabled = false,
+		Signals = {}
+	}
+	local IsHovering = false
+
+	local function UpdateText(Text)
+		if Text == nil then
+			return
+		end
+		TooltipLabel.Text = Text
+		local size = textToSize(TooltipLabel)
+		TooltipOuter.Size = UDim2.fromOffset(size.X + 12, size.Y + 6)
+		TooltipLabel.Size = UDim2.fromOffset(size.X, size.Y)
+	end
+
+	local function GiveSignal(Connection)
+		if Connection then
+			TooltipTable.Signals[1 + #TooltipTable.Signals] = Connection
+		end
+		return Connection
+	end
+
+	UpdateText(InfoStr or DisabledInfoStr)
+
+	GiveSignal(HoverInstance.MouseEnter:Connect(function()
+		if not TooltipTable.Disabled then
+			if not InfoStr then
+				TooltipOuter.Visible = false
+				return
+			end
+			if TooltipLabel.Text ~= InfoStr then
+				UpdateText(InfoStr)
+			end
+		else
+			if not DisabledInfoStr then
+				TooltipOuter.Visible = false
+				return
+			end
+			if TooltipLabel.Text ~= DisabledInfoStr then
+				UpdateText(DisabledInfoStr)
+			end
+		end
+
+		IsHovering = true
+		TooltipOuter.Position = UDim2.fromOffset(mouse.X + 15, mouse.Y + 12)
+		TooltipOuter.Visible = true
+
+		while IsHovering do
+			if TooltipTable.Disabled and not DisabledInfoStr then
+				break
+			end
+			runService.Heartbeat:Wait()
+			if not IsHovering then
+				break
+			end
+			TooltipOuter.Position = UDim2.fromOffset(mouse.X + 15, mouse.Y + 12)
+		end
+
+		IsHovering = false
+		TooltipOuter.Visible = false
+	end))
+
+	GiveSignal(HoverInstance.MouseLeave:Connect(function()
+		IsHovering = false
+		TooltipOuter.Visible = false
+	end))
+
+	function TooltipTable:Destroy()
+		for Idx = #TooltipTable.Signals, 1, -1 do
+			local Connection = table.remove(TooltipTable.Signals, Idx)
+			if Connection and Connection.Connected then
+				Connection:Disconnect()
+			end
+		end
+		if TooltipOuter then
+			TooltipOuter:Destroy()
+		end
+	end
+
+	Tooltips[1 + #Tooltips] = TooltipTable
+	return TooltipTable
+end
+library.subs.AddToolTip = library.AddToolTip
 local function removeSpaces(str)
 	if str then
 		local newStr = str:gsub(" ", "")
@@ -3603,7 +3737,7 @@ function library:CreateWindow(options, ...)
 				local keybindPositioner = Instance_new("Frame")
 				local keybindList = Instance_new("UIListLayout")
 				local keybindButton = Instance_new("TextButton")
-				local lockedup = options.Locked
+				local lockedup = options.Locked or options.Disabled
 				newToggle.Name = generateRandomName()
 				newToggle.Parent = sectionHolder
 				newToggle.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -3683,6 +3817,14 @@ function library:CreateWindow(options, ...)
 				colored[1 + #colored] = colored_toggleHeadline_TextColor3
 				toggleHeadline.TextSize = 14
 				toggleHeadline.TextXAlignment = Enum.TextXAlignment.Left
+				-- Linoria-Feature-Port: Tooltip (Tooltip / DisabledTooltip)
+				local Tooltip = nil
+				if typeof(options.Tooltip) == "string" or typeof(options.DisabledTooltip) == "string" then
+					Tooltip = library:AddToolTip(options.Tooltip, options.DisabledTooltip, newToggle)
+					if Tooltip then
+						Tooltip.Disabled = lockedup and true or false
+					end
+				end
 				local last_v = nil
 				local kbSyncFlag = nil -- wird gesetzt, falls dieser Toggle einen Keybind besitzt (für die Keybinds-Liste)
 				local function Set(t, newStatus)
@@ -4115,6 +4257,9 @@ function library:CreateWindow(options, ...)
 						TextColor3 = (lockedup and darkenColor(library.colors.elementText, colored_toggleHeadline_TextColor3[4])) or library.colors.elementText
 					}):Play()
 					toggleHeadline.Text = toggleName or "???"
+					if Tooltip then
+						Tooltip.Disabled = lockedup and true or false
+					end
 					return boolstatus
 				end
 				if alreadyEnabled ~= nil then
@@ -4231,6 +4376,10 @@ function library:CreateWindow(options, ...)
 						return condition
 					end
 				}
+				-- Disabled = grau/unklickbar machen (Alias auf das bestehende Locked-System)
+				objectdata.SetDisabled = objectdata.SetLocked
+				objectdata.Disable = objectdata.Lock
+				objectdata.Enable = objectdata.Unlock
 				if kbData then
 					kbData.ToggleData = objectdata
 				end
@@ -4255,7 +4404,7 @@ function library:CreateWindow(options, ...)
 					options = (options and options[1] and type(options[1]) == "string" and resolvevararg("Button", unpack(options))) or options
 					local buttonName, callback = assert(options.Name, "Missing Name for new button."), options.Callback or (warn("AddButton missing callback. Name:", options.Name or "No Name", debug.traceback("")) and nil) or function()
 					end
-					local lockedup = options.Locked
+					local lockedup = options.Locked or options.Disabled
 					local realButton = Instance_new("TextButton")
 					realButton.Name = generateRandomName()
 					realButton.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -4336,6 +4485,14 @@ function library:CreateWindow(options, ...)
 					realButton.Parent = button
 					offset = offset + textsize + 6
 					sectionFunctions:Update()
+					-- Linoria-Feature-Port: Tooltip (Tooltip / DisabledTooltip)
+					local Tooltip = nil
+					if typeof(options.Tooltip) == "string" or typeof(options.DisabledTooltip) == "string" then
+						Tooltip = library:AddToolTip(options.Tooltip, options.DisabledTooltip, button)
+						if Tooltip then
+							Tooltip.Disabled = lockedup and true or false
+						end
+					end
 					local presses = 0
 					library.signals[1 + #library.signals] = realButton.MouseButton1Click:Connect(function()
 						if lockedup then
@@ -4408,6 +4565,9 @@ function library:CreateWindow(options, ...)
 							TextColor3 = darkenColor(library.colors.elementText, colored_realButton_TextColor3[4])
 						}):Play()
 						realButton.Text = (buttonName and tostring(buttonName)) or "???"
+						if Tooltip then
+							Tooltip.Disabled = lockedup and true or false
+						end
 						local newtextsize = textToSize(realButton).X + 14
 						if textsize ~= newtextsize then
 							textsize = newtextsize
@@ -4530,6 +4690,10 @@ function library:CreateWindow(options, ...)
 							return call
 						end
 					}
+					-- Disabled = grau/unklickbar machen (Alias auf das bestehende Locked-System)
+					objectdata.SetDisabled = objectdata.SetLocked
+					objectdata.Disable = objectdata.Lock
+					objectdata.Enable = objectdata.Unlock
 					tabFunctions.Flags[buttonName], sectionFunctions.Flags[buttonName], elements[buttonName] = objectdata, objectdata, objectdata
 					buttons[1 + #buttons] = objectdata
 					framButtons[1 + #framButtons] = objectdata
@@ -4705,6 +4869,10 @@ function library:CreateWindow(options, ...)
 				colored[1 + #colored] = {textboxHeadline, "TextColor3", "elementText"}
 				textboxHeadline.TextSize = 14
 				textboxHeadline.TextXAlignment = Enum.TextXAlignment.Left
+				-- Linoria-Feature-Port: Tooltip (Tooltip / DisabledTooltip)
+				if typeof(options.Tooltip) == "string" or typeof(options.DisabledTooltip) == "string" then
+					library:AddToolTip(options.Tooltip, options.DisabledTooltip, newTextbox)
+				end
 				sectionFunctions:Update()
 				local last_v = presetValue
 				local function resolvevalue(val)
@@ -4900,6 +5068,10 @@ function library:CreateWindow(options, ...)
 				colored[1 + #colored] = {keybindHeadline, "TextColor3", "elementText"}
 				keybindHeadline.TextSize = 14
 				keybindHeadline.TextXAlignment = Enum.TextXAlignment.Left
+				-- Linoria-Feature-Port: Tooltip (Tooltip / DisabledTooltip)
+				if typeof(options.Tooltip) == "string" or typeof(options.DisabledTooltip) == "string" then
+					library:AddToolTip(options.Tooltip, options.DisabledTooltip, newKeybind)
+				end
 				keybindPositioner.Name = generateRandomName()
 				keybindPositioner.Parent = newKeybind
 				keybindPositioner.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -5184,6 +5356,10 @@ function library:CreateWindow(options, ...)
 				colored[1 + #colored] = {labelHeadline, "TextColor3", "elementText"}
 				labelHeadline.TextSize = 14
 				labelHeadline.TextXAlignment = Enum.TextXAlignment.Left
+				-- Linoria-Feature-Port: Tooltip (Tooltip / DisabledTooltip)
+				if typeof(options.Tooltip) == "string" or typeof(options.DisabledTooltip) == "string" then
+					library:AddToolTip(options.Tooltip, options.DisabledTooltip, newLabel)
+				end
 				labelPositioner.Name = generateRandomName()
 				labelPositioner.Parent = newLabel
 				labelPositioner.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -5364,6 +5540,10 @@ function library:CreateWindow(options, ...)
 				colored[1 + #colored] = {sliderHeadline, "TextColor3", "elementText"}
 				sliderHeadline.TextSize = 14
 				sliderHeadline.TextXAlignment = Enum.TextXAlignment.Left
+				-- Linoria-Feature-Port: Tooltip (Tooltip / DisabledTooltip)
+				if typeof(options.Tooltip) == "string" or typeof(options.DisabledTooltip) == "string" then
+					library:AddToolTip(options.Tooltip, options.DisabledTooltip, newSlider)
+				end
 				local realTextbox = nil
 				local function Set(t, newValue)
 					if nil == newValue and t ~= nil then
@@ -7562,6 +7742,10 @@ local resolvelist = getresolver(listt, options.Filter, options.Method)
 				colored[1 + #colored] = {dropdownHeadline, "TextColor3", "elementText"}
 				dropdownHeadline.TextSize = 14
 				dropdownHeadline.TextXAlignment = Enum.TextXAlignment.Left
+				-- Linoria-Feature-Port: Tooltip (Tooltip / DisabledTooltip)
+				if typeof(options.Tooltip) == "string" or typeof(options.DisabledTooltip) == "string" then
+					library:AddToolTip(options.Tooltip, options.DisabledTooltip, newDropdown)
+				end
 				dropdownHolderFrame.Name = generateRandomName()
 				dropdownHolderFrame.Parent = newDropdown
 				dropdownHolderFrame.Active = true
@@ -8379,6 +8563,10 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 				colored[1 + #colored] = {colorPickerHeadline, "TextColor3", "elementText"}
 				colorPickerHeadline.TextSize = 14
 				colorPickerHeadline.TextXAlignment = Enum.TextXAlignment.Left
+				-- Linoria-Feature-Port: Tooltip (Tooltip / DisabledTooltip)
+				if typeof(options.Tooltip) == "string" or typeof(options.DisabledTooltip) == "string" then
+					library:AddToolTip(options.Tooltip, options.DisabledTooltip, newColorPicker)
+				end
 				colorPickerButton.Name = generateRandomName()
 				colorPickerButton.Parent = newColorPicker
 				colorPickerButton.BackgroundColor3 = Color3.new(1, 1, 1)
