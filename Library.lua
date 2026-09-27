@@ -670,8 +670,8 @@ function WatermarkModule:Create()
 	protectAndParentGui(ScreenGui)
 	
 	local MainColor = (self.GetMainColor and self.GetMainColor()) or Color3.fromRGB(168, 85, 247)
-	local TopGradColor = Color3.fromRGB(45, 35, 65)
-	local BottomGradColor = Color3.fromRGB(14, 11, 20)
+	local TopGradColor = Color3.fromRGB(210, 210, 220) -- grau
+	local BottomGradColor = Color3.fromRGB(236, 72, 153) -- pink
 
 	local WatermarkOuter = Instance.new("Frame")
 	WatermarkOuter.Name = generateRandomName()
@@ -734,6 +734,8 @@ function WatermarkModule:Create()
 	WatermarkLabel.Font = Enum.Font.Code
 	WatermarkLabel.TextSize = 13
 	WatermarkLabel.TextXAlignment = Enum.TextXAlignment.Left
+	WatermarkLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+	WatermarkLabel.TextStrokeTransparency = 0.5 -- besserer Kontrast auf dem hellen Grau/Pink-Gradient
 	WatermarkLabel.ZIndex = 203
 	WatermarkLabel.Text = "D3v1lHub | Loading... | FPS: 0 | Ping: 0ms"
 	WatermarkLabel.Parent = InnerFrame
@@ -831,9 +833,8 @@ function KeybindsListModule:Create()
 	
 	protectAndParentGui(ScreenGui)
 	
-	local TopGradColor = Color3.fromRGB(45, 35, 65)
-	local BottomGradColor = Color3.fromRGB(14, 11, 20)
-	local OutlineColor = Color3.fromRGB(35, 30, 45)
+	local TopGradColor = Color3.fromRGB(210, 210, 220) -- grau, wie beim Watermark
+	local BottomGradColor = Color3.fromRGB(236, 72, 153) -- pink, wie beim Watermark
 
 	if self.GetMainColor then
 		self.MainColor = self.GetMainColor()
@@ -859,65 +860,104 @@ function KeybindsListModule:Create()
 		OuterStroke.Color = Color3.new(0, 0, 0)
 	end
 
+	-- Ab hier identischer Aufbau wie beim Watermark: Inner (Akzentfarbe als dünner Rahmen) -> GradientFrame (grau/pink Gradient)
 	local Inner = Instance.new("Frame")
 	Inner.Name = generateRandomName()
-	Inner.BackgroundColor3 = BottomGradColor
+	Inner.BackgroundColor3 = self.MainColor
 	Inner.BorderSizePixel = 0
 	Inner.ClipsDescendants = true
 	Inner.Size = UDim2.new(1, 0, 1, 0)
 	Inner.ZIndex = 301
 	Inner.Parent = Outer
 	addCorner(Inner, 3)
-	do
-		local InnerStroke = Instance.new("UIStroke")
-		InnerStroke.Name = generateRandomName()
-		InnerStroke.Parent = Inner
-		InnerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-		InnerStroke.Thickness = 1
-		InnerStroke.Color = OutlineColor
-	end
-	
+
+	local GradientFrame = Instance.new("Frame")
+	GradientFrame.Name = generateRandomName()
+	GradientFrame.BackgroundColor3 = Color3.new(1, 1, 1)
+	GradientFrame.BorderSizePixel = 0
+	GradientFrame.Position = UDim2.new(0, 1, 0, 1)
+	GradientFrame.Size = UDim2.new(1, -2, 1, -2)
+	GradientFrame.ZIndex = 302
+	GradientFrame.Parent = Inner
+	addCorner(GradientFrame, 3)
+
+	local Gradient = Instance.new("UIGradient")
+	Gradient.Name = generateRandomName()
+	Gradient.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, TopGradColor),
+		ColorSequenceKeypoint.new(1, BottomGradColor),
+	})
+	Gradient.Rotation = 90
+	Gradient.Parent = GradientFrame
+
 	local ColorBar = Instance.new("Frame")
 	ColorBar.Name = generateRandomName()
 	ColorBar.BackgroundColor3 = self.MainColor
 	ColorBar.BorderSizePixel = 0
 	ColorBar.Size = UDim2.new(1, 0, 0, 2)
-	ColorBar.ZIndex = 302
-	ColorBar.Parent = Inner
+	ColorBar.ZIndex = 303
+	ColorBar.Parent = GradientFrame
 
 	local Title = Instance.new("TextLabel")
 	Title.Name = generateRandomName()
 	Title.BackgroundTransparency = 1
 	Title.Position = UDim2.new(0, 6, 0, 3)
-	Title.Size = UDim2.new(1, -12, 0, 16)
+	Title.Size = UDim2.new(1, -24, 0, 16)
 	Title.Font = Enum.Font.Code
 	Title.TextSize = 13
 	Title.TextColor3 = self.MainColor
+	Title.TextStrokeColor3 = Color3.new(0, 0, 0)
+	Title.TextStrokeTransparency = 0.5
 	Title.TextXAlignment = Enum.TextXAlignment.Left
 	Title.Text = "Keybinds"
-	Title.ZIndex = 302
-	Title.Parent = Inner
+	Title.ZIndex = 303
+	Title.Parent = GradientFrame
+
+	-- Pfeil zum Ein-/Ausklappen: eingeklappt steht nur noch "Keybinds" da
+	local ToggleArrow = Instance.new("TextButton")
+	ToggleArrow.Name = generateRandomName()
+	ToggleArrow.AnchorPoint = Vector2.new(1, 0.5)
+	ToggleArrow.BackgroundTransparency = 1
+	ToggleArrow.Position = UDim2.new(1, -4, 0, 11)
+	ToggleArrow.Size = UDim2.new(0, 16, 0, 16)
+	ToggleArrow.Font = Enum.Font.Code
+	ToggleArrow.TextSize = 13
+	ToggleArrow.Text = "v"
+	ToggleArrow.TextColor3 = self.MainColor
+	ToggleArrow.TextStrokeColor3 = Color3.new(0, 0, 0)
+	ToggleArrow.TextStrokeTransparency = 0.5
+	ToggleArrow.ZIndex = 303
+	ToggleArrow.Parent = GradientFrame
 	if self.RegisterColor then
 		self.RegisterColor(self, "MainColor")
+		self.RegisterColor(Inner, "BackgroundColor3")
 		self.RegisterColor(ColorBar, "BackgroundColor3")
 		self.RegisterColor(Title, "TextColor3")
+		self.RegisterColor(ToggleArrow, "TextColor3")
 	end
-	
+
 	local Container = Instance.new("Frame")
 	Container.Name = generateRandomName()
 	Container.BackgroundTransparency = 1
 	Container.Position = UDim2.new(0, 0, 0, 20)
 	Container.Size = UDim2.new(1, 0, 0, 0)
 	Container.AutomaticSize = Enum.AutomaticSize.Y
-	Container.ZIndex = 302
-	Container.Parent = Inner
-	
+	Container.ZIndex = 303
+	Container.Parent = GradientFrame
+
+	local collapsed = false
+	ToggleArrow.MouseButton1Click:Connect(function()
+		collapsed = not collapsed
+		Container.Visible = not collapsed
+		ToggleArrow.Text = collapsed and "^" or "v"
+	end)
+
 	local ListLayout = Instance.new("UIListLayout")
 	ListLayout.FillDirection = Enum.FillDirection.Vertical
 	ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	ListLayout.Padding = UDim.new(0, 2)
 	ListLayout.Parent = Container
-	
+
 	local Padding = Instance.new("UIPadding")
 	Padding.PaddingLeft = UDim.new(0, 6)
 	Padding.PaddingBottom = UDim.new(0, 4)
