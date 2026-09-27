@@ -1653,10 +1653,11 @@ local function makeMarquee(headline)
 	wrapper.Size = UDim2.new(originalSize.X.Scale, originalSize.X.Offset, originalSize.Y.Scale, originalSize.Y.Offset + 8)
 	wrapper.AnchorPoint = headline.AnchorPoint
 	wrapper.ZIndex = headline.ZIndex
+	wrapper.LayoutOrder = headline.LayoutOrder -- wichtig, falls der Parent (z.B. titleBar) eine UIListLayout benutzt
 	wrapper.Parent = headline.Parent
 	headline.Parent = wrapper
 	headline.AnchorPoint = Vector2.new(0, 0.5)
-	headline.Position = UDim2.new(0, 2, 0.5, 0)
+	headline.Position = UDim2.new(0, 0, 0.5, 0)
 	headline.Size = UDim2.new(0, 0, 1, 0)
 	headline.AutomaticSize = Enum.AutomaticSize.X
 	headline.TextXAlignment = Enum.TextXAlignment.Left
@@ -1669,13 +1670,13 @@ local function makeMarquee(headline)
 			activeTween:Cancel()
 			activeTween = nil
 		end
-		headline.Position = UDim2.new(0, 2, 0.5, 0)
+		headline.Position = UDim2.new(0, 0, 0.5, 0)
 		task.defer(function()
 			if generation ~= myGeneration then
 				return
 			end
-			-- 2px Puffer auf beiden Seiten, damit der Text schon kurz vor dem eigentlichen Rand verschwindet statt exakt darauf zu enden
-			local overflow = (headline.AbsoluteSize.X - wrapper.AbsoluteSize.X) + 4
+			-- +2px: das rechte Ende des Texts verschwindet schon 2px bevor es den echten Rand erreicht, nur auf der rechten Seite
+			local overflow = (headline.AbsoluteSize.X - wrapper.AbsoluteSize.X) + 2
 			if overflow > 2 then
 				local duration = math.clamp(overflow / 30, 1.5, 8)
 				-- Ablauf: 2 Sek. warten -> hin scrollen -> 2 Sek. warten -> zurück scrollen -> wiederholen
@@ -1686,7 +1687,7 @@ local function makeMarquee(headline)
 							break
 						end
 						activeTween = tweenService:Create(headline, TweenInfo.new(duration, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut), {
-							Position = UDim2.new(0, 2 - overflow, 0.5, 0)
+							Position = UDim2.new(0, -overflow, 0.5, 0)
 						})
 						activeTween:Play()
 						activeTween.Completed:Wait()
@@ -1698,7 +1699,7 @@ local function makeMarquee(headline)
 							break
 						end
 						activeTween = tweenService:Create(headline, TweenInfo.new(duration, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut), {
-							Position = UDim2.new(0, 2, 0.5, 0)
+							Position = UDim2.new(0, 0, 0.5, 0)
 						})
 						activeTween:Play()
 						activeTween.Completed:Wait()
@@ -2821,7 +2822,7 @@ function library:CreateWindow(options, ...)
 	main.BorderSizePixel = 0
 	main.ClipsDescendants = true -- verhindert, dass Inhalte über die abgerundeten Ecken hinausragen
 	main.Position = UDim2.fromScale(0.5, 0.5)
-	main.Size = UDim2.fromOffset(450, 550) -- nochmal etwas kompakter (Breite und Höhe)
+	main.Size = UDim2.fromOffset(480, 550) -- Breite wieder etwas größer, damit die Groupboxen mehr Platz haben (Höhe bleibt kompakt)
 	addCorner(main, 8)
 	do
 		local mainStroke = Instance_new("UIStroke")
@@ -3037,7 +3038,8 @@ function library:CreateWindow(options, ...)
 	gameNameLabel.TextStrokeColor3 = library.colors.outerBorder
 	colored[1 + #colored] = {gameNameLabel, "TextStrokeColor3", "outerBorder"}
 	gameNameLabel.TextStrokeTransparency = 0.75
-	gameNameLabel.Size = UDim2:new(textToSize(gameNameLabel).X + 4, 1)
+	gameNameLabel.Size = UDim2:new(math.min(textToSize(gameNameLabel).X + 4, 90), 1)
+	makeMarquee(gameNameLabel) -- falls der Spielname zu lang ist, läuft er als Laufschrift statt die Titelleiste zu sprengen
 	splitter2.Name = generateRandomName()
 	splitter2.Parent = titleBar
 	splitter2.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -3065,7 +3067,8 @@ function library:CreateWindow(options, ...)
 	execNameLabel.TextStrokeColor3 = library.colors.outerBorder
 	colored[1 + #colored] = {execNameLabel, "TextStrokeColor3", "outerBorder"}
 	execNameLabel.TextStrokeTransparency = 0.75
-	execNameLabel.Size = UDim2:new(textToSize(execNameLabel).X + 4, 1)
+	execNameLabel.Size = UDim2:new(math.min(textToSize(execNameLabel).X + 4, 90), 1)
+	makeMarquee(execNameLabel) -- falls der Executor-Name zu lang ist, läuft er als Laufschrift statt die Titelleiste zu sprengen
 	tabsHolder.Name = generateRandomName()
 	tabsHolder.Parent = innerMain
 	tabsHolder.BackgroundColor3 = library.colors.topGradient
