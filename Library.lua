@@ -3112,6 +3112,13 @@ do
 		local os_clock = os.clock
 		local Notifications = {}
 		library.Notifications = Notifications
+		local function fadeInstances(List, Target, Duration)
+			for _, Entry in ipairs(List) do
+				tweenService:Create(Entry[1], TweenInfo.new(Duration, library.configuration.easingStyle, library.configuration.easingDirection), {
+					[Entry[2]] = Target
+				}):Play()
+			end
+		end
 		spawn(function()
 			local v1, vtop, htop = Enum.FillDirection.Vertical, Enum.VerticalAlignment.Top, Enum.HorizontalAlignment.Center
 			while wait_check() do
@@ -3149,15 +3156,24 @@ do
 					end
 					table.remove(Notifications, Index)
 					if Noti.Object then
-						-- ✅ Beim automatischen Ablaufen ebenfalls smooth raustweenen statt hart zerstören
+						-- ✅ Beim automatischen Ablaufen ebenfalls smooth raustweenen statt hart zerstören (+ Fade-Out)
 						local ObjToKill = Noti.Object
+						local FadeList = Noti.FadeParts
 						Noti.Object = nil
 						Noti.Active = false
+						if Noti.ProgressTween then
+							pcall(function()
+								Noti.ProgressTween:Pause()
+							end)
+						end
 						task.spawn(function()
 							pcall(function()
 								tweenService:Create(ObjToKill, TweenInfo.new(0.3, library.configuration.easingStyle, library.configuration.easingDirection), {
 									Size = UDim2.new(0, 0, 0, 32)
 								}):Play()
+								if FadeList then
+									fadeInstances(FadeList, 1, 0.3)
+								end
 								task.wait(0.3)
 							end)
 							if ObjToKill then
@@ -3170,6 +3186,7 @@ do
 				end
 			end
 		end)
+		local sharedNotifySound = nil
 		function library.Notify(self, NotificationData, ...)
 			if rawequal(self, library) then
 			else
@@ -3198,20 +3215,26 @@ do
 			local Text = Instance.new("TextLabel")
 			NotificationObj.TextLabel = Text
 			local Bar = Instance.new("Frame")
+			local ProgressBar = Instance.new("Frame")
+			local NotificationStroke, BorderStroke, InnerStroke, Border_2Stroke
+			local NotiType = NotificationData.Type
+			local NotiColor = ((NotiType == "success") and Color3.fromRGB(80, 200, 120)) or ((NotiType == "error") and Color3.fromRGB(220, 80, 80)) or nil
 			Notification.AnchorPoint = Vector2.new(1, 0)
 			Notification.BackgroundColor3 = library.colors.background
 			colored[1 + #colored] = {Notification, "BackgroundColor3", "background"}
 			Notification.BorderSizePixel = 0
+			Notification.BackgroundTransparency = 1
 			Notification.Name = generateRandomName()
 			Notification.Position = UDim2.new(1, -10, 0, 10)
 			Notification.Size = UDim2.new(0, 5e4, 0, 32)
 			addCorner(Notification, 6)
 			do
-				local NotificationStroke = Instance.new("UIStroke")
+				NotificationStroke = Instance.new("UIStroke")
 				NotificationStroke.Name = generateRandomName()
 				NotificationStroke.Parent = Notification
 				NotificationStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 				NotificationStroke.Thickness = 1
+				NotificationStroke.Transparency = 1
 				NotificationStroke.Color = library.colors.outerBorder
 				colored[1 + #colored] = {NotificationStroke, "Color", "outerBorder"}
 			end
@@ -3219,17 +3242,19 @@ do
 			Border.BackgroundColor3 = library.colors.background
 			colored[1 + #colored] = {Border, "BackgroundColor3", "background"}
 			Border.BorderSizePixel = 0
+			Border.BackgroundTransparency = 1
 			Border.Name = generateRandomName()
 			Border.Parent = Notification
 			Border.Position = UDim2.new(0.5, 0, 0.5, 0)
 			Border.Size = UDim2.new(1, 0, 1, 0)
 			addCorner(Border, 6)
 			do
-				local BorderStroke = Instance.new("UIStroke")
+				BorderStroke = Instance.new("UIStroke")
 				BorderStroke.Name = generateRandomName()
 				BorderStroke.Parent = Border
 				BorderStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 				BorderStroke.Thickness = 1
+				BorderStroke.Transparency = 1
 				BorderStroke.Color = library.colors.innerBorder
 				colored[1 + #colored] = {BorderStroke, "Color", "innerBorder"}
 			end
@@ -3237,6 +3262,7 @@ do
 			Inner.BackgroundColor3 = library.colors.background
 			colored[1 + #colored] = {Inner, "BackgroundColor3", "background"}
 			Inner.BorderSizePixel = 0
+			Inner.BackgroundTransparency = 1
 			Inner.ClipsDescendants = true
 			Inner.Name = generateRandomName()
 			Inner.Parent = Notification
@@ -3244,11 +3270,12 @@ do
 			Inner.Size = UDim2.new(1, -8, 1, -8)
 			addCorner(Inner, 5)
 			do
-				local InnerStroke = Instance.new("UIStroke")
+				InnerStroke = Instance.new("UIStroke")
 				InnerStroke.Name = generateRandomName()
 				InnerStroke.Parent = Inner
 				InnerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 				InnerStroke.Thickness = 1
+				InnerStroke.Transparency = 1
 				InnerStroke.Color = library.colors.outerBorder
 				colored[1 + #colored] = {InnerStroke, "Color", "outerBorder"}
 			end
@@ -3256,6 +3283,7 @@ do
 			Border_2.BackgroundColor3 = library.colors.background
 			colored[1 + #colored] = {Border_2, "BackgroundColor3", "background"}
 			Border_2.BorderSizePixel = 0
+			Border_2.BackgroundTransparency = 1
 			Border_2.ClipsDescendants = true
 			Border_2.Name = generateRandomName()
 			Border_2.Parent = Inner
@@ -3263,11 +3291,12 @@ do
 			Border_2.Size = UDim2.new(1, 0, 1, 0)
 			addCorner(Border_2, 5)
 			do
-				local Border_2Stroke = Instance.new("UIStroke")
+				Border_2Stroke = Instance.new("UIStroke")
 				Border_2Stroke.Name = generateRandomName()
 				Border_2Stroke.Parent = Border_2
 				Border_2Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 				Border_2Stroke.Thickness = 1
+				Border_2Stroke.Transparency = 1
 				Border_2Stroke.Color = library.colors.innerBorder
 				colored[1 + #colored] = {Border_2Stroke, "Color", "innerBorder"}
 			end
@@ -3285,15 +3314,61 @@ do
 			Text.TextScaled = true
 			Text.TextSize = 14
 			Text.TextStrokeTransparency = 0.75
+			Text.TextTransparency = 1
 			Text.TextWrap = true
 			Text.TextWrapped = true
 			Text.TextXAlignment = Enum.TextXAlignment.Left
-			Bar.BackgroundColor3 = library.colors.main
-			colored[1 + #colored] = {Bar, "BackgroundColor3", "main"}
+			Bar.BackgroundColor3 = NotiColor or library.colors.main
+			if NotiColor then
+			else
+				colored[1 + #colored] = {Bar, "BackgroundColor3", "main"}
+			end
+			Bar.BackgroundTransparency = 1
 			Bar.BorderSizePixel = 0
 			Bar.Name = generateRandomName()
 			Bar.Parent = Border_2
 			Bar.Size = UDim2.new(0, 3, 1, 0)
+			ProgressBar.AnchorPoint = Vector2.new(0, 1)
+			ProgressBar.BackgroundColor3 = NotiColor or library.colors.main
+			if NotiColor then
+			else
+				colored[1 + #colored] = {ProgressBar, "BackgroundColor3", "main"}
+			end
+			ProgressBar.BackgroundTransparency = 1
+			ProgressBar.BorderSizePixel = 0
+			ProgressBar.Name = generateRandomName()
+			ProgressBar.Parent = Border_2
+			ProgressBar.Position = UDim2.new(0, 0, 1, 0)
+			ProgressBar.Size = UDim2.new(1, 0, 0, 2)
+			local FadeParts = {
+				{Notification, "BackgroundTransparency"},
+				{Border, "BackgroundTransparency"},
+				{Inner, "BackgroundTransparency"},
+				{Border_2, "BackgroundTransparency"},
+				{Text, "TextTransparency"},
+				{Bar, "BackgroundTransparency"},
+				{ProgressBar, "BackgroundTransparency"},
+				{NotificationStroke, "Transparency"},
+				{BorderStroke, "Transparency"},
+				{InnerStroke, "Transparency"},
+				{Border_2Stroke, "Transparency"}
+			}
+			NotificationObj.FadeParts = FadeParts
+			if NotificationData.Sound ~= false then
+				task.spawn(function()
+					pcall(function()
+						if not sharedNotifySound then
+							sharedNotifySound = Instance.new("Sound")
+							sharedNotifySound.SoundId = "rbxassetid://105884435662737"
+							sharedNotifySound.Volume = 0.5
+							sharedNotifySound.Parent = game:GetService("SoundService")
+						end
+						sharedNotifySound:Stop()
+						sharedNotifySound.TimePosition = 0
+						sharedNotifySound:Play()
+					end)
+				end)
+			end
 			local targetWidth = 44 + textToSize(Text).X
 			Notification.Size = UDim2.new(0, 0, 0, 32)
 			Notification.Parent = Popups
@@ -3302,10 +3377,19 @@ do
 			else
 				Popups.Parent = MainScreenGui
 			end
-			-- ✅ Smoothes Rein-Tweenen (Breite wächst von 0 auf Zielgröße)
+			-- ✅ Smoothes Rein-Tweenen (Breite wächst von 0 auf Zielgröße + Fade-In)
 			tweenService:Create(Notification, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
 				Size = UDim2.new(0, targetWidth, 0, 32)
 			}):Play()
+			fadeInstances(FadeParts, 0, 0.35)
+			local progressTween = tweenService:Create(ProgressBar, TweenInfo.new(dur, Enum.EasingStyle.Linear, Enum.EasingDirection.In), {
+				Size = UDim2.new(0, 0, 0, 2)
+			})
+			NotificationObj.ProgressTween = progressTween
+			if NotificationObj.Paused then
+			else
+				progressTween:Play()
+			end
 			NotificationObj.InputBegan = Notification.InputBegan
 			NotificationObj.Destroying = Notification.Destroying
 			NotificationObj.MouseEnter = Notification.MouseEnter
@@ -3342,6 +3426,15 @@ do
 				else
 					NotificationObj.Forced = Set
 				end
+				if progressTween then
+					pcall(function()
+						if Set then
+							progressTween:Pause()
+						else
+							progressTween:Play()
+						end
+					end)
+				end
 				return Set
 			end
 			NotificationObj.SetPaused = Pause
@@ -3351,6 +3444,21 @@ do
 					Extension = self
 				end
 				NotificationObj.Expires += Extension
+				NotificationObj.Duration += Extension
+				if progressTween then
+					pcall(function()
+						progressTween:Cancel()
+						local Remaining = math.max(NotificationObj.Expires - os_clock(), 0)
+						progressTween = tweenService:Create(ProgressBar, TweenInfo.new(Remaining, Enum.EasingStyle.Linear, Enum.EasingDirection.In), {
+							Size = UDim2.new(0, 0, 0, 2)
+						})
+						NotificationObj.ProgressTween = progressTween
+						if NotificationObj.Paused then
+						else
+							progressTween:Play()
+						end
+					end)
+				end
 			end
 			function NotificationObj.Hide(self, SetPause)
 				if Notification and NotificationObj.Active then
@@ -3409,12 +3517,18 @@ do
 					NotificationObj.Active = false
 					local ObjToKill = Notification
 					NotificationObj.Object = nil
-					-- ✅ Smoothes Raus-Tweenen statt hartem Destroy
+					if progressTween then
+						pcall(function()
+							progressTween:Pause()
+						end)
+					end
+					-- ✅ Smoothes Raus-Tweenen statt hartem Destroy (+ Fade-Out)
 					task.spawn(function()
 						pcall(function()
 							tweenService:Create(ObjToKill, TweenInfo.new(0.3, library.configuration.easingStyle, library.configuration.easingDirection), {
 								Size = UDim2.new(0, 0, 0, 32)
 							}):Play()
+							fadeInstances(FadeParts, 1, 0.3)
 							task.wait(0.3)
 						end)
 						if ObjToKill then
@@ -7893,12 +8007,14 @@ function library:CreateWindow(options, ...)
 										if isSaving then
 											library:Notify({
 												Text = suffixname .. ((ok and " successfully saved") or " failed to save"),
-												Time = 3
+												Time = 3,
+												Type = (ok and "success") or "error"
 											})
 										else
 											library:Notify({
 												Text = suffixname .. ((ok and " successfully loaded") or " failed to load"),
-												Time = 3
+												Time = 3,
+												Type = (ok and "success") or "error"
 											})
 										end
 									end)
