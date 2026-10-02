@@ -3773,7 +3773,7 @@ function library:CreateWindow(options, ...)
 	tabHolderList.FillDirection = Enum.FillDirection.Horizontal
 	tabHolderList.SortOrder = Enum.SortOrder.LayoutOrder
 	tabHolderList.VerticalAlignment = Enum.VerticalAlignment.Center
-	tabHolderList.Padding = UDim:new(3)
+	tabHolderList.Padding = UDim:new(9)
 	tabHolderPadding.Name = generateRandomName()
 	tabHolderPadding.Parent = tabsHolder
 	tabHolderPadding.PaddingLeft = UDim:new(7)
@@ -3926,6 +3926,9 @@ function library:CreateWindow(options, ...)
 		newTab.Parent = tabsHolder
 		newTab.BackgroundTransparency = 1
 		newTab.LayoutOrder = (options.LastTab and 99999) or tonumber(options.TabOrder or options.LayoutOrder) or (2 + windowFunctions.tabCount)
+		local colored_newTab_BackgroundColor3 = {newTab, "BackgroundColor3", "main"}
+		colored[1 + #colored] = colored_newTab_BackgroundColor3
+		newTab.BackgroundColor3 = library.colors.main
 		local colored_newTab_TextColor3 = nil
 		if image then
 			newTab.Image = image
@@ -3954,8 +3957,8 @@ function library:CreateWindow(options, ...)
 			tabDivider.AnchorPoint = Vector2.new(0, 0.5)
 			tabDivider.Position = UDim2.new(0, -3, 0.5, 0)
 			tabDivider.Size = UDim2.new(0, 1, 0, 14)
-			tabDivider.BackgroundColor3 = Color3.fromRGB(150, 150, 160) -- heller/sichtbarer als vorher
-			tabDivider.BackgroundTransparency = 0
+			tabDivider.BackgroundColor3 = Color3.fromRGB(55, 54, 62) -- dezent/unauffällig, wie gewünscht
+			tabDivider.BackgroundTransparency = 0.35
 			tabDivider.BorderSizePixel = 0
 			tabDivider.ZIndex = 2
 			tabDivider.Parent = newTab
@@ -4002,6 +4005,17 @@ function library:CreateWindow(options, ...)
 			homepage = goto
 		end
 		library.signals[1 + #library.signals] = newTab.MouseButton1Click:Connect(goto)
+		-- dezentes Aufleuchten im Hintergrund beim Hovern über den Tab
+		library.signals[1 + #library.signals] = newTab.MouseEnter:Connect(function()
+			tweenService:Create(newTab, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
+				BackgroundTransparency = 0.88
+			}):Play()
+		end)
+		library.signals[1 + #library.signals] = newTab.MouseLeave:Connect(function()
+			tweenService:Create(newTab, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
+				BackgroundTransparency = 1
+			}):Play()
+		end)
 		if windowFunctions.tabCount == 1 then
 			-- Direkt nach dem Parenten sind AbsolutePosition/AbsoluteSize teils noch nicht final
 			-- (Layout braucht einen Frame) -> Slider würde falsch/verschoben landen. Daher 1 Frame warten.
@@ -7597,7 +7611,7 @@ function library:CreateWindow(options, ...)
 					if val ~= nil then
 						Set(val)
 					else
-						Set("Filename")
+						Set("Default")
 					end
 					library.signals[1 + #library.signals] = dropdownSelection.Focused:Connect(function()
 						showing = true
@@ -9708,7 +9722,7 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 		end
 		local flags = {}
 		local persistoptions = {
-			Name = "Workspace Profile",
+			Name = "Config Profile",
 			Flag = "__Designer.Background.WorkspaceProfile",
 			Flags = true,
 			Suffix = "Config",
