@@ -3444,7 +3444,10 @@ do
 				end
 				if Set or (IsPaused == Set) then
 				else
-					NotificationObj.Expires = math.max(NotificationObj.Expires, os_clock() + math.clamp(NotificationObj.Duration / 2.5, 1, 3))
+					local ResumeNow = os_clock()
+					if NotificationObj.Expires <= ResumeNow then
+						NotificationObj.Expires = ResumeNow + 0.15
+					end
 				end
 				NotificationObj.Paused = Set
 				if NoForce then
