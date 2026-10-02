@@ -1,24 +1,42 @@
 local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Dev1lHub/LibraryFork/refs/heads/main/Library.lua"))()
 local Wait = library.subs.Wait
 
-local D3v1lsWorld = library:CreateWindow({
+local PepsisWorld = library:CreateWindow({
     Name = "D3v1lHub",
     Themeable = {
         Info = "Discord Server: CODE"
     }
 })
 
-local GeneralTab = D3v1ls:CreateTab({
-    Name = "General"
+-- Beispiel für die smoothe Notify-Funktion (fährt sanft rein/raus, wie bei Linoria)
+library:Notify({
+    Text = "D3v1lHub wurde geladen!",
+    Time = 5
 })
 
-local FarmingSection = GeneralTab:CreateSection({
+local MainTab = PepsisWorld:CreateTab({
+    Name = "Main"
+})
+
+local ESPTab = PepsisWorld:CreateTab({
+    Name = "ESP"
+})
+
+local WorldTab = PepsisWorld:CreateTab({
+    Name = "World"
+})
+
+-- Settings-Tab kommt automatisch (durch "Themeable" oben) und wird immer als letzter Tab angehängt.
+
+local FarmingSection = MainTab:CreateSection({
     Name = "Farming"
 })
 
-FarmingSection:AddToggle({
+local EXPGrinderToggle = FarmingSection:AddToggle({
     Name = "EXP Grinder",
-    Flag = "FarmingSection_EXPGrinder"
+    Flag = "FarmingSection_EXPGrinder",
+    Tooltip = "Grindet automatisch EXP, solange aktiviert.",
+    DisabledTooltip = "Aktuell gesperrt."
 })
 
 FarmingSection:AddToggle({
@@ -34,7 +52,8 @@ FarmingSection:AddSlider({
     Value = 0.15,
     Precise = 2,
     Min = 0,
-    Max = 1
+    Max = 1,
+    Tooltip = "Wie oft automatisch Tricks ausgeführt werden."
 })
 
 FarmingSection:AddToggle({
@@ -63,7 +82,7 @@ FarmingSection:AddSlider({
     end
 })
 
-local BoardControlSection = GeneralTab:CreateSection({
+local BoardControlSection = MainTab:CreateSection({
     Name = "Board Control"
 })
 
@@ -104,7 +123,7 @@ BoardControlSection:AddSlider({
     end
 })
 
-local MiscSection = GeneralTab:CreateSection({
+local MiscSection = MainTab:CreateSection({
     Name = "Misc",
     Side = "Right"
 })
@@ -123,14 +142,49 @@ MiscSection:AddToggle({
 
 MiscSection:AddButton({
     Name = "Repair Board",
+    Tooltip = "Repariert das Board sofort.",
     Callback = function()
         print("Fixed")
+        library:Notify({
+            Title = "Repair",
+            Text = "Board wurde repariert!",
+            Time = 4
+        })
     end
 })
 
 MiscSection:AddKeybind({
     Name = "Test Key",
+    Tooltip = "Beispiel-Keybind zum Testen.",
     Callback = print
+})
+
+-- Beispiel für dauerhaft deaktivierte (ausgegraute) Elemente via "Disabled"
+MiscSection:AddToggle({
+    Name = "Premium-Feature (bald verfügbar)",
+    Flag = "MiscSection_PremiumFeature",
+    Disabled = true,
+    Tooltip = "Automatisiert Premium-Funktionen.",
+    DisabledTooltip = "Noch nicht freigeschaltet - kommt in einem späteren Update."
+})
+
+MiscSection:AddButton({
+    Name = "Premium kaufen",
+    Disabled = true,
+    Tooltip = "Öffnet den Premium-Shop.",
+    DisabledTooltip = "Aktuell deaktiviert, solange kein Premium-Zugang besteht.",
+    Callback = function()
+        print("Premium-Shop geöffnet")
+    end
+})
+
+-- Beispiel für SetDisabled: dieser Button sperrt/entsperrt den "EXP Grinder"-Toggle oben
+MiscSection:AddButton({
+    Name = "EXP Grinder sperren/entsperren",
+    Tooltip = "Schaltet die Sperre des EXP Grinders (siehe Farming-Sektion) um.",
+    Callback = function()
+        EXPGrinderToggle:SetDisabled()
+    end
 })
 
 MiscSection:AddToggle({
@@ -141,7 +195,7 @@ MiscSection:AddToggle({
     Callback = print
 })
 
-local FunSection = GeneralTab:CreateSection({
+local FunSection = MainTab:CreateSection({
     Name = "Fun Cosmetics"
 })
 
@@ -179,4 +233,107 @@ FunSection:AddSlider({
             return "Ragdoll Extension: " .. tostring(Value) .. "s"
         end
     end
+})
+
+local DropdownSection = MainTab:CreateSection({
+    Name = "Dropdowns",
+    Side = "Right"
+})
+
+-- Beispiel für ein ganz normales Dropdown
+DropdownSection:AddDropdown({
+    Name = "Einfaches Dropdown",
+    Flag = "DropdownSection_Simple",
+    List = { "Erster Wert", "Zweiter Wert", "Dritter Wert" },
+    Tooltip = "Wähle einen der drei Werte aus.",
+    Callback = print
+})
+
+-- Beispiel für ein durchsuchbares Dropdown (Searchable) - praktisch bei langen Listen
+DropdownSection:AddDropdown({
+    Name = "Durchsuchbares Dropdown",
+    Flag = "DropdownSection_Searchable",
+    List = { "Apfel", "Banane", "Kirsche", "Dattel", "Erdbeere", "Feige", "Guave" },
+    Searchable = true,
+    Callback = print
+})
+
+-- Beispiel für FormatDisplayValue - der gespeicherte Wert bleibt roh, nur die Anzeige ändert sich
+DropdownSection:AddDropdown({
+    Name = "Formatiertes Dropdown",
+    Flag = "DropdownSection_Formatted",
+    List = { "ez", "med", "hard" },
+    FormatDisplayValue = function(Value)
+        if Value == "ez" then
+            return "Einfach"
+        elseif Value == "med" then
+            return "Mittel"
+        elseif Value == "hard" then
+            return "Schwer"
+        end
+        return Value
+    end,
+    Callback = print
+})
+
+-- Beispiel für DisabledValues - einzelne Optionen sind sichtbar, aber nicht anklickbar
+DropdownSection:AddDropdown({
+    Name = "Dropdown mit gesperrten Werten",
+    Flag = "DropdownSection_DisabledValues",
+    List = { "Verfügbar 1", "Gesperrt", "Verfügbar 2", "Ebenfalls Gesperrt" },
+    DisabledValues = { "Gesperrt", "Ebenfalls Gesperrt" },
+    Callback = print
+})
+
+-- Beispiel für MaxVisibleDropdownItems - viele Werte, die geöffnete Liste scrollt statt endlos zu wachsen
+do
+    local ManyValues = {}
+    for i = 1, 30 do
+        ManyValues[i] = "Eintrag " .. tostring(i)
+    end
+
+    DropdownSection:AddDropdown({
+        Name = "Dropdown mit vielen Einträgen",
+        Flag = "DropdownSection_ManyItems",
+        List = ManyValues,
+        MaxVisibleDropdownItems = 12,
+        Callback = print
+    })
+end
+
+-- Beispiel für SpecialType "Player" - füllt sich automatisch mit den Spielern im Server
+DropdownSection:AddDropdown({
+    Name = "Spieler-Dropdown",
+    Flag = "DropdownSection_Players",
+    List = {},
+    SpecialType = "Player",
+    ExcludeLocalPlayer = true,
+    Callback = print
+})
+
+-- Beispiel für SpecialType "Team" - füllt sich automatisch mit den Teams des Spiels
+DropdownSection:AddDropdown({
+    Name = "Team-Dropdown",
+    Flag = "DropdownSection_Teams",
+    List = {},
+    SpecialType = "Team",
+    Callback = print
+})
+
+-- ESP-Tab (noch ohne Beispiel-Elemente, wie gewünscht bleibt alles Beispielhafte nur in "Main")
+local ESPSection = ESPTab:CreateSection({
+    Name = "ESP"
+})
+
+ESPSection:AddLabel({
+    Name = "Kommt bald..."
+})
+
+-- World-Tab (noch ohne Beispiel-Elemente, wie gewünscht bleibt alles Beispielhafte nur in "Main")
+local WorldSection = WorldTab:CreateSection({
+    Name = "World"
+})
+
+WorldSection:AddLabel({
+    Name = "Kommt bald..."
 })
