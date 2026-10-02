@@ -3144,9 +3144,13 @@ do
 					end
 					local Noti = Notifications[Index]
 					local Obj = Noti and Noti.Object
-					if Obj and Noti.Active and (Noti.Paused or ((now - Noti.Expires) < Noti.Duration)) then
+					if Obj and Noti.Active and (Noti.Paused or (now < Noti.Expires)) then
 						if Noti.TextLabel.Text ~= Noti.Text then
 							Noti:SetText(Noti.Text)
+						end
+						if Noti.CountdownLabel and (not Noti.Paused) then
+							local Remaining = math.max(Noti.Expires - now, 0)
+							Noti.CountdownLabel.Text = string.format("%.1fs", Remaining)
 						end
 						if Obj.Visible then
 							Order += 1
@@ -3338,8 +3342,27 @@ do
 			ProgressBar.BorderSizePixel = 0
 			ProgressBar.Name = generateRandomName()
 			ProgressBar.Parent = Border_2
-			ProgressBar.Position = UDim2.new(0, 0, 1, 0)
-			ProgressBar.Size = UDim2.new(1, 0, 0, 2)
+			ProgressBar.Position = UDim2.new(0, 2, 1, 0)
+			ProgressBar.Size = UDim2.new(1, -4, 0, 2)
+			addCorner(ProgressBar, 1)
+			local CountdownLabel = Instance.new("TextLabel")
+			NotificationObj.CountdownLabel = CountdownLabel
+			CountdownLabel.AnchorPoint = Vector2.new(1, 1)
+			CountdownLabel.BackgroundTransparency = 1
+			CountdownLabel.Font = Enum.Font.Code
+			CountdownLabel.FontSize = Enum.FontSize.Size10
+			CountdownLabel.Name = generateRandomName()
+			CountdownLabel.Parent = Border_2
+			CountdownLabel.Position = UDim2.new(1, -6, 1, -4)
+			CountdownLabel.Size = UDim2.new(0, 36, 0, 12)
+			CountdownLabel.Text = string.format("%.1fs", dur)
+			CountdownLabel.TextColor3 = library.colors.otherElementText
+			colored[1 + #colored] = {CountdownLabel, "TextColor3", "otherElementText"}
+			CountdownLabel.TextScaled = true
+			CountdownLabel.TextSize = 10
+			CountdownLabel.TextTransparency = 1
+			CountdownLabel.TextXAlignment = Enum.TextXAlignment.Right
+			CountdownLabel.TextYAlignment = Enum.TextYAlignment.Bottom
 			local FadeParts = {
 				{Notification, "BackgroundTransparency"},
 				{Border, "BackgroundTransparency"},
@@ -3348,6 +3371,7 @@ do
 				{Text, "TextTransparency"},
 				{Bar, "BackgroundTransparency"},
 				{ProgressBar, "BackgroundTransparency"},
+				{CountdownLabel, "TextTransparency"},
 				{NotificationStroke, "Transparency"},
 				{BorderStroke, "Transparency"},
 				{InnerStroke, "Transparency"},
