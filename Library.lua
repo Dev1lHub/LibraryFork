@@ -3173,7 +3173,7 @@ do
 						task.spawn(function()
 							pcall(function()
 								tweenService:Create(ObjToKill, TweenInfo.new(0.3, library.configuration.easingStyle, library.configuration.easingDirection), {
-									Size = UDim2.new(0, 0, 0, 32)
+									Size = UDim2.new(0, 0, 0, 35)
 								}):Play()
 								if FadeList then
 									fadeInstances(FadeList, 1, 0.3)
@@ -3230,7 +3230,7 @@ do
 			Notification.BackgroundTransparency = 1
 			Notification.Name = generateRandomName()
 			Notification.Position = UDim2.new(1, -10, 0, 10)
-			Notification.Size = UDim2.new(0, 5e4, 0, 32)
+			Notification.Size = UDim2.new(0, 5e4, 0, 35)
 			addCorner(Notification, 6)
 			do
 				NotificationStroke = Instance.new("UIStroke")
@@ -3310,8 +3310,8 @@ do
 			Text.FontSize = Enum.FontSize.Size14
 			Text.Name = generateRandomName()
 			Text.Parent = Border_2
-			Text.Position = UDim2.new(0, 8, 0.5, 0)
-			Text.Size = UDim2.new(1, -8, 1, -7)
+			Text.Position = UDim2.new(0, 8, 0, 9)
+			Text.Size = UDim2.new(1, -8, 1, -16)
 			Text.Text = TextStr
 			Text.TextColor3 = library.colors.elementText
 			colored[1 + #colored] = {Text, "TextColor3", "elementText"}
@@ -3394,7 +3394,7 @@ do
 				end)
 			end
 			local targetWidth = 44 + textToSize(Text).X
-			Notification.Size = UDim2.new(0, 0, 0, 32)
+			Notification.Size = UDim2.new(0, 0, 0, 35)
 			Notification.Parent = Popups
 			Notification.LayoutOrder = #Notification.Parent:GetChildren() * ((Inverse and 1) or -1)
 			if Popups.Parent then
@@ -3403,7 +3403,7 @@ do
 			end
 			-- ✅ Smoothes Rein-Tweenen (Breite wächst von 0 auf Zielgröße + Fade-In)
 			tweenService:Create(Notification, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-				Size = UDim2.new(0, targetWidth, 0, 32)
+				Size = UDim2.new(0, targetWidth, 0, 35)
 			}):Play()
 			fadeInstances(FadeParts, 0, 0.35)
 			local progressTween = tweenService:Create(ProgressBar, TweenInfo.new(dur, Enum.EasingStyle.Linear, Enum.EasingDirection.In), {
@@ -3426,7 +3426,7 @@ do
 				Str = ((Str == nil) and "No text given") or tostring(Str)
 				Text.Text, NotificationObj.Text = Str, Str
 				tweenService:Create(Notification, TweenInfo.new(0.3, library.configuration.easingStyle, library.configuration.easingDirection), {
-					Size = UDim2.new(0, 24 + Text.TextBounds.X, 0, 32)
+					Size = UDim2.new(0, 24 + Text.TextBounds.X, 0, 35)
 				}):Play()
 				return Str, Text
 			end
@@ -3550,7 +3550,7 @@ do
 					task.spawn(function()
 						pcall(function()
 							tweenService:Create(ObjToKill, TweenInfo.new(0.3, library.configuration.easingStyle, library.configuration.easingDirection), {
-								Size = UDim2.new(0, 0, 0, 32)
+								Size = UDim2.new(0, 0, 0, 35)
 							}):Play()
 							fadeInstances(FadeParts, 1, 0.3)
 							task.wait(0.3)
