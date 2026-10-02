@@ -3112,6 +3112,7 @@ do
 		local os_clock = os.clock
 		local Notifications = {}
 		library.Notifications = Notifications
+		local hoveredCount = 0
 		local function fadeInstances(List, Target, Duration)
 			for _, Entry in ipairs(List) do
 				tweenService:Create(Entry[1], TweenInfo.new(Duration, library.configuration.easingStyle, library.configuration.easingDirection), {
@@ -3526,15 +3527,31 @@ do
 			end
 			Notification.MouseEnter:Connect(function()
 				if NotificationObj.Forced then
-					return
+				else
+					Pause(true, true)
 				end
-				Pause(true, true)
+				hoveredCount += 1
+				if hoveredCount == 1 then
+					for _, Noti in ipairs(Notifications) do
+						if Noti.SetPaused and (not Noti.Forced) then
+							Noti.SetPaused(true, true)
+						end
+					end
+				end
 			end)
 			Notification.MouseLeave:Connect(function()
 				if NotificationObj.Forced then
-					return
+				else
+					Pause(false, true)
 				end
-				Pause(false, true)
+				hoveredCount = math.max(0, hoveredCount - 1)
+				if hoveredCount == 0 then
+					for _, Noti in ipairs(Notifications) do
+						if Noti.SetPaused and (not Noti.Forced) then
+							Noti.SetPaused(false, true)
+						end
+					end
+				end
 			end)
 			local function Destroy()
 				if Notification and Notification.Parent then
