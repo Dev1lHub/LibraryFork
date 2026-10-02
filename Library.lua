@@ -3172,6 +3172,7 @@ do
 						end
 						task.spawn(function()
 							pcall(function()
+								task.wait()
 								tweenService:Create(ObjToKill, TweenInfo.new(0.3, library.configuration.easingStyle, library.configuration.easingDirection), {
 									Size = UDim2.new(0, 0, 0, 35)
 								}):Play()
@@ -3399,15 +3400,27 @@ do
 				Popups.Parent = MainScreenGui
 			end
 			-- ✅ Smoothes Rein-Tweenen (Breite wächst von 0 auf Zielgröße + Fade-In)
-			tweenService:Create(Notification, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-				Size = UDim2.new(0, targetWidth, 0, 35)
-			}):Play()
-			fadeInstances(FadeParts, 0, 0.35)
+			-- Ein Frame warten bevor die Eingangs-Animation startet: sonst kann Roblox bei
+			-- mehreren Notifies die kurz hintereinander/gleichzeitig erstellt werden die
+			-- Start-Werte schon "fertig" rendern bevor der Tween greift -> dadurch poppen
+			-- mittlere Notifies in einem Stapel ohne sichtbare Animation auf, während nur
+			-- die erste/letzte sauber faden. Mit dem Wait bekommt JEDE Notify garantiert
+			-- ihr eigenes Fade-In.
 			local progressTween = tweenService:Create(ProgressBar, TweenInfo.new(dur, Enum.EasingStyle.Linear, Enum.EasingDirection.In), {
 				Size = UDim2.new(0, 0, 0, 2)
 			})
 			NotificationObj.ProgressTween = progressTween
-			progressTween:Play()
+			task.spawn(function()
+				task.wait()
+				if (not Notification) or (not Notification.Parent) then
+					return
+				end
+				tweenService:Create(Notification, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
+					Size = UDim2.new(0, targetWidth, 0, 35)
+				}):Play()
+				fadeInstances(FadeParts, 0, 0.35)
+				progressTween:Play()
+			end)
 			NotificationObj.InputBegan = Notification.InputBegan
 			NotificationObj.Destroying = Notification.Destroying
 			NotificationObj.MouseEnter = Notification.MouseEnter
@@ -3460,6 +3473,7 @@ do
 					-- ✅ Smoothes Raus-Tweenen statt hartem Destroy (+ Fade-Out)
 					task.spawn(function()
 						pcall(function()
+							task.wait()
 							tweenService:Create(ObjToKill, TweenInfo.new(0.3, library.configuration.easingStyle, library.configuration.easingDirection), {
 								Size = UDim2.new(0, 0, 0, 35)
 							}):Play()
