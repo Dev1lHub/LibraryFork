@@ -7641,7 +7641,7 @@ function library:CreateWindow(options, ...)
 						if not get then
 							local filenameddst = string.gsub(s or dropdownSelection.Text or "", "%W", "")
 							if #filenameddst == 0 then
-								return
+								return false
 							end
 							rawfile = string.format("%s/%s.txt", common_string, filenameddst)
 						end
@@ -7712,6 +7712,7 @@ function library:CreateWindow(options, ...)
 							end
 						end
 						local ret = nil
+						local savedok = false
 						local good, content = JSONEncode(saving)
 						if good and content then
 							if not get then
@@ -7719,6 +7720,7 @@ function library:CreateWindow(options, ...)
 									makefolder(common_string)
 								end
 								writefile(rawfile, content)
+								savedok = true
 							else
 								ret = content
 							end
@@ -7729,7 +7731,10 @@ function library:CreateWindow(options, ...)
 								warn("Error while calling the Post-Save callback:", e, debug.traceback(""))
 							end
 						end
-						return ret
+						if get then
+							return ret
+						end
+						return savedok
 					end
 					local function loadstuff(s, jsonmode, silent)
 						if not s or type(s) ~= "string" then
@@ -7739,7 +7744,7 @@ function library:CreateWindow(options, ...)
 						if not jsonmode then
 							local filenameddst = convertfilename(s or dropdownSelection.Text, nil, "")
 							if #filenameddst == 0 then
-								return
+								return false
 							end
 							filename = string.format("%s/%s.txt", common_string, filenameddst)
 						end
@@ -7749,6 +7754,7 @@ function library:CreateWindow(options, ...)
 								warn("Error while calling the Pre-Load callback:", e, debug.traceback(""))
 							end
 						end
+						local loadedok = false
 						if jsonmode or not isfile or isfile(filename) then
 							local content = (jsonmode and s) or (not jsonmode and readfile(filename))
 							if content and #content > 1 then
@@ -7778,6 +7784,7 @@ function library:CreateWindow(options, ...)
 											end
 										end
 									end
+									loadedok = true
 								end
 							end
 						end
@@ -7787,6 +7794,7 @@ function library:CreateWindow(options, ...)
 								warn("Error while calling the Post-Load callback:", e, debug.traceback(""))
 							end
 						end
+						return loadedok
 					end
 					local fram = nil
 					do
@@ -7878,7 +7886,22 @@ function library:CreateWindow(options, ...)
 							library.signals[1 + #library.signals] = realButton.MouseButton1Click:Connect(function()
 								if not library.colorpicker and not submenuOpen then
 									presses = 1 + presses
-									task.spawn(callback, presses)
+									task.spawn(function()
+										local ok = callback(presses)
+										local isSaving = string.sub(tostring(buttonName), 1, 4) == "Save"
+										local suffixname = (suffix and tostring(suffix)) or "Profile"
+										if isSaving then
+											library:Notify({
+												Text = suffixname .. ((ok and " successfully saved") or " failed to save"),
+												Time = 3
+											})
+										else
+											library:Notify({
+												Text = suffixname .. ((ok and " successfully loaded") or " failed to load"),
+												Time = 3
+											})
+										end
+									end)
 								end
 							end)
 							library.signals[1 + #library.signals] = button.MouseEnter:Connect(function()
