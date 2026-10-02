@@ -3154,7 +3154,7 @@ do
 						end
 						if Obj.Visible then
 							Order += 1
-							Obj.LayoutOrder = Order * ((Inverse and -1) or 1)
+							Obj.LayoutOrder = Order * ((Inverse and 1) or -1)
 						end
 						continue
 					end
@@ -3310,8 +3310,8 @@ do
 			Text.FontSize = Enum.FontSize.Size14
 			Text.Name = generateRandomName()
 			Text.Parent = Border_2
-			Text.Position = UDim2.new(0, 8, 0, 9)
-			Text.Size = UDim2.new(1, -8, 1, -16)
+			Text.Position = UDim2.new(0, 8, 0, 11)
+			Text.Size = UDim2.new(1, -8, 1, -13)
 			Text.Text = TextStr
 			Text.TextColor3 = library.colors.elementText
 			colored[1 + #colored] = {Text, "TextColor3", "elementText"}
@@ -3350,16 +3350,16 @@ do
 			CountdownLabel.AnchorPoint = Vector2.new(1, 1)
 			CountdownLabel.BackgroundTransparency = 1
 			CountdownLabel.Font = Enum.Font.Code
-			CountdownLabel.FontSize = Enum.FontSize.Size10
+			CountdownLabel.FontSize = Enum.FontSize.Size8
 			CountdownLabel.Name = generateRandomName()
 			CountdownLabel.Parent = Border_2
-			CountdownLabel.Position = UDim2.new(1, -6, 1, -4)
-			CountdownLabel.Size = UDim2.new(0, 36, 0, 12)
+			CountdownLabel.Position = UDim2.new(1, -5, 1, -3)
+			CountdownLabel.Size = UDim2.new(0, 30, 0, 10)
 			CountdownLabel.Text = string.format("%.1fs", dur)
 			CountdownLabel.TextColor3 = library.colors.otherElementText
 			colored[1 + #colored] = {CountdownLabel, "TextColor3", "otherElementText"}
 			CountdownLabel.TextScaled = true
-			CountdownLabel.TextSize = 10
+			CountdownLabel.TextSize = 8
 			CountdownLabel.TextTransparency = 1
 			CountdownLabel.TextXAlignment = Enum.TextXAlignment.Right
 			CountdownLabel.TextYAlignment = Enum.TextYAlignment.Bottom
