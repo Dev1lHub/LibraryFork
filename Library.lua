@@ -3112,7 +3112,6 @@ do
 		local os_clock = os.clock
 		local Notifications = {}
 		library.Notifications = Notifications
-		local hoveredCount = 0
 		local function fadeInstances(List, Target, Duration)
 			for _, Entry in ipairs(List) do
 				tweenService:Create(Entry[1], TweenInfo.new(Duration, library.configuration.easingStyle, library.configuration.easingDirection), {
@@ -3145,11 +3144,11 @@ do
 					end
 					local Noti = Notifications[Index]
 					local Obj = Noti and Noti.Object
-					if Obj and Noti.Active and (Noti.Paused or (now < Noti.Expires)) then
+					if Obj and Noti.Active and (now < Noti.Expires) then
 						if Noti.TextLabel.Text ~= Noti.Text then
 							Noti:SetText(Noti.Text)
 						end
-						if Noti.CountdownLabel and (not Noti.Paused) then
+						if Noti.CountdownLabel then
 							local Remaining = math.max(Noti.Expires - now, 0)
 							Noti.CountdownLabel.Text = string.format("%.1fs", Remaining)
 						end
@@ -3204,14 +3203,11 @@ do
 			local NotificationObj = {
 				InitTime = now,
 				Active = true,
-				Forced = false,
 				Duration = dur,
 				Expires = now + dur,
-				Paused = (NotificationData.Paused and true) or false,
 				Text = TextStr,
 				Arguments = NotificationData
 			}
-			NotificationObj.Forced = NotificationObj.Paused
 			local Notification = Instance.new("Frame")
 			NotificationObj.Object = Notification
 			local Border = Instance.new("Frame")
@@ -3411,10 +3407,7 @@ do
 				Size = UDim2.new(0, 0, 0, 2)
 			})
 			NotificationObj.ProgressTween = progressTween
-			if NotificationObj.Paused then
-			else
-				progressTween:Play()
-			end
+			progressTween:Play()
 			NotificationObj.InputBegan = Notification.InputBegan
 			NotificationObj.Destroying = Notification.Destroying
 			NotificationObj.MouseEnter = Notification.MouseEnter
@@ -3431,131 +3424,29 @@ do
 				}):Play()
 				return Str, Text
 			end
-			local function Pause(self, Set, NoForce)
-				if rawequal(self, NotificationObj) then
-				else
-					Set, NoForce = self, Set
-				end
-				local IsPaused = NotificationObj.Paused
-				if Set == nil then
-					Set = not IsPaused
-				else
-					Set = Set or false
-				end
-				if Set or (IsPaused == Set) then
-				else
-					local ResumeNow = os_clock()
-					if NotificationObj.Expires <= ResumeNow then
-						NotificationObj.Expires = ResumeNow + 0.15
-					end
-				end
-				NotificationObj.Paused = Set
-				if NoForce then
-				else
-					NotificationObj.Forced = Set
-				end
-				if progressTween then
-					pcall(function()
-						if Set then
-							progressTween:Pause()
-						else
-							progressTween:Play()
-						end
-					end)
-				end
-				return Set
-			end
-			NotificationObj.SetPaused = Pause
-			function NotificationObj.AddTime(self, Extension)
-				if rawequal(self, NotificationObj) then
-				else
-					Extension = self
-				end
-				NotificationObj.Expires += Extension
-				NotificationObj.Duration += Extension
-				if progressTween then
-					pcall(function()
-						progressTween:Cancel()
-						local Remaining = math.max(NotificationObj.Expires - os_clock(), 0)
-						progressTween = tweenService:Create(ProgressBar, TweenInfo.new(Remaining, Enum.EasingStyle.Linear, Enum.EasingDirection.In), {
-							Size = UDim2.new(0, 0, 0, 2)
-						})
-						NotificationObj.ProgressTween = progressTween
-						if NotificationObj.Paused then
-						else
-							progressTween:Play()
-						end
-					end)
-				end
-			end
-			function NotificationObj.Hide(self, SetPause)
+			function NotificationObj.Hide(self)
 				if Notification and NotificationObj.Active then
-					if rawequal(self, NotificationObj) then
-					else
-						SetPause = self
-					end
-					if SetPause then
-						Pause(true)
-					end
 					Notification.Visible = false
 				end
 			end
-			function NotificationObj.Show(self, SetPause)
+			function NotificationObj.Show(self)
 				if Notification and NotificationObj.Active then
-					if rawequal(self, NotificationObj) then
-					else
-						SetPause = self
-					end
-					if SetPause then
-						Pause(false)
-					end
 					Notification.Visible = true
 				end
 			end
-			function NotificationObj.SetVisible(self, Visible, SetPause)
+			function NotificationObj.SetVisible(self, Visible)
 				if Notification and NotificationObj.Active then
 					if rawequal(self, NotificationObj) then
 					else
-						Visible, SetPause = self, Visible
+						Visible = self
 					end
 					if Visible == nil then
 						Notification.Visible = not Notification.Visible
 					else
 						Notification.Visible = (Visible and true) or false
 					end
-					if SetPause then
-						Pause(Notification.Visible)
-					end
 				end
 			end
-			Notification.MouseEnter:Connect(function()
-				if NotificationObj.Forced then
-				else
-					Pause(true, true)
-				end
-				hoveredCount += 1
-				if hoveredCount == 1 then
-					for _, Noti in ipairs(Notifications) do
-						if Noti.SetPaused and (not Noti.Forced) then
-							Noti.SetPaused(true, true)
-						end
-					end
-				end
-			end)
-			Notification.MouseLeave:Connect(function()
-				if NotificationObj.Forced then
-				else
-					Pause(false, true)
-				end
-				hoveredCount = math.max(0, hoveredCount - 1)
-				if hoveredCount == 0 then
-					for _, Noti in ipairs(Notifications) do
-						if Noti.SetPaused and (not Noti.Forced) then
-							Noti.SetPaused(false, true)
-						end
-					end
-				end
-			end)
 			local function Destroy()
 				if Notification and Notification.Parent then
 					NotificationObj.Active = false
