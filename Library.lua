@@ -3972,6 +3972,13 @@ function library:CreateWindow(options, ...)
 			pcall(fn)
 		end
 	end
+	-- ✅ Es darf immer nur ein Dropdown/Colorpicker/Searchbox gleichzeitig offen sein:
+	-- wird ein anderes als das aktuell offene geöffnet, wird das alte vorher automatisch geschlossen
+	local function closeOtherSubmenu(selfRef)
+		if (submenuOpen ~= nil) and (submenuOpen ~= selfRef) then
+			closeOpenSubmenu()
+		end
+	end
 	library.signals[1 + #library.signals] = userInputService.InputBegan:Connect(function(input, processed)
 		if not submenuCloseFn then
 			return
@@ -6927,6 +6934,9 @@ function library:CreateWindow(options, ...)
 				local precisionscrolling, update = nil
 				local showing = false
 				local function display(dropdownEnabled, f)
+					if dropdownEnabled then
+						closeOtherSubmenu(dropdown)
+					end
 					if submenuOpen == dropdown or submenuOpen == nil then
 						if dropdownEnabled then
 							list = resolvelist()
@@ -7634,6 +7644,9 @@ function library:CreateWindow(options, ...)
 					local precisionscrolling, update = nil
 					local showing = false
 					local function display(dropdownEnabled, f)
+						if dropdownEnabled then
+							closeOtherSubmenu(dropdown)
+						end
 						if submenuOpen == dropdown or submenuOpen == nil then
 							if dropdownEnabled then
 								list = resolvelist(true)
@@ -8774,6 +8787,9 @@ local function AddOptions(optionsTable)
 				end
 				local precisionscrolling, update = nil
 				local function display(dropdownEnabled)
+					if dropdownEnabled then
+						closeOtherSubmenu(dropdown)
+					end
 					list = resolvelist()
 					if next(list) then
 					else
@@ -9268,6 +9284,9 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 					colored_colorPickerButton_BorderColor3[3] = "elementBorder"
 				end
 				library.signals[1 + #library.signals] = colorPickerButton.MouseButton1Click:Connect(function()
+					if not colorPickerEnabled then
+						closeOtherSubmenu(colorPicker)
+					end
 					if submenuOpen == colorPicker or submenuOpen == nil then
 						colorPickerEnabled = not colorPickerEnabled
 						library.colorpicker = colorPickerEnabled
