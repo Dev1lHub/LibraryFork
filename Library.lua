@@ -2612,7 +2612,9 @@ do
 		local corrections = 0
 		local predname = string_gsub(str, "%W", function(c)
 			local byt = c:byte()
-			if ((byt == 0) or (byt == 32) or (byt == 33) or (byt == 59) or (byt == 61) or ((byt >= 35) and (byt <= 41)) or ((byt >= 43) and (byt <= 57)) or ((byt >= 64) and (byt <= 123)) or ((byt >= 125) and (byt <= 127))) then
+			-- byt >= 128 = Teil einer UTF-8-Mehrbyte-Sequenz (Umlaute wie ä/ö/ü/ß, Akzente usw.) -> unverändert durchlassen,
+			-- sonst wurden einzelne Bytes dieser Buchstaben rausgefiltert/entfernt und der Config-Name kam beim Save/Load kaputt an
+			if ((byt == 0) or (byt == 32) or (byt == 33) or (byt == 59) or (byt == 61) or ((byt >= 35) and (byt <= 41)) or ((byt >= 43) and (byt <= 57)) or ((byt >= 64) and (byt <= 123)) or ((byt >= 125) and (byt <= 127)) or (byt >= 128)) then
 			else
 				corrections = 1 + corrections
 				return replace
@@ -3535,6 +3537,11 @@ function library:CreateWindow(options, ...)
 	local splitter2 = Instance_new("TextLabel")
 	local execNameLabel = Instance_new("TextLabel")
 	local submenuOpen = nil
+	-- Fuer das automatische Schliessen von offenen Dropdowns/Colorpickern bei Klick ausserhalb
+	-- bzw. beim Schliessen des ganzen Menüs: wird von jedem Dropdown-artigen Element beim
+	-- Oeffnen befuellt (Close-Funktion + Liste der Frames, bei denen ein Klick NICHT schliessen soll)
+	local submenuCloseFn = nil
+	local submenuOpenFrames = nil
 	library.globals["__Window" .. options.Name] = {
 		submenuOpen = submenuOpen
 	}
@@ -3955,6 +3962,45 @@ function library:CreateWindow(options, ...)
 		end
 		return main.Visible
 	end
+	-- ✅ Offene Dropdowns/Colorpicker/Searchboxen automatisch schließen:
+	-- erstens wenn man irgendwo außerhalb von ihnen klickt,
+	-- zweitens wenn das ganze Menü unsichtbar wird/geschlossen wird
+	local function closeOpenSubmenu()
+		if submenuCloseFn then
+			local fn = submenuCloseFn
+			submenuCloseFn, submenuOpenFrames = nil, nil
+			pcall(fn)
+		end
+	end
+	library.signals[1 + #library.signals] = userInputService.InputBegan:Connect(function(input, processed)
+		if not submenuCloseFn then
+			return
+		end
+		if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.MouseButton2 and input.UserInputType ~= Enum.UserInputType.Touch then
+			return
+		end
+		local pos = userInputService:GetMouseLocation()
+		local inside = false
+		if submenuOpenFrames then
+			for _, fr in ipairs(submenuOpenFrames) do
+				if fr and fr.Parent and fr.Visible then
+					local ap, asz = fr.AbsolutePosition, fr.AbsoluteSize
+					if (pos.X >= ap.X) and (pos.X <= ap.X + asz.X) and (pos.Y >= ap.Y) and (pos.Y <= ap.Y + asz.Y) then
+						inside = true
+						break
+					end
+				end
+			end
+		end
+		if not inside then
+			task.defer(closeOpenSubmenu)
+		end
+	end)
+	library.signals[1 + #library.signals] = main:GetPropertyChangedSignal("Visible"):Connect(function()
+		if not main.Visible then
+			closeOpenSubmenu()
+		end
+	end)
 	function windowFunctions:MoveTabSlider(tabObject)
 		spawn(function()
 			tabSlider.Visible = true
@@ -5898,8 +5944,8 @@ function library:CreateWindow(options, ...)
 				labelHeadline.Parent = newLabel
 				labelHeadline.BackgroundColor3 = Color3.new(1, 1, 1)
 				labelHeadline.BackgroundTransparency = 1
-				labelHeadline.Position = UDim2.fromScale(0.031, 0.165842161)
-				labelHeadline.Size = UDim2.fromOffset(215, 12)
+				labelHeadline.Position = UDim2.new(0.031, 0, 0.165842161, 0)
+				labelHeadline.Size = UDim2.new(0.969, -8, 0, 12) -- relativ statt fest 215px, sonst ragt die Laufschrift bei langen Labels über den Groupbox-Rand (wie bei Toggles/Dropdowns)
 				labelHeadline.Font = Enum.Font.Code
 				labelHeadline.Text = (labelName and tostring(labelName)) or "Empty Text"
 				local labelHeadlineRefresh = makeMarquee(labelHeadline)
@@ -6893,6 +6939,8 @@ function library:CreateWindow(options, ...)
 							end
 							AddOptions(list, f)
 							submenuOpen = dropdown
+							submenuCloseFn = function() display(false) end
+							submenuOpenFrames = {newDropdown, dropdownHolderFrame}
 							dropdownToggle.Rotation = 270
 							restorezindex[newSection] = restorezindex[newSection] or newSection.ZIndex
 							restorezindex[newDropdown] = restorezindex[newDropdown] or newDropdown.ZIndex
@@ -7591,6 +7639,8 @@ function library:CreateWindow(options, ...)
 								list = resolvelist(true)
 								AddOptions(list, f)
 								submenuOpen = dropdown
+								submenuCloseFn = function() display(false) end
+								submenuOpenFrames = {newDropdown, dropdownHolderFrame}
 								restorezindex[newSection] = restorezindex[newSection] or newSection.ZIndex
 								restorezindex[newDropdown] = restorezindex[newDropdown] or newDropdown.ZIndex
 								restorezindex[sectionHolder] = restorezindex[sectionHolder] or sectionHolder.ZIndex
@@ -8740,6 +8790,8 @@ local function AddOptions(optionsTable)
 						end
 						AddOptions(GetFilteredList())
 						submenuOpen = dropdown
+						submenuCloseFn = function() display(false) end
+						submenuOpenFrames = {newDropdown, dropdownHolderFrame}
 						dropdownToggle.Rotation = 270
 						restorezindex[newSection] = restorezindex[newSection] or newSection.ZIndex
 						restorezindex[newDropdown] = restorezindex[newDropdown] or newDropdown.ZIndex
@@ -9193,6 +9245,28 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 						task.spawn(callback, newColor, last_vv, rainbsow)
 					end
 				end
+				local function closeColorPicker()
+					colorPickerEnabled = false
+					library.colorpicker = false
+					colorPickerHolderFrame.Visible = false
+					for _, v in next, colorpickerconflicts do
+						v.Visible = true
+					end
+					submenuOpen = nil
+					newColorPicker.ZIndex = 0
+					newSection.ZIndex = newSection.ZIndex - 100
+					colorPickerButton.BorderSizePixel = 0
+					do
+						local colorPickerButtonStroke = Instance_new("UIStroke")
+						colorPickerButtonStroke.Name = generateRandomName()
+						colorPickerButtonStroke.Parent = colorPickerButton
+						colorPickerButtonStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+						colorPickerButtonStroke.Thickness = 1
+						colorPickerButtonStroke.Color = library.colors.elementBorder
+						colored[1 + #colored] = {colorPickerButtonStroke, "Color", "elementBorder"}
+					end
+					colored_colorPickerButton_BorderColor3[3] = "elementBorder"
+				end
 				library.signals[1 + #library.signals] = colorPickerButton.MouseButton1Click:Connect(function()
 					if submenuOpen == colorPicker or submenuOpen == nil then
 						colorPickerEnabled = not colorPickerEnabled
@@ -9203,29 +9277,15 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 								v.Visible = false
 							end
 							submenuOpen = colorPicker
+							submenuCloseFn = closeColorPicker
+							submenuOpenFrames = {newColorPicker, colorPickerHolderFrame}
 							newColorPicker.ZIndex = 2
 							newSection.ZIndex = 100 + newSection.ZIndex
 							colorPickerButton.BorderColor3 = library.colors.main
 							colored_colorPickerButton_BorderColor3[3] = "main"
 							UpdateColorPicker()
 						else
-							for _, v in next, colorpickerconflicts do
-								v.Visible = true
-							end
-							submenuOpen = nil
-							newColorPicker.ZIndex = 0
-							newSection.ZIndex = newSection.ZIndex - 100
-							colorPickerButton.BorderSizePixel = 0
-							do
-								local colorPickerButtonStroke = Instance_new("UIStroke")
-								colorPickerButtonStroke.Name = generateRandomName()
-								colorPickerButtonStroke.Parent = colorPickerButton
-								colorPickerButtonStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-								colorPickerButtonStroke.Thickness = 1
-								colorPickerButtonStroke.Color = library.colors.elementBorder
-								colored[1 + #colored] = {colorPickerButtonStroke, "Color", "elementBorder"}
-							end
-							colored_colorPickerButton_BorderColor3[3] = "elementBorder"
+							closeColorPicker()
 						end
 					end
 				end)
