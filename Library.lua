@@ -4474,7 +4474,13 @@ function library:CreateWindow(options, ...)
 		if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.MouseButton2 and input.UserInputType ~= Enum.UserInputType.Touch then
 			return
 		end
-		local pos = userInputService:GetMouseLocation()
+		-- ✅ GetMouseLocation() liefert die ROHE Bildschirmposition (inkl. oberer Roblox-Topbar-Inset),
+		-- während AbsolutePosition/AbsoluteSize der Dropdown-Frames (deren ScreenGui IgnoreGuiInset
+		-- NICHT gesetzt hat) relativ zum Bereich UNTER der Topbar gemessen werden. Ohne Korrektur war
+		-- die Mausposition dadurch um die Inset-Höhe (~36px) verschoben - unauffällig bei den obersten
+		-- Einträgen, aber je weiter unten im Dropdown man geklickt hat (3., 4. Eintrag usw.), desto öfter
+		-- hat der Klick dadurch fälschlich als "außerhalb" gegolten und das Dropdown sofort wieder zu.
+		local pos = userInputService:GetMouseLocation() - game:GetService("GuiService"):GetGuiInset()
 		local inside = false
 		if submenuOpenFrames then
 			for _, fr in ipairs(submenuOpenFrames) do
