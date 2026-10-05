@@ -3010,24 +3010,34 @@ local function removeSpaces(str)
 	end
 end
 library.subs.removeSpaces = removeSpaces
+-- Gibt bei ungültigem Input nil zurück statt zu crashen (akzeptiert "A855F7", "#a855f7", "0xA855F7", "F0A")
 local function Color3FromHex(hex)
-	hex = hex:gsub("#", ""):upper():gsub("0X", "")
-	return Color3.fromRGB(tonumber(hex:sub(1, 2), 16), tonumber(hex:sub(3, 4), 16), tonumber(hex:sub(5, 6), 16))
+	if typeof(hex) == "Color3" then
+		return hex
+	end
+	if type(hex) ~= "string" then
+		return nil
+	end
+	hex = (string.gsub(hex, "%s", ""))
+	hex = (string.gsub(hex, "^#", ""))
+	hex = (string.gsub(hex, "^0[xX]", ""))
+	if #hex == 3 then
+		hex = string.rep(string.sub(hex, 1, 1), 2) .. string.rep(string.sub(hex, 2, 2), 2) .. string.rep(string.sub(hex, 3, 3), 2)
+	end
+	if #hex ~= 6 or string.find(hex, "[^%x]") then
+		return nil
+	end
+	return Color3.fromRGB(tonumber(string.sub(hex, 1, 2), 16), tonumber(string.sub(hex, 3, 4), 16), tonumber(string.sub(hex, 5, 6), 16))
 end
 library.subs.Color3FromHex = Color3FromHex
 local floor = math.floor
+-- Runden statt Abschneiden: vorher wurde z.B. 167.9999 zu 167 -> Farben wurden bei
+-- jedem Save/Load-Durchlauf minimal dunkler
 local function Color3ToHex(color)
-	local r, g, b = string.format("%X", floor(color.R * 255)), string.format("%X", floor(color.G * 255)), string.format("%X", floor(color.B * 255))
-	if #r < 2 then
-		r = "0" .. r
+	local function channel(v)
+		return math.clamp(floor(v * 255 + 0.5), 0, 255)
 	end
-	if #g < 2 then
-		g = "0" .. g
-	end
-	if #b < 2 then
-		b = "0" .. b
-	end
-	return string.format("%s%s%s", r, g, b)
+	return string.format("%02X%02X%02X", channel(color.R), channel(color.G), channel(color.B))
 end
 if Color3.ToHex and not shared.overridecolortohex then
 	local x, e = pcall(Color3.ToHex, Color3.new())
@@ -3112,6 +3122,172 @@ do
 	end
 	library.subs.ConvertFilename = convertfilename
 end
+-- ============================================================
+-- CONFIG-SYSTEM HELPERS (gemeinsam für Save, Load, Delete, Liste, Copy Theme)
+-- ============================================================
+-- Ein einziger Namens-Filter für ALLES (Speichern, Laden, Löschen, Ordner).
+-- Vorher hat Save alle Nicht-Buchstaben (Leerzeichen, _, -, Umlaute) gelöscht,
+-- Load aber nicht -> "My Config" wurde als "MyConfig.txt" gespeichert und beim
+-- Laden als "My Config.txt" gesucht -> nicht gefunden.
+local sanitizeConfigName
+do
+	local reservedNames = {CON = true, PRN = true, AUX = true, NUL = true}
+	for i = 1, 9 do
+		reservedNames["COM" .. i] = true
+		reservedNames["LPT" .. i] = true
+	end
+	function sanitizeConfigName(str)
+		if type(str) == "number" then
+			str = tostring(str)
+		end
+		if type(str) ~= "string" then
+			return ""
+		end
+		str = (string.gsub(str, "%c", ""))
+		str = (string.gsub(str, '[\\/:%*%?"<>|]', ""))
+		str = (string.gsub(str, "^%s+", ""))
+		str = (string.gsub(str, "[%s%.]+$", ""))
+		if #str > 64 then
+			local ok, cut = pcall(utf8.offset, str, 65)
+			if ok and cut then
+				str = string.sub(str, 1, cut - 1)
+			elseif #str > 64 then
+				str = string.sub(str, 1, 64)
+			end
+			str = (string.gsub(str, "[%s%.]+$", ""))
+		end
+		if reservedNames[string.upper(str)] then
+			str = str .. "_"
+		end
+		return str
+	end
+	library.subs.SanitizeConfigName = sanitizeConfigName
+end
+-- Holt aus einem listfiles()-Eintrag nur den reinen Config-Namen, egal ob der
+-- Executor "./Ordner/x.txt", "Ordner\x.txt" oder einen absoluten Pfad liefert.
+-- Vorher wurde stur eine feste Zeichenanzahl abgeschnitten -> bei manchen
+-- Executoren fehlten dadurch vorne Buchstaben im Config-Namen.
+local function extractConfigName(path)
+	if type(path) ~= "string" then
+		return nil
+	end
+	local name = string.match(path, "([^/\\]+)$") or path
+	return string.match(name, "^(.+)%.[Tt][Xx][Tt]$")
+end
+library.subs.ExtractConfigName = extractConfigName
+-- Diese Flags werden nie in Configs/Themes gespeichert bzw. daraus geladen:
+-- der Workspace-Name bestimmt den Ordner selbst - ein Theme/Config hätte sonst
+-- beim Laden still den Ordner gewechselt und deine Configs "verschwanden".
+local configIgnoredFlags = {
+	["__Designer.Files.WorkspaceFile"] = true
+}
+library.subs.ConfigIgnoredFlags = configIgnoredFlags
+-- Wandelt einen Flag-Wert in etwas JSON-taugliches um.
+-- Gibt (true, wert) zurück, oder false, wenn der Wert nicht gespeichert werden soll.
+local function serializeFlagValue(cflag, value, elementType)
+	if value == nil then
+		-- Keybinds auf NONE müssen mitgespeichert werden, sonst bleibt beim Laden die alte Taste drin
+		if elementType == "Keybind" then
+			return true, "NONE"
+		end
+		return false
+	end
+	local typ = typeof(value)
+	if typ == "boolean" or typ == "string" then
+		return true, value
+	elseif typ == "number" then
+		if value ~= value or value == math.huge or value == -math.huge then
+			return false
+		end
+		return true, value
+	elseif typ == "Color3" then
+		return true, ((cflag and library.rainbowflags[cflag]) and "rainbow") or Color3ToHex(value)
+	elseif typ == "EnumItem" then
+		return true, tostring(value)
+	elseif typ == "Instance" then
+		return true, value.Name
+	elseif typ == "table" then
+		local arr = {}
+		for _, v in ipairs(value) do
+			local ok, sv = serializeFlagValue(nil, v)
+			if ok and sv ~= nil and type(sv) ~= "table" then
+				arr[1 + #arr] = sv
+			end
+		end
+		return true, arr
+	end
+	local good, jval = JSONEncode(value)
+	if good and jval and jval ~= "null" then
+		return true, value
+	end
+	return true, tostring(value)
+end
+library.subs.SerializeFlagValue = serializeFlagValue
+-- Wandelt einen geladenen JSON-Wert passend zum Element zurück.
+-- Gibt (wert, true) zurück, oder (nil, false), wenn der Wert nicht passt.
+local function deserializeFlagValue(val, data)
+	if val == nil then
+		return nil, false
+	end
+	if type(val) == "string" and #val > 7 and #val < 64 and string.sub(val, 1, 5) == "Enum." then
+		local e = string.find(val, ".", 6, true)
+		if e then
+			local ok, en = pcall(function()
+				local enumType = Enum[string.sub(val, 6, e - 1)]
+				return enumType and enumType[string.sub(val, e + 1)]
+			end)
+			if ok and en then
+				val = en
+			else
+				warn("[Config] Konnte '" .. val .. "' nicht in ein EnumItem umwandeln - wird übersprungen")
+				return nil, false
+			end
+		end
+	end
+	local etype = data and data.Type
+	local opts = (data and type(data.Options) == "table" and data.Options) or {}
+	if etype == "Toggle" then
+		if type(val) ~= "boolean" then
+			if val == "true" or val == 1 then
+				val = true
+			elseif val == "false" or val == 0 then
+				val = false
+			else
+				return nil, false
+			end
+		end
+	elseif etype == "Slider" then
+		if type(val) == "string" then
+			val = tonumber(val)
+		end
+		if type(val) ~= "number" or val ~= val then
+			return nil, false
+		end
+		-- Werte außerhalb von Min/Max (z.B. weil das Script die Grenzen geändert hat)
+		-- wurden vorher stillschweigend ignoriert -> jetzt sauber auf den Bereich begrenzen
+		if type(opts.Min) == "number" and type(opts.Max) == "number" and not opts.IllegalInput then
+			val = math.clamp(val, math.min(opts.Min, opts.Max), math.max(opts.Min, opts.Max))
+		end
+	elseif etype == "Dropdown" or etype == "SearchBox" then
+		local isMulti = opts.MultiSelect or opts.Multi or opts.Multiple
+		if isMulti then
+			if type(val) ~= "table" then
+				val = {val}
+			end
+		elseif type(val) == "table" then
+			val = val[1]
+			if val == nil then
+				return nil, false
+			end
+		end
+	elseif etype == "Colorpicker" then
+		if type(val) ~= "string" and typeof(val) ~= "Color3" then
+			return nil, false
+		end
+	end
+	return val, true
+end
+library.subs.DeserializeFlagValue = deserializeFlagValue
 do
 	do
 		local function NewOption(TextStr, Order, Parent)
@@ -4950,15 +5126,26 @@ function library:CreateWindow(options, ...)
 						if kbSyncFlag then
 							KeybindsListModule:SetActive(kbSyncFlag, newStatus)
 						end
-						if callback and (last_v ~= newStatus or options.AllowDuplicateCalls) then
+						-- Optik IMMER aktualisieren - vorher passierte das nur, wenn der Toggle einen
+						-- Callback hatte. Toggles ohne Callback sahen nach dem Config-Laden (oder per
+						-- Keybind) deshalb unverändert aus, obwohl der Wert umgestellt war.
+						do
+							local bgFactor = (newStatus and 1.5) or nil
+							local imgFactor = (newStatus and 2.5) or nil
+							if lockedup then
+								bgFactor = 1 + (bgFactor or 1)
+								imgFactor = 1 + (imgFactor or 1)
+							end
 							colored_toggleInner_BackgroundColor3[3] = (newStatus and "main") or "topGradient"
-							colored_toggleInner_BackgroundColor3[4] = (newStatus and 1.5) or nil
+							colored_toggleInner_BackgroundColor3[4] = bgFactor
 							colored_toggleInner_ImageColor3[3] = (newStatus and "main") or "bottomGradient"
-							colored_toggleInner_ImageColor3[4] = (newStatus and 2.5) or nil
+							colored_toggleInner_ImageColor3[4] = imgFactor
 							tweenService:Create(toggleInner, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-								BackgroundColor3 = (newStatus and darkenColor(library.colors.main, 1.5)) or library.colors.topGradient,
-								ImageColor3 = (newStatus and darkenColor(library.colors.main, 2.5)) or library.colors.bottomGradient
+								BackgroundColor3 = (newStatus and darkenColor(library.colors.main, bgFactor)) or library.colors.topGradient,
+								ImageColor3 = (newStatus and darkenColor(library.colors.main, imgFactor)) or library.colors.bottomGradient
 							}):Play()
+						end
+						if callback and (last_v ~= newStatus or options.AllowDuplicateCalls) then
 							task.spawn(callback, newStatus, last_v)
 						end
 					end
@@ -7778,32 +7965,60 @@ function library:CreateWindow(options, ...)
 					local realDropdownHolder = Instance_new("ScrollingFrame")
 					local realDropdownHolderList = Instance_new("UIListLayout")
 					local dropdownEnabled = false
-					if not isfolder("./D3v1lHub Lib") then
-						makefolder("./D3v1lHub Lib")
-					end
-					local common_string = "./D3v1lHub Lib/" .. tostring(custom_workspace or library.WorkspaceName)
-					local function resolvelist(nofold)
-						if custom_workspace ~= options.Workspace then
-							custom_workspace = options.Workspace
-							common_string = "./D3v1lHub Lib/" .. tostring(custom_workspace or library.WorkspaceName)
+					pcall(function()
+						if not isfolder("./D3v1lHub Lib") then
+							makefolder("./D3v1lHub Lib")
 						end
+					end)
+					local common_string = nil
+					-- Ordnerpfad IMMER frisch aus dem aktuellen Workspace-Namen bauen.
+					-- Vorher wurde er nur beim Öffnen der Liste aktualisiert -> änderte man den
+					-- Workspace-Namen und drückte direkt Save, landete die Config im ALTEN Ordner.
+					local function refreshWorkspacePath()
+						custom_workspace = options.Workspace or library.WorkspaceName
+						local folderName = sanitizeConfigName(tostring(custom_workspace or ""))
+						if #folderName == 0 then
+							folderName = "Unnamed Workspace"
+						end
+						common_string = "./D3v1lHub Lib/" .. folderName
+						return common_string
+					end
+					refreshWorkspacePath()
+					local function ensureFolder()
+						local ok = pcall(function()
+							if not isfolder("./D3v1lHub Lib") then
+								makefolder("./D3v1lHub Lib")
+							end
+							if not isfolder(common_string) then
+								makefolder(common_string)
+							end
+						end)
+						return ok
+					end
+					local function resolvelist(nofold)
+						refreshWorkspacePath()
 						if not isfolder or not makefolder or not listfiles then
 							return {}
 						end
-						if not isfolder(common_string) then
-							if nofold then
+						local okf, exists = pcall(isfolder, common_string)
+						if not (okf and exists) then
+							if nofold or not ensureFolder() then
 								return {}
 							end
-							makefolder(common_string)
 						end
-						assert(isfolder(common_string), "Couldn't create folder: " .. tostring(library.WorkspaceName or "No workspace name?"))
-						local names, files = {}, listfiles(common_string)
-						if #files > 0 then
-							local len = #common_string + 2
+						local okl, files = pcall(listfiles, common_string)
+						local names, seen = {}, {}
+						if okl and type(files) == "table" then
 							for _, f in next, files do
-								names[1 + #names] = string.sub(f, len, -5)
+								local n = extractConfigName(f)
+								if n and #n > 0 and not seen[n] then
+									seen[n] = true
+									names[1 + #names] = n
+								end
 							end
-							table.sort(names)
+							table.sort(names, function(a, b)
+								return string.lower(a) < string.lower(b)
+							end)
 						end
 						return names
 					end
@@ -8253,24 +8468,8 @@ function library:CreateWindow(options, ...)
 						end
 					end)
 					AddOptions(list)
-					local function savestuff(s, get)
-						if not s or type(s) ~= "string" then
-							s = nil
-						end
-						local rawfile = "json__save"
-						if not get then
-							local filenameddst = string.gsub(s or dropdownSelection.Text or "", "%W", "")
-							if #filenameddst == 0 then
-								return false
-							end
-							rawfile = string.format("%s/%s.txt", common_string, filenameddst)
-						end
-						if savecallback then
-							local x, e = pcall(savecallback, rawfile, library_flags[flagName])
-							if not x and e then
-								warn("Error while calling the Pre-Save callback:", e, debug.traceback(""))
-							end
-						end
+					-- Sammelt alle Elemente, die in diese Config/dieses Theme gehören
+					local function collectPersistedElements()
 						local working_with = {}
 						if persistiveflags == 1 or persistiveflags == true or persistiveflags == "*" then
 							persistiveflags = "all"
@@ -8279,9 +8478,12 @@ function library:CreateWindow(options, ...)
 						elseif persistiveflags == 3 then
 							persistiveflags = "section"
 						end
+						local function allowed(cflag, data)
+							return data and type(cflag) == "string" and data.Type ~= "Persistence" and not configIgnoredFlags[cflag] and (designerpersists or string.sub(cflag, 1, 11) ~= "__Designer.")
+						end
 						if persistiveflags == "all" or persistiveflags == "tab" or persistiveflags == "section" then
 							for cflag, data in next, (persistiveflags == "all" and elements) or (persistiveflags == "tab" and tabFunctions.Flags) or (persistiveflags == "section" and sectionFunctions.Flags) do
-								if data.Type ~= "Persistence" and (designerpersists or string.sub(cflag, 1, 11) ~= "__Designer.") then
+								if allowed(cflag, data) then
 									working_with[cflag] = data
 								end
 							end
@@ -8289,61 +8491,75 @@ function library:CreateWindow(options, ...)
 							if #persistiveflags > 0 then
 								local inverted = persistiveflags[0] == false or persistiveflags.Inverted
 								for k, cflag in next, persistiveflags do
-									if k > 0 then
+									if type(k) == "number" and k > 0 then
 										local data = elements[cflag]
-										if data and data.Type ~= "Persistence" and (designerpersists or string.sub(cflag, 1, 11) ~= "__Designer.") then
+										if allowed(cflag, data) then
 											working_with[cflag] = (not inverted and data) or nil
 										end
 									end
 								end
 							else
-								for cflag, persists in next, elements do
-									if persists and (designerpersists or string.sub(cflag, 1, 11) ~= "__Designer.") then
+								-- Dictionary-Form {["Flag"] = true}: vorher wurden hier fälschlich ALLE
+								-- Elemente gespeichert statt nur die angegebenen
+								for cflag, persists in next, persistiveflags do
+									if persists and cflag ~= "Inverted" then
 										local data = elements[cflag]
-										if data then
+										if allowed(cflag, data) then
 											working_with[cflag] = data
 										end
 									end
 								end
 							end
 						end
-						local saving = {}
-						for cflag in next, working_with do
-							local value = library_flags[cflag]
-							local good, jval = nil, nil
-							if value ~= nil then
-								good, jval = JSONEncode(value)
-							else
-								good, jval = true, "null"
+						return working_with
+					end
+					local function savestuff(s, get)
+						refreshWorkspacePath()
+						if not s or type(s) ~= "string" then
+							s = nil
+						end
+						local rawfile = "json__save"
+						local displayname = nil
+						if not get then
+							local filenameddst = sanitizeConfigName(s or dropdownSelection.Text or "")
+							if #filenameddst == 0 then
+								return false, "invalid name"
 							end
-							if not good or (jval == "null" and value ~= nil) then
-								local typ = typeof(value)
-								if typ == "Color3" then
-									value = (library.rainbowflags[cflag] and "rainbow") or Color3ToHex(value)
-								end
-								value = tostring(value)
-								good, jval = JSONEncode(value)
-								if not good or (jval == "null" and value ~= nil) then
-									warn("Could not save value:", value, debug.traceback(""))
-								end
-							end
-							if good and jval then
-								saving[cflag] = value
+							displayname = filenameddst
+							rawfile = string.format("%s/%s.txt", common_string, filenameddst)
+						end
+						if savecallback then
+							local x, e = pcall(savecallback, rawfile, library_flags[flagName])
+							if not x and e then
+								warn("Error while calling the Pre-Save callback:", e, debug.traceback(""))
 							end
 						end
-						local ret = nil
+						local saving = {}
+						for cflag, data in next, collectPersistedElements() do
+							local ok, sv = serializeFlagValue(cflag, library_flags[cflag], data.Type)
+							if ok and sv ~= nil then
+								saving[cflag] = sv
+							end
+						end
+						local ret, reason = nil, nil
 						local savedok = false
 						local good, content = JSONEncode(saving)
 						if good and content then
 							if not get then
-								if not isfolder(common_string) then
-									makefolder(common_string)
+								ensureFolder()
+								local okw, errw = pcall(writefile, rawfile, content)
+								if okw then
+									savedok = true
+								else
+									reason = "write error"
+									warn("[Config] Speichern fehlgeschlagen:", errw)
 								end
-								writefile(rawfile, content)
-								savedok = true
 							else
 								ret = content
 							end
+						else
+							reason = "encode error"
+							warn("[Config] Konnte Config nicht in JSON umwandeln:", content)
 						end
 						if postsave then
 							local x, e = pcall(postsave, rawfile, library_flags[flagName])
@@ -8354,18 +8570,25 @@ function library:CreateWindow(options, ...)
 						if get then
 							return ret
 						end
-						return savedok
+						if savedok and displayname and dropdownSelection.Text ~= displayname then
+							-- Feld zeigt danach exakt den Namen, unter dem wirklich gespeichert wurde
+							Set(displayname)
+						end
+						return savedok, reason, displayname
 					end
 					local function loadstuff(s, jsonmode, silent)
+						refreshWorkspacePath()
 						if not s or type(s) ~= "string" then
 							s = nil
 						end
 						local filename = "json__load"
+						local displayname = nil
 						if not jsonmode then
-							local filenameddst = convertfilename(s or dropdownSelection.Text, nil, "")
+							local filenameddst = sanitizeConfigName(s or dropdownSelection.Text or "")
 							if #filenameddst == 0 then
-								return false
+								return false, "invalid name"
 							end
+							displayname = filenameddst
 							filename = string.format("%s/%s.txt", common_string, filenameddst)
 						end
 						if loadcallback then
@@ -8374,38 +8597,68 @@ function library:CreateWindow(options, ...)
 								warn("Error while calling the Pre-Load callback:", e, debug.traceback(""))
 							end
 						end
-						local loadedok = false
-						if jsonmode or not isfile or isfile(filename) then
-							local content = (jsonmode and s) or (not jsonmode and readfile(filename))
-							if content and #content > 1 then
+						local loadedok, reason = false, nil
+						local content = nil
+						if jsonmode then
+							content = s
+						else
+							local exists = true
+							if isfile then
+								local okf, res = pcall(isfile, filename)
+								exists = okf and res
+							end
+							if exists then
+								local okr, res = pcall(readfile, filename)
+								if okr then
+									content = res
+								else
+									reason = "not found"
+								end
+							else
+								reason = "not found"
+							end
+						end
+						if content ~= nil then
+							if type(content) == "string" and #content > 1 then
 								local good, jcontent = JSONDecode(content)
-								if good and jcontent then
+								if good and type(jcontent) == "table" then
+									local applied, skipped = 0, 0
 									for cflag, val in next, jcontent do
-										if val and type(val) == "string" and #val > 7 and #val < 64 and string.sub(val, 1, 5) == "Enum." then
-											local e = string.find(val, ".", 6, true)
-											if e then
-												local en = Enum[string.sub(val, 6, e - 1)]
-												en = en and en[string.sub(val, e + 1)]
-												if en then
-													val = en
+										local data = (type(cflag) == "string") and elements[cflag]
+										if data and data.Type ~= "Persistence" and not configIgnoredFlags[cflag] then
+											local converted, usable = deserializeFlagValue(val, data)
+											if usable and converted ~= nil then
+												-- Jeder Wert einzeln abgesichert: ein kaputter Wert bricht nicht mehr
+												-- den kompletten Ladevorgang ab
+												local ok, err = pcall(function()
+													if silent and data.RawSet then
+														data:RawSet(converted)
+													elseif data.Set then
+														data:Set(converted)
+													else
+														library_flags[cflag] = converted
+													end
+												end)
+												if ok then
+													applied = applied + 1
 												else
-													warn("Tried & failed to convert '" .. val .. "' to EnumItem")
+													skipped = skipped + 1
+													warn("[Config] Wert für '" .. tostring(cflag) .. "' konnte nicht geladen werden:", err)
 												end
-											end
-										end
-										local data = elements[cflag]
-										if data and data.Type ~= "Persistence" then
-											if silent and data.RawSet then
-												data:RawSet(val)
-											elseif data.Set then
-												data:Set(val)
 											else
-												library_flags[cflag] = val
+												skipped = skipped + 1
 											end
 										end
 									end
 									loadedok = true
+									if skipped > 0 then
+										warn(string.format("[Config] %d Werte geladen, %d übersprungen (ungültig oder nicht mehr vorhanden)", applied, skipped))
+									end
+								else
+									reason = "corrupted file"
 								end
+							else
+								reason = "empty file"
 							end
 						end
 						if postload then
@@ -8414,19 +8667,70 @@ function library:CreateWindow(options, ...)
 								warn("Error while calling the Post-Load callback:", e, debug.traceback(""))
 							end
 						end
-						return loadedok
+						if loadedok and displayname and dropdownSelection.Text ~= displayname then
+							Set(displayname)
+						end
+						return loadedok, reason, displayname
+					end
+					-- Löschen mit Bestätigung: erster Klick fragt nach, zweiter Klick (innerhalb 4s) löscht
+					local pendingDelete, pendingDeleteTime = nil, 0
+					local function deletestuff(s)
+						refreshWorkspacePath()
+						if type(s) ~= "string" then
+							s = nil
+						end
+						local name = sanitizeConfigName(s or dropdownSelection.Text or "")
+						if #name == 0 then
+							return false, "invalid name"
+						end
+						local path = string.format("%s/%s.txt", common_string, name)
+						if isfile then
+							local okf, exists = pcall(isfile, path)
+							if not (okf and exists) then
+								pendingDelete = nil
+								return false, "not found", name
+							end
+						end
+						if pendingDelete ~= name or (os.clock() - pendingDeleteTime) > 4 then
+							pendingDelete, pendingDeleteTime = name, os.clock()
+							return nil, "confirm", name
+						end
+						pendingDelete = nil
+						local okd, errd = pcall(delfile, path)
+						if not okd then
+							warn("[Config] Löschen fehlgeschlagen:", errd)
+							return false, "delete error", name
+						end
+						return true, nil, name
 					end
 					local fram = nil
 					do
 						local buttons, offset = {}, 0
-						for _, options in next, {{
-							Name = "Save" .. ((suffix and (" " .. tostring(suffix))) or ""),
-							Callback = savestuff
-							}, {
-								Name = "Load" .. ((suffix and (" " .. tostring(suffix))) or ""),
-								Callback = loadstuff
-							}} do
-							local buttonName, callback = options.Name, options.Callback
+						local suffixText = (suffix and (" " .. tostring(suffix))) or ""
+						local persistenceButtons = {{
+							Name = "Save" .. suffixText,
+							Callback = savestuff,
+							Action = "save"
+						}, {
+							Name = "Load" .. suffixText,
+							Callback = loadstuff,
+							Action = "load"
+						}}
+						-- Delete nur anbieten, wenn der Executor delfile kann
+						if typeof(delfile) == "function" then
+							persistenceButtons[3] = {
+								Name = "Delete" .. suffixText,
+								Callback = deletestuff,
+								Action = "delete"
+							}
+						end
+						local actionWords = {
+							save = {"saved", "save"},
+							load = {"loaded", "load"},
+							delete = {"deleted", "delete"}
+						}
+						for _, options in next, persistenceButtons do
+							local buttonName, callback, buttonAction = options.Name, options.Callback, options.Action
 							local realButton = Instance_new("TextButton")
 							realButton.Name = generateRandomName()
 							realButton.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -8503,24 +8807,38 @@ function library:CreateWindow(options, ...)
 							offset = offset + textsize + 6
 							sectionFunctions:Update()
 							local presses = 0
+							local busy = false
 							library.signals[1 + #library.signals] = realButton.MouseButton1Click:Connect(function()
-								if not library.colorpicker and not submenuOpen then
+								if not library.colorpicker and not submenuOpen and not busy then
 									presses = 1 + presses
+									busy = true
 									task.spawn(function()
-										local ok = callback(presses)
-										local isSaving = string.sub(tostring(buttonName), 1, 4) == "Save"
+										-- Komplett abgesichert: auch bei unerwarteten Fehlern kommt eine Meldung
+										local okCall, ok, reason, fname = pcall(callback, presses)
+										busy = false
+										if not okCall then
+											warn("[Config] Unerwarteter Fehler:", ok)
+											ok, reason = false, "unexpected error"
+										end
 										local suffixname = (suffix and tostring(suffix)) or "Profile"
-										if isSaving then
+										local label = suffixname .. ((fname and (' "' .. tostring(fname) .. '"')) or "")
+										local words = actionWords[buttonAction] or actionWords.save
+										if reason == "confirm" then
 											library:Notify({
-												Text = suffixname .. ((ok and " successfully saved") or " failed to save"),
+												Text = 'Click "' .. tostring(buttonName) .. '" again to delete' .. ((fname and (' "' .. tostring(fname) .. '"')) or ""),
+												Time = 4
+											})
+										elseif ok then
+											library:Notify({
+												Text = label .. " successfully " .. words[1],
 												Time = 3,
-												Type = (ok and "success") or "error"
+												Type = "success"
 											})
 										else
 											library:Notify({
-												Text = suffixname .. ((ok and " successfully loaded") or " failed to load"),
-												Time = 3,
-												Type = (ok and "success") or "error"
+												Text = label .. " failed to " .. words[2] .. ((reason and (" (" .. tostring(reason) .. ")")) or ""),
+												Time = 4,
+												Type = "error"
 											})
 										end
 									end)
@@ -8596,8 +8914,17 @@ function library:CreateWindow(options, ...)
 							if t ~= nil and type(t) ~= "table" then
 								str, jsonmode = t, str
 							end
-							if isfile and isfile(str) then
-								return loadstuff(readfile(str), true)
+							local isRealFile = false
+							if not jsonmode and type(str) == "string" and isfile then
+								local okf, res = pcall(isfile, str)
+								isRealFile = okf and res
+							end
+							if isRealFile then
+								local okr, content = pcall(readfile, str)
+								if not okr then
+									return false, "not found"
+								end
+								return loadstuff(content, true)
 							elseif not jsonmode and type(str) == "string" then
 								str = str:match("(.+)%..+$") or str
 							end
@@ -8610,8 +8937,17 @@ function library:CreateWindow(options, ...)
 							if t ~= nil and type(t) ~= "table" then
 								str, jsonmode = t, str
 							end
-							if isfile and isfile(str) then
-								return loadstuff(readfile(str), true, true)
+							local isRealFile = false
+							if not jsonmode and type(str) == "string" and isfile then
+								local okf, res = pcall(isfile, str)
+								isRealFile = okf and res
+							end
+							if isRealFile then
+								local okr, content = pcall(readfile, str)
+								if not okr then
+									return false, "not found"
+								end
+								return loadstuff(content, true, true)
 							elseif not jsonmode and type(str) == "string" then
 								str = str:match("(.+)%..+$") or str
 							end
@@ -10201,8 +10537,12 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 						return
 					elseif clr == "random" then
 						clr = Color3.new(math.random(), math.random(), math.random())
-					elseif type(clr) == "string" and tonumber(clr, 16) then
+					elseif type(clr) == "string" then
 						clr = Color3FromHex(clr)
+					end
+					-- Ungültiger Wert (kaputter Hex-String o.ä.) -> aktuelle Farbe behalten statt Fehler
+					if typeof(clr) ~= "Color3" then
+						return library_flags[flagName]
 					end
 					task.spawn(setrainbow, false)
 					local last_v = library_flags[flagName]
@@ -10278,8 +10618,11 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 							return clr
 						elseif clr == "random" then
 							clr = Color3.new(math.random(), math.random(), math.random())
-						elseif clr and type(clr) == "string" and tonumber(clr, 16) then
+						elseif clr and type(clr) == "string" then
 							clr = Color3FromHex(clr)
+						end
+						if typeof(clr) ~= "Color3" then
+							return library_flags[flagName]
 						end
 						task.spawn(setrainbow, false)
 						library_flags[flagName] = clr
@@ -10527,55 +10870,43 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 		}}, {"AddLabel", "__Designer.Label.Version", settingssection, {
 			Name = "Library Version: " .. tostring(library.Version or "?")
 		}}}
-		if setclipboard and daaata[8] then
-			local common_table = daaata[8][4]
-			if common_table then
-				common_table[1 + #common_table] = {
-					Name = "Copy Theme",
-					Callback = function()
-						local working_with = {}
-						if #flags > 0 then
-							for k, cflag in next, flags do
-								if k > 0 then
-									local data = elements[cflag]
-									if data and (data.Type ~= "Persistence") and (string.sub(cflag, 1, 11) == "__Designer.") then
-										working_with[cflag] = data
-									end
-								end
+		-- "Copy Theme"-Button an die Settings-Button-Gruppe hängen. Vorher per festem
+		-- Index daaata[8] - durch neu hinzugekommene Toggles zeigte der aber längst auf
+		-- einen ganz anderen Eintrag, der Button tauchte deshalb nie auf.
+		local terminateEntry = nil
+		for _, entry in ipairs(daaata) do
+			if entry[2] == "__Designer.Button.TerminateGUI" then
+				terminateEntry = entry
+				break
+			end
+		end
+		if setclipboard and terminateEntry and type(terminateEntry[4]) == "table" then
+			local common_table = terminateEntry[4]
+			common_table[1 + #common_table] = {
+				Name = "Copy Theme",
+				Callback = function()
+					local saving = {}
+					for _, cflag in ipairs(flags) do
+						local data = elements[cflag]
+						if data and (data.Type ~= "Persistence") and (string.sub(cflag, 1, 11) == "__Designer.") and not configIgnoredFlags[cflag] then
+							local ok, sv = serializeFlagValue(cflag, library_flags[cflag], data.Type)
+							if ok and sv ~= nil then
+								saving[cflag] = sv
 							end
-						end
-						local saving = {}
-						for cflag in next, working_with do
-							local value = library_flags[cflag]
-							local good, jval = nil, nil
-							if value ~= nil then
-								good, jval = JSONEncode(value)
-							else
-								good, jval = true, "null"
-							end
-							if not good or ((jval == "null") and (value ~= nil)) then
-								local typ = typeof(value)
-								if typ == "Color3" then
-									value = (library.rainbowflags[cflag] and "rainbow") or Color3ToHex(value)
-								end
-								value = tostring(value)
-								good, jval = JSONEncode(value)
-								if not good or ((jval == "null") and (value ~= nil)) then
-									warn("Could not save value:", value, debug.traceback(""))
-								end
-							end
-							if good and jval then
-								saving[cflag] = value
-							end
-						end
-						local good, content = JSONEncode(saving)
-						if good and content then
-							setclipboard(content)
 						end
 					end
-				}
-				common_table = nil
-			end
+					local good, content = JSONEncode(saving)
+					if good and content then
+						local okc = pcall(setclipboard, content)
+						library:Notify({
+							Text = (okc and "Theme copied to clipboard") or "Theme failed to copy",
+							Time = 3,
+							Type = (okc and "success") or "error"
+						})
+					end
+				end
+			}
+			common_table = nil
 		end
 		if options.Credit ~= false then
 			daaata[1 + #daaata] = {"AddLabel", "__Designer.Label.Creator", detailssection, {
