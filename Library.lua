@@ -546,33 +546,59 @@ function CursorModule:Enable()
 	local RenderStepped = RunService.RenderStepped
 	
 	self.Toggled = true
-	
+	-- Generationszähler: schnelles Aus/An startet eine neue Schleife, die alte beendet sich
+	-- dann selbst, ohne die neue mit abzuschalten
+	self.Generation = (self.Generation or 0) + 1
+	local myGeneration = self.Generation
+
 	task.spawn(function()
-		local success, Cursor = pcall(function() return Drawing.new('Triangle') end)
-		local success2, CursorOutline = pcall(function() return Drawing.new('Triangle') end)
+		-- Der Cursor ist jetzt ein normales Roblox-GUI statt eines Drawing-Objekts.
+		-- Drawing hängt komplett vom Executor ab: bei manchen (z.B. "Real") werden die
+		-- Dreiecke gar nicht oder hinter dem Menü gezeichnet -> Cursor unsichtbar.
+		-- Ein ScreenGui mit sehr hoher DisplayOrder rendert Roblox selbst, in jedem
+		-- Executor, und immer ÜBER dem Menü.
+		local CursorGui = Instance.new("ScreenGui")
+		CursorGui.Name = generateRandomName()
+		CursorGui.IgnoreGuiInset = true -- damit GetMouseLocation() 1:1 zur GUI-Position passt
+		CursorGui.ResetOnSpawn = false
+		CursorGui.DisplayOrder = 999999
+		CursorGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 		
-		if not success or not success2 then
-			self.Toggled = false
-			return
+		local CursorImage = Instance.new("ImageLabel")
+		CursorImage.Name = generateRandomName()
+		CursorImage.BackgroundTransparency = 1
+		-- Roblox' eingebauter Pfeil (liegt im Client selbst, muss nicht geladen werden).
+		-- Die Pfeilspitze sitzt genau in der Bildmitte -> AnchorPoint 0.5/0.5
+		CursorImage.Image = "rbxasset://textures/Cursors/KeyboardMouse/ArrowFarCursor.png"
+		CursorImage.Size = UDim2.fromOffset(64, 64)
+		CursorImage.AnchorPoint = Vector2.new(0.5, 0.5)
+		CursorImage.ZIndex = 10
+		CursorImage.Visible = false
+		CursorImage.Parent = CursorGui
+		
+		if not protectAndParentGui(CursorGui) then
+			local ok = pcall(function()
+				CursorGui.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui", 5)
+			end)
+			if not ok or not CursorGui.Parent then
+				if self.Generation == myGeneration then
+					self.Toggled = false
+				end
+				CursorGui:Destroy()
+				return
+			end
 		end
-		
-		Cursor.Thickness = 1
-		Cursor.Filled = true
-		Cursor.Visible = true
-		
-		CursorOutline.Thickness = 1
-		CursorOutline.Filled = false
-		CursorOutline.Color = Color3.new(0, 0, 0)
-		CursorOutline.Visible = true
 		
 		local tickStart = tick()
 		local State = UserInputService.MouseIconEnabled
 		local BehaviorState = UserInputService.MouseBehavior
 		local wasMenuVisible = false -- für Flanken-Erkennung (nur beim Wechsel etwas ändern)
+		local colorLightLila = Color3.fromRGB(185, 110, 255)
+		local colorDarkLila = Color3.fromRGB(75, 20, 120)
 		
-		while self.Toggled do
+		while self.Toggled and self.Generation == myGeneration and CursorGui.Parent do
 			-- ✅ NUR ZEIGEN WENN MENU OFFEN IST
-			local menuVisible = (CursorModule.MenuFrame and CursorModule.MenuFrame.Visible) and true or false
+			local menuVisible = (CursorModule.MenuFrame and CursorModule.MenuFrame.Parent and CursorModule.MenuFrame.Visible) and true or false
 			
 			if menuVisible then
 				if not wasMenuVisible then
@@ -588,8 +614,7 @@ function CursorModule:Enable()
 				if rightMouseHeld then
 					-- Während des Drehens: eigenen Cursor ausblenden und Roblox selbst
 					-- über MouseBehavior entscheiden lassen (üblicherweise LockCenter zum Drehen)
-					Cursor.Visible = false
-					CursorOutline.Visible = false
+					CursorImage.Visible = false
 				else
 					-- Jeden Frame erzwingen, da z.B. Shiftlock (Roblox's eigener MouseLockController)
 					-- MouseBehavior sonst ständig wieder auf LockCenter zurücksetzt
@@ -598,25 +623,12 @@ function CursorModule:Enable()
 					end
 					
 					local mPos = UserInputService:GetMouseLocation()
-					
 					local timePassed = (tick() - tickStart) * 2
 					local pulse = (math.sin(timePassed) + 1) / 2
 					
-					local colorLightLila = Color3.fromRGB(185, 110, 255)
-					local colorDarkLila = Color3.fromRGB(75, 20, 120)
-					
-					Cursor.Color = colorLightLila:Lerp(colorDarkLila, pulse)
-					
-					Cursor.PointA = Vector2.new(mPos.X, mPos.Y)
-					Cursor.PointB = Vector2.new(mPos.X + 16, mPos.Y + 6)
-					Cursor.PointC = Vector2.new(mPos.X + 6, mPos.Y + 16)
-					
-					CursorOutline.PointA = Cursor.PointA
-					CursorOutline.PointB = Cursor.PointB
-					CursorOutline.PointC = Cursor.PointC
-					
-					Cursor.Visible = true
-					CursorOutline.Visible = true
+					CursorImage.ImageColor3 = colorLightLila:Lerp(colorDarkLila, pulse)
+					CursorImage.Position = UDim2.fromOffset(mPos.X, mPos.Y)
+					CursorImage.Visible = true
 				end
 			else
 				UserInputService.MouseIconEnabled = State
@@ -627,20 +639,24 @@ function CursorModule:Enable()
 					UserInputService.MouseBehavior = BehaviorState
 				end
 				
-				Cursor.Visible = false
-				CursorOutline.Visible = false
+				CursorImage.Visible = false
 			end
 			
 			wasMenuVisible = menuVisible
 			RenderStepped:Wait()
 		end
 		
-		UserInputService.MouseIconEnabled = State
-		UserInputService.MouseBehavior = BehaviorState
-		Cursor:Remove()
-		CursorOutline:Remove()
-	end)
-end
+		-- nur zurücksetzen, wenn nicht schon eine neuere Cursor-Schleife läuft
+		if self.Generation == myGeneration then
+			self.Toggled = false
+			UserInputService.MouseIconEnabled = State
+			UserInputService.MouseBehavior = BehaviorState
+		end
+		pcall(function()
+			CursorGui:Destroy()
+		end)
+		end)
+		end
 
 function CursorModule:Disable()
 	self.Toggled = false
@@ -2658,7 +2674,14 @@ function library:ShowLoadingScreen(options)
 	local onDecline = options.OnDecline
 	local soundService = game:GetService("SoundService")
 	local backgroundTransparency = options.BackgroundTransparency or 0.3
-	local backgroundAsset = options.BackgroundAsset -- optional, kein Default-Fremdasset
+	-- Hintergrundbild (gleiches Bild wie im Menü). Eigenes Bild per BackgroundAsset = "rbxassetid://...",
+	-- ausschalten per BackgroundAsset = false
+	local backgroundAsset = options.BackgroundAsset
+	if backgroundAsset == nil then
+		backgroundAsset = "rbxassetid://133158046147209"
+	elseif type(backgroundAsset) == "number" then
+		backgroundAsset = "rbxassetid://" .. tostring(backgroundAsset)
+	end
 	local openSoundId = options.OpenSound or "91896029011112"
 	local closeSoundId = options.CloseSound or "6698737249"
 	local soundVolume = options.SoundVolume or 0.5
@@ -2709,7 +2732,7 @@ function library:ShowLoadingScreen(options)
 	end
 
 	local function applyBackground(parentFrame)
-		if backgroundAsset and backgroundAsset ~= "" then
+		if type(backgroundAsset) == "string" and backgroundAsset ~= "" then
 			local BgAsset = Instance.new("ImageLabel")
 			BgAsset.Name = generateRandomName()
 			BgAsset.BackgroundTransparency = 1
@@ -2944,6 +2967,7 @@ function library:ShowLoadingScreen(options)
 		})
 		LoadGrad.Rotation = 90
 		LoadGrad.Parent = LoadInnerFrame
+		applyBackground(LoadInnerFrame)
 
 		local AvatarImage = Instance.new("ImageLabel")
 		AvatarImage.Name = generateRandomName()
