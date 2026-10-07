@@ -1929,56 +1929,183 @@ library.__AllSections = library.__AllSections or {}
 -- SEARCH (filtert Toggles/Slider/Buttons/usw. live nach Namen und blendet
 -- alles andere aus; leere Groupboxen werden dabei ebenfalls versteckt)
 -- ============================================================
-local function applySearch(query)
-	query = tostring(query or "")
-	local lowerQuery = query:lower():gsub("^%s+", ""):gsub("%s+$", "")
-	local searching = lowerQuery ~= ""
-
-	if not searching then
-		for _, obj in next, elements do
-			if obj and obj.Container then
-				obj.Container.Visible = true
-			end
-		end
-	else
-		-- Erst alles in dieser Suchrunde verstecken ...
-		for _, obj in next, elements do
-			if obj and obj.Container then
-				obj.Container.Visible = false
-			end
-		end
-		-- ... dann jedes passende Element (und damit seinen Container) wieder einblenden.
-		-- Zwei Elemente können sich einen Container teilen (z.B. mehrere AddButton-Einträge
-		-- in einer Reihe) - deshalb erst alles verstecken und danach nur Treffer zeigen.
-		for _, obj in next, elements do
-			if obj and obj.Container then
-				local name = tostring(obj.DisplayName or (obj.Options and obj.Options.Name) or obj.Name or "")
-				if name:lower():find(lowerQuery, 1, true) then
-					obj.Container.Visible = true
-				end
-			end
+-- Gemeinsames Sichtbarkeits-System für Suche UND Dependency Boxes:
+-- ein Element ist sichtbar, wenn (a) seine DependsOn-Bedingung erfüllt ist und
+-- (b) keine Suche läuft oder sein Name zur Suche passt. Sections ohne sichtbaren
+-- Inhalt werden ausgeblendet. Vorher hat Update() leere Sections bei der Suche
+-- sofort wieder eingeblendet.
+library.__SearchQuery = ""
+local function sectionHasVisibleChild(holder)
+	for _, child in next, holder:GetChildren() do
+		if child:IsA("GuiObject") and child.Visible then
+			return true
 		end
 	end
-
+	return false
+end
+local function updateSectionVisibility()
 	for _, entry in next, library.__AllSections do
-		if entry.Frame and entry.Holder then
-			local showSection = true
-			if searching then
-				showSection = false
-				for _, child in next, entry.Holder:GetChildren() do
-					if child:IsA("GuiObject") and child.Visible then
-						showSection = true
-						break
-					end
-				end
-			end
-			entry.Frame.Visible = showSection
-			if entry.Functions and entry.Functions.Update then
-				pcall(entry.Functions.Update, entry.Functions)
+		local frame, holder, functions = entry.Frame, entry.Holder, entry.Functions
+		if frame and holder and frame.Parent and functions then
+			if sectionHasVisibleChild(holder) then
+				-- Update() blendet die Section ein und berechnet Größe + Scrollbereich neu
+				pcall(functions.Update, functions)
+			elseif frame.Visible then
+				frame.Visible = false
 			end
 		end
 	end
 end
+local visibilityRefreshRunning = false
+local visibilityRefreshAgain = false
+local function refreshElementVisibility()
+	local query = library.__SearchQuery or ""
+	local searching = query ~= ""
+	-- Erst alle Element-Container verstecken: mehrere Elemente können sich einen
+	-- Container teilen (z.B. mehrere Buttons in einer Reihe) ...
+	for _, obj in next, elements do
+		if type(obj) == "table" and obj.Container and obj.Container.Visible then
+			obj.Container.Visible = false
+		end
+	end
+	-- ... und dann jeden Container zeigen, in dem mindestens ein Element sichtbar sein soll
+	for _, obj in next, elements do
+		if type(obj) == "table" and obj.Container and not obj.__DepHidden then
+			local show = true
+			if searching then
+				local name = tostring(obj.DisplayName or (obj.Options and obj.Options.Name) or obj.Name or "")
+				show = string.find(string.lower(name), query, 1, true) ~= nil
+			end
+			if show then
+				obj.Container.Visible = true
+			end
+		end
+	end
+	-- Layout-Größen aktualisiert Roblox erst im nächsten Frame -> Sections danach anpassen.
+	-- Mehrere Aufrufe kurz hintereinander werden zu einem Durchlauf zusammengefasst.
+	if visibilityRefreshRunning then
+		visibilityRefreshAgain = true
+		return
+	end
+	visibilityRefreshRunning = true
+	task.spawn(function()
+		repeat
+			visibilityRefreshAgain = false
+			task.wait()
+			pcall(updateSectionVisibility)
+			-- zweiter Durchlauf: Scrollbereich der Spalten passt erst, wenn die Sections ihre neue Größe haben
+			task.wait()
+			pcall(updateSectionVisibility)
+		until not visibilityRefreshAgain
+		visibilityRefreshRunning = false
+	end)
+end
+library.RefreshVisibility = refreshElementVisibility
+local function applySearch(query)
+	query = string.lower(tostring(query or ""))
+	query = (string.gsub(query, "^%s+", ""))
+	query = (string.gsub(query, "%s+$", ""))
+	library.__SearchQuery = query
+	refreshElementVisibility()
+end
+-- ============================================================
+-- DEPENDENCY BOXES (wie bei Linoria): jedes Element kann per Option
+--   DependsOn = "Flag"                          -> sichtbar, wenn der Flag-Wert truthy ist (z.B. Toggle an)
+--   DependsOn = {"Flag", Wert}                  -> sichtbar, wenn Flag == Wert (z.B. {"Modus", "Legit"})
+--   DependsOn = {{"FlagA", true}, {"FlagB", false}} -> alle Bedingungen müssen stimmen
+--   ACHTUNG: {"FlagA", "FlagB"} bedeutet "FlagA hat den Wert 'FlagB'" - mehrere Flags
+--   immer verschachtelt angeben: {{"FlagA"}, {"FlagB"}}
+--   DependsOn = function(flags) return ... end  -> eigene Bedingung
+-- automatisch ein-/ausgeblendet werden. Statt eines Flag-Namens kann auch das
+-- zurückgegebene Element-Objekt selbst angegeben werden (z.B. DependsOn = MeinToggle).
+-- Die Bedingung kann zur Laufzeit geändert werden: obj.Options.DependsOn = ...
+-- ============================================================
+local function resolveDependencyFlag(ref)
+	if type(ref) == "table" and ref.Flag ~= nil then
+		return ref.Flag
+	end
+	return ref
+end
+local warnedDependencyFns = setmetatable({}, {__mode = "k"})
+local evaluateDependency
+function evaluateDependency(dep, depth)
+	depth = (depth or 0) + 1
+	if dep == nil or depth > 16 then
+		return true
+	end
+	local t = type(dep)
+	if t == "function" then
+		local ok, res = pcall(dep, library_flags)
+		if not ok then
+			-- nur einmal pro Bedingung warnen, sonst 20x pro Sekunde
+			if not warnedDependencyFns[dep] then
+				warnedDependencyFns[dep] = true
+				warn("[DependsOn] Fehler in der Bedingung:", res)
+			end
+			return true
+		end
+		return res and true or false
+	elseif t == "string" then
+		return library_flags[dep] and true or false
+	elseif t == "table" then
+		-- Ein Element-Objekt oder {Flag = "...", Value = ...}
+		if dep.Flag ~= nil then
+			if dep.Value ~= nil then
+				return library_flags[dep.Flag] == dep.Value
+			end
+			return library_flags[dep.Flag] and true or false
+		end
+		local first = dep[1]
+		-- {"Flag", Wert} bzw. {Element, Wert}
+		if type(first) == "string" or (type(first) == "table" and first.Flag ~= nil and type(first[1]) == "nil" and dep[2] ~= nil and type(dep[2]) ~= "table") then
+			local flag = resolveDependencyFlag(first)
+			if dep[2] == nil then
+				return library_flags[flag] and true or false
+			end
+			return library_flags[flag] == dep[2]
+		end
+		-- Liste von Bedingungen: alle müssen erfüllt sein
+		for _, sub in ipairs(dep) do
+			if not evaluateDependency(sub, depth) then
+				return false
+			end
+		end
+		return true
+	end
+	return true
+end
+library.subs.EvaluateDependency = evaluateDependency
+local function scanDependencies()
+	local changed = false
+	for _, obj in next, elements do
+		if type(obj) == "table" and obj.Container then
+			local opts = obj.Options
+			local dep = (type(opts) == "table") and (opts.DependsOn or opts.Depends) or nil
+			if dep ~= nil or obj.__DepHidden then
+				local hidden = not evaluateDependency(dep)
+				if (obj.__DepHidden and true or false) ~= hidden then
+					obj.__DepHidden = hidden
+					changed = true
+				end
+			end
+		end
+	end
+	if changed then
+		refreshElementVisibility()
+	end
+end
+task.spawn(function()
+	local warnedLoopError = false
+	while wait_check(0.05) do
+		-- abgesichert: ein Fehler (z.B. weil sich die Element-Liste während des Durchlaufs
+		-- geändert hat) beendet die Schleife nicht mehr, DependsOn läuft einfach weiter
+		local ok, err = pcall(scanDependencies)
+		if not ok and not warnedLoopError then
+			warnedLoopError = true
+			warn("[DependsOn] Fehler beim Prüfen der Abhängigkeiten:", err)
+		end
+	end
+end)
 library.__ApplySearch = applySearch
 
 shared.libraries = shared.libraries or {}
@@ -4626,6 +4753,113 @@ function library:CreateWindow(options, ...)
 		end
 		return main.Visible
 	end
+	-- ============================================================
+	-- FENSTERGRÖSSE ÄNDERN: Griff unten rechts zum Ziehen + windowFunctions:SetSize(w, h)
+	-- Breite kann nicht kleiner als die Standardgröße werden, damit Elemente mit fester
+	-- Breite (z.B. Toggle-Texte) nie über den Rand ragen.
+	-- ============================================================
+	local defaultWindowSize = Vector2.new(main.Size.X.Offset, main.Size.Y.Offset)
+	local minWindowSize = Vector2.new(defaultWindowSize.X, math.min(350, defaultWindowSize.Y))
+	local function getMaxWindowSize()
+		local cam = workspace.CurrentCamera
+		local vp = (cam and cam.ViewportSize) or Vector2.new(1600, 1000)
+		return Vector2.new(math.max(minWindowSize.X, vp.X - 20), math.max(minWindowSize.Y, vp.Y - 20))
+	end
+	-- topLeftAnchor: {Größe, Position} beim Start des Ziehens -> obere linke Ecke bleibt stehen
+	local function setWindowSize(w, h, topLeftAnchor)
+		local maxSize = getMaxWindowSize()
+		w = math.floor(math.clamp(tonumber(w) or defaultWindowSize.X, minWindowSize.X, maxSize.X))
+		h = math.floor(math.clamp(tonumber(h) or defaultWindowSize.Y, minWindowSize.Y, maxSize.Y))
+		main.Size = UDim2.fromOffset(w, h)
+		if topLeftAnchor then
+			-- Fenster ist mittig verankert -> Position mitschieben, damit die obere linke Ecke stehen bleibt
+			local startSize, startPos = topLeftAnchor[1], topLeftAnchor[2]
+			main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + (w - startSize.X) * main.AnchorPoint.X, startPos.Y.Scale, startPos.Y.Offset + (h - startSize.Y) * main.AnchorPoint.Y)
+		end
+		library.WindowSize = Vector2.new(w, h)
+		return w, h
+	end
+	function windowFunctions:SetSize(w, h)
+		if typeof(w) == "Vector2" and h == nil then
+			w, h = w.X, w.Y
+		end
+		return setWindowSize(w, h, nil)
+	end
+	function windowFunctions:GetSize()
+		return Vector2.new(main.Size.X.Offset, main.Size.Y.Offset)
+	end
+	function windowFunctions:ResetSize()
+		return setWindowSize(defaultWindowSize.X, defaultWindowSize.Y, nil)
+	end
+	library.WindowSize = defaultWindowSize
+	do
+		local resizeGrip = Instance_new("TextButton")
+		resizeGrip.Name = generateRandomName()
+		resizeGrip.AutoButtonColor = false
+		resizeGrip.BackgroundTransparency = 1
+		resizeGrip.Text = ""
+		resizeGrip.AnchorPoint = Vector2.new(1, 1)
+		resizeGrip.Position = UDim2.new(1, -2, 1, -2)
+		resizeGrip.Size = UDim2.fromOffset(12, 12)
+		resizeGrip.ZIndex = 100
+		resizeGrip.Parent = main
+		local gripDots = {}
+		for _, p in ipairs({{8, 2}, {5, 5}, {8, 5}, {2, 8}, {5, 8}, {8, 8}}) do
+			local dot = Instance_new("Frame")
+			dot.Name = generateRandomName()
+			dot.BorderSizePixel = 0
+			dot.Size = UDim2.fromOffset(2, 2)
+			dot.Position = UDim2.fromOffset(p[1], p[2])
+			dot.BackgroundColor3 = library.colors.otherElementText
+			dot.ZIndex = 101
+			dot.Parent = resizeGrip
+			local entry = {dot, "BackgroundColor3", "otherElementText"}
+			colored[1 + #colored] = entry
+			gripDots[1 + #gripDots] = entry
+		end
+		local function setGripHighlight(on)
+			for _, entry in ipairs(gripDots) do
+				entry[3] = (on and "main") or "otherElementText"
+				entry[1].BackgroundColor3 = library.colors[entry[3]]
+			end
+		end
+		local resizing, resizeStart, resizeAnchor = false, nil, nil
+		library.signals[1 + #library.signals] = resizeGrip.MouseEnter:Connect(function()
+			setGripHighlight(true)
+		end)
+		library.signals[1 + #library.signals] = resizeGrip.MouseLeave:Connect(function()
+			if not resizing then
+				setGripHighlight(false)
+			end
+		end)
+		library.signals[1 + #library.signals] = resizeGrip.InputBegan:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+				resizing = true
+				isDraggingSomething = true -- blockiert währenddessen das Verschieben des Fensters
+				resizeStart = input.Position
+				resizeAnchor = {Vector2.new(main.Size.X.Offset, main.Size.Y.Offset), main.Position}
+				setGripHighlight(true)
+			end
+		end)
+		library.signals[1 + #library.signals] = userInputService.InputChanged:Connect(function(input)
+			if resizing and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+				-- immer vom Klickpunkt aus rechnen -> Griff bleibt exakt unter dem Mauszeiger
+				local delta = input.Position - resizeStart
+				setWindowSize(resizeAnchor[1].X + delta.X, resizeAnchor[1].Y + delta.Y, resizeAnchor)
+			end
+		end)
+		library.signals[1 + #library.signals] = userInputService.InputEnded:Connect(function(input)
+			if resizing and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+				resizing = false
+				isDraggingSomething = false
+				setGripHighlight(false)
+				-- Scrollbereiche der Spalten an die neue Höhe anpassen
+				if library.RefreshVisibility then
+					pcall(library.RefreshVisibility)
+				end
+			end
+		end)
+	end
 	-- ✅ Offene Dropdowns/Colorpicker/Searchboxen automatisch schließen:
 	-- erstens wenn man irgendwo außerhalb von ihnen klickt,
 	-- zweitens wenn das ganze Menü unsichtbar wird/geschlossen wird
@@ -4642,6 +4876,89 @@ function library:CreateWindow(options, ...)
 		if (submenuOpen ~= nil) and (submenuOpen ~= selfRef) then
 			closeOpenSubmenu()
 		end
+	end
+	-- ============================================================
+	-- GEMEINSAMER DROPDOWN-KERN für Dropdown, SearchBox und Config/Theme-Profil:
+	-- Öffnen/Schließen-Optik, Ebenen (ZIndex), Pfeiltasten-Scrollen und die
+	-- Anmeldung für "nur eins offen" / "Klick außerhalb schließt" stehen hier
+	-- EINMAL statt dreimal - Fixes daran gelten ab jetzt automatisch für alle drei.
+	-- ctx-Felder: dropdown, dropdownToggle, dropdownHolderFrame, realDropdownHolder,
+	-- dropdownSelection, newDropdown, newSection, sectionHolder, coloredBackground,
+	-- coloredImage, restorezindex, options, scrollWhileTyping
+	-- ============================================================
+	local function createDropdownCore(ctx)
+		local core = {}
+		local precisionscrolling = nil
+		local function stopScrolling()
+			if precisionscrolling then
+				precisionscrolling:Disconnect()
+				precisionscrolling = nil
+			end
+		end
+		function core.Open(closeSelf)
+			local options = ctx.options or {}
+			local restorezindex = ctx.restorezindex
+			submenuOpen = ctx.dropdown
+			submenuCloseFn = closeSelf
+			submenuOpenFrames = {ctx.newDropdown, ctx.dropdownHolderFrame}
+			ctx.dropdownToggle.Rotation = 270
+			restorezindex[ctx.newSection] = restorezindex[ctx.newSection] or ctx.newSection.ZIndex
+			restorezindex[ctx.newDropdown] = restorezindex[ctx.newDropdown] or ctx.newDropdown.ZIndex
+			restorezindex[ctx.sectionHolder] = restorezindex[ctx.sectionHolder] or ctx.sectionHolder.ZIndex
+			ctx.newSection.ZIndex = 50 + ctx.newSection.ZIndex
+			ctx.newDropdown.ZIndex = 2
+			ctx.sectionHolder.ZIndex = 2
+			ctx.coloredBackground[3] = "main"
+			ctx.coloredBackground[4] = 1.5
+			ctx.coloredImage[3] = "main"
+			ctx.coloredImage[4] = 2.5
+			tweenService:Create(ctx.dropdown, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
+				BackgroundColor3 = darkenColor(library.colors.main, 1.5),
+				ImageColor3 = darkenColor(library.colors.main, 2.5)
+			}):Play()
+			ctx.dropdownHolderFrame.Visible = true
+			stopScrolling()
+			if not options.DisablePrecisionScrolling then
+				local scrollrate = tonumber(options.ScrollButtonRate or options.ScrollRate) or 5
+				local upkey = options.ScrollUpButton or library.scrollupbutton or shared.scrollupbutton or Enum.KeyCode.Up
+				local downkey = options.ScrollDownButton or library.scrolldownbutton or shared.scrolldownbutton or Enum.KeyCode.Down
+				local realDropdownHolder = ctx.realDropdownHolder
+				precisionscrolling = userInputService.InputBegan:Connect(function(input)
+					if input.UserInputType == Enum.UserInputType.Keyboard then
+						local code = input.KeyCode
+						local isup = code == upkey
+						local isdown = code == downkey
+						if isup or isdown then
+							local txt = userInputService:GetFocusedTextBox()
+							if not txt or (ctx.scrollWhileTyping and txt == ctx.dropdownSelection) then
+								while wait_check() and userInputService:IsKeyDown(code) do
+									realDropdownHolder.CanvasPosition = Vector2:new(math.clamp(realDropdownHolder.CanvasPosition.Y + ((isup and -scrollrate) or scrollrate), 0, realDropdownHolder.AbsoluteCanvasSize.Y))
+								end
+							end
+						end
+					end
+				end)
+				library.signals[1 + #library.signals] = precisionscrolling
+			end
+		end
+		function core.Close()
+			submenuOpen = nil
+			ctx.dropdownToggle.Rotation = 90
+			ctx.coloredBackground[3] = "topGradient"
+			ctx.coloredBackground[4] = nil
+			ctx.coloredImage[3] = "bottomGradient"
+			ctx.coloredImage[4] = nil
+			tweenService:Create(ctx.dropdown, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
+				BackgroundColor3 = library.colors.topGradient,
+				ImageColor3 = library.colors.bottomGradient
+			}):Play()
+			ctx.dropdownHolderFrame.Visible = false
+			for ins, z in next, ctx.restorezindex do
+				ins.ZIndex = z
+			end
+			stopScrolling()
+		end
+		return core
 	end
 	library.signals[1 + #library.signals] = userInputService.InputBegan:Connect(function(input, processed)
 		if not submenuCloseFn then
@@ -5346,10 +5663,6 @@ function library:CreateWindow(options, ...)
 									end
 									Set(true)
 									local now = os.clock()
-									local waittil = nil
-									if mode == "dynamic" then
-										waittil = Instance.new("BindableEvent")
-									end
 									local xconnection = nil
 									xconnection = userInputService.InputEnded:Connect(function(input, chatting)
 										chatting = chatting or userInputService:GetFocusedTextBox()
@@ -7612,8 +7925,25 @@ function library:CreateWindow(options, ...)
 						end
 					end
 				end
-				local precisionscrolling, update = nil
+				local update = nil
 				local showing = false
+				-- Öffnen/Schließen-Optik, Ebenen, Pfeiltasten-Scrollen, "nur eins offen" und
+				-- "Klick außerhalb schließt" kommen jetzt aus dem gemeinsamen Dropdown-Kern
+				local dropdownCore = createDropdownCore({
+					dropdown = dropdown,
+					dropdownToggle = dropdownToggle,
+					dropdownHolderFrame = dropdownHolderFrame,
+					realDropdownHolder = realDropdownHolder,
+					dropdownSelection = dropdownSelection,
+					newDropdown = newDropdown,
+					newSection = newSection,
+					sectionHolder = sectionHolder,
+					coloredBackground = colored_dropdown_BackgroundColor3,
+					coloredImage = colored_dropdown_ImageColor3,
+					restorezindex = restorezindex,
+					options = options,
+					scrollWhileTyping = true
+				})
 				local function display(dropdownEnabled, f)
 					if dropdownEnabled then
 						closeOtherSubmenu(dropdown)
@@ -7629,62 +7959,11 @@ function library:CreateWindow(options, ...)
 								end
 							end
 							AddOptions(list, f)
-							submenuOpen = dropdown
-							submenuCloseFn = function() display(false) end
-							submenuOpenFrames = {newDropdown, dropdownHolderFrame}
-							dropdownToggle.Rotation = 270
-							restorezindex[newSection] = restorezindex[newSection] or newSection.ZIndex
-							restorezindex[newDropdown] = restorezindex[newDropdown] or newDropdown.ZIndex
-							restorezindex[sectionHolder] = restorezindex[sectionHolder] or sectionHolder.ZIndex
-							newSection.ZIndex = 50 + newSection.ZIndex
-							newDropdown.ZIndex = 2
-							sectionHolder.ZIndex = 2
-							colored_dropdown_BackgroundColor3[3] = "main"
-							colored_dropdown_BackgroundColor3[4] = 1.5
-							colored_dropdown_ImageColor3[3] = "main"
-							colored_dropdown_ImageColor3[4] = 2.5
-							tweenService:Create(dropdown, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-								BackgroundColor3 = darkenColor(library.colors.main, 1.5),
-								ImageColor3 = darkenColor(library.colors.main, 2.5)
-							}):Play()
-							dropdownHolderFrame.Visible = true
-							if not options.DisablePrecisionScrolling then
-								local scrollrate = tonumber(options.ScrollButtonRate or options.ScrollRate) or 5
-								local upkey = options.ScrollUpButton or library.scrollupbutton or shared.scrollupbutton or Enum.KeyCode.Up
-								local downkey = options.ScrollDownButton or library.scrolldownbutton or shared.scrolldownbutton or Enum.KeyCode.Down
-								precisionscrolling = (precisionscrolling and precisionscrolling:Disconnect() and nil) or userInputService.InputBegan:Connect(function(input)
-									if input.UserInputType == Enum.UserInputType.Keyboard then
-										local code = input.KeyCode
-										local isup = code == upkey
-										local isdown = code == downkey
-										if isup or isdown then
-											local txt = userInputService:GetFocusedTextBox()
-											if not txt or txt == dropdownSelection then
-												while wait_check() and userInputService:IsKeyDown(code) do
-													realDropdownHolder.CanvasPosition = Vector2:new(math.clamp(realDropdownHolder.CanvasPosition.Y + ((isup and -scrollrate) or scrollrate), 0, realDropdownHolder.AbsoluteCanvasSize.Y))
-												end
-											end
-										end
-									end
-								end)
-								library.signals[1 + #library.signals] = precisionscrolling
-							end
+							dropdownCore.Open(function()
+								display(false)
+							end)
 						else
-							submenuOpen = nil
-							dropdownToggle.Rotation = 90
-							colored_dropdown_BackgroundColor3[3] = "topGradient"
-							colored_dropdown_BackgroundColor3[4] = nil
-							colored_dropdown_ImageColor3[3] = "bottomGradient"
-							colored_dropdown_ImageColor3[4] = nil
-							tweenService:Create(dropdown, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-								BackgroundColor3 = library.colors.topGradient,
-								ImageColor3 = library.colors.bottomGradient
-							}):Play()
-							dropdownHolderFrame.Visible = false
-							for ins, z in next, restorezindex do
-								ins.ZIndex = z
-							end
-							precisionscrolling = (precisionscrolling and precisionscrolling:Disconnect() and nil) or nil
+							dropdownCore.Close()
 						end
 					end
 					showing = dropdownEnabled
@@ -8022,6 +8301,85 @@ function library:CreateWindow(options, ...)
 						end
 						return names
 					end
+					-- ===== Hilfsfunktionen für Autoload, Umbenennen und die Info-Zeile =====
+					local suffixname = (suffix and tostring(suffix)) or "Profile"
+					local lastExistingName = nil -- zuletzt ausgewählte/gespeicherte/geladene, real existierende Datei
+					local refreshPersistenceInfo = nil -- wird weiter unten gesetzt, sobald die Info-Zeile existiert
+					local function configPath(name)
+						return string.format("%s/%s.txt", common_string, name)
+					end
+					local function configFileExists(name)
+						if type(name) ~= "string" or #name == 0 then
+							return false
+						end
+						refreshWorkspacePath()
+						local path = configPath(name)
+						if isfile then
+							local okf, exists = pcall(isfile, path)
+							return (okf and exists) and true or false
+						end
+						local okr, content = pcall(readfile, path)
+						return (okr and type(content) == "string") and true or false
+					end
+					local function readAutoloadName()
+						refreshWorkspacePath()
+						local path = common_string .. "/__autoload.json"
+						if isfile then
+							local okf, exists = pcall(isfile, path)
+							if not (okf and exists) then
+								return nil
+							end
+						end
+						local okr, content = pcall(readfile, path)
+						if not okr or type(content) ~= "string" or #content < 2 then
+							return nil
+						end
+						local good, data = JSONDecode(content)
+						if good and type(data) == "table" and type(data.name) == "string" then
+							local n = sanitizeConfigName(data.name)
+							if #n > 0 then
+								return n
+							end
+						end
+						return nil
+					end
+					local function writeAutoloadName(name)
+						refreshWorkspacePath()
+						ensureFolder()
+						local good, content = JSONEncode({name = name})
+						if not good or not content then
+							return false
+						end
+						return (pcall(writefile, common_string .. "/__autoload.json", content))
+					end
+					local function readConfigSavedAt(name)
+						if not configFileExists(name) then
+							return nil
+						end
+						local okr, content = pcall(readfile, configPath(name))
+						if not okr or type(content) ~= "string" then
+							return nil
+						end
+						local good, data = JSONDecode(content)
+						if good and type(data) == "table" and type(data.__meta) == "table" and type(data.__meta.savedAt) == "number" then
+							return data.__meta.savedAt
+						end
+						return nil
+					end
+					local function formatTimestamp(t)
+						local okd, d = pcall(os.date, "*t", t)
+						if okd and type(d) == "table" and d.day then
+							return string.format("%02d.%02d.%02d %02d:%02d", d.day, d.month, d.year % 100, d.hour, d.min)
+						end
+						return nil
+					end
+					local function queueInfoRefresh()
+						if refreshPersistenceInfo then
+							task.spawn(function()
+								pcall(refreshPersistenceInfo)
+							end)
+						end
+					end
 					local list = resolvelist(true)
 					local blankstring = options.BlankValue or options.NoValueString or options.Nothing
 					local selectedObjects = {}
@@ -8278,6 +8636,8 @@ function library:CreateWindow(options, ...)
 								optionButton.TextXAlignment = Enum.TextXAlignment.Left
 								library.signals[1 + #library.signals] = optionButton.MouseButton1Down:Connect(function()
 									dropdownSelection.Text = tostring(v)
+									lastExistingName = tostring(v)
+									queueInfoRefresh()
 									restorezindex[newSection] = restorezindex[newSection] or newSection.ZIndex
 									restorezindex[newDropdown] = restorezindex[newDropdown] or newDropdown.ZIndex
 									restorezindex[sectionHolder] = restorezindex[sectionHolder] or sectionHolder.ZIndex
@@ -8350,8 +8710,25 @@ function library:CreateWindow(options, ...)
 							end
 						end
 					end
-					local precisionscrolling, update = nil
+					local update = nil
 					local showing = false
+					-- Öffnen/Schließen-Optik, Ebenen, Pfeiltasten-Scrollen, "nur eins offen" und
+					-- "Klick außerhalb schließt" kommen jetzt aus dem gemeinsamen Dropdown-Kern
+					local dropdownCore = createDropdownCore({
+						dropdown = dropdown,
+						dropdownToggle = dropdownToggle,
+						dropdownHolderFrame = dropdownHolderFrame,
+						realDropdownHolder = realDropdownHolder,
+						dropdownSelection = dropdownSelection,
+						newDropdown = newDropdown,
+						newSection = newSection,
+						sectionHolder = sectionHolder,
+						coloredBackground = colored_dropdown_BackgroundColor3,
+						coloredImage = colored_dropdown_ImageColor3,
+						restorezindex = restorezindex,
+						options = options,
+						scrollWhileTyping = false
+					})
 					local function display(dropdownEnabled, f)
 						if dropdownEnabled then
 							closeOtherSubmenu(dropdown)
@@ -8360,61 +8737,11 @@ function library:CreateWindow(options, ...)
 							if dropdownEnabled then
 								list = resolvelist(true)
 								AddOptions(list, f)
-								submenuOpen = dropdown
-								submenuCloseFn = function() display(false) end
-								submenuOpenFrames = {newDropdown, dropdownHolderFrame}
-								restorezindex[newSection] = restorezindex[newSection] or newSection.ZIndex
-								restorezindex[newDropdown] = restorezindex[newDropdown] or newDropdown.ZIndex
-								restorezindex[sectionHolder] = restorezindex[sectionHolder] or sectionHolder.ZIndex
-								newSection.ZIndex = 50 + newSection.ZIndex
-								dropdownToggle.Rotation = 270
-								newDropdown.ZIndex = 2
-								sectionHolder.ZIndex = 2
-								colored_dropdown_BackgroundColor3[3] = "main"
-								colored_dropdown_BackgroundColor3[4] = 1.5
-								colored_dropdown_ImageColor3[3] = "main"
-								colored_dropdown_ImageColor3[4] = 2.5
-								tweenService:Create(dropdown, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-									BackgroundColor3 = darkenColor(library.colors.main, 1.5),
-									ImageColor3 = darkenColor(library.colors.main, 2.5)
-								}):Play()
-								dropdownHolderFrame.Visible = true
-								if not options.DisablePrecisionScrolling then
-									local upkey = options.ScrollUpButton or library.scrollupbutton or shared.scrollupbutton or Enum.KeyCode.Up
-									local downkey = options.ScrollDownButton or library.scrolldownbutton or shared.scrolldownbutton or Enum.KeyCode.Down
-									precisionscrolling = (precisionscrolling and precisionscrolling:Disconnect() and nil) or userInputService.InputBegan:Connect(function(input)
-										if input.UserInputType == Enum.UserInputType.Keyboard then
-											local code = input.KeyCode
-											local isup = code == upkey
-											local isdown = code == downkey
-											if isup or isdown then
-												local txt = userInputService:GetFocusedTextBox()
-												if not txt then
-													while wait_check() and userInputService:IsKeyDown(code) do
-														realDropdownHolder.CanvasPosition = Vector2:new(math.clamp(realDropdownHolder.CanvasPosition.Y + ((isup and -5) or 5), 0, realDropdownHolder.AbsoluteCanvasSize.Y))
-													end
-												end
-											end
-										end
-									end)
-									library.signals[1 + #library.signals] = precisionscrolling
-								end
+								dropdownCore.Open(function()
+									display(false)
+								end)
 							else
-								submenuOpen = nil
-								dropdownToggle.Rotation = 90
-								colored_dropdown_BackgroundColor3[3] = "topGradient"
-								colored_dropdown_BackgroundColor3[4] = nil
-								colored_dropdown_ImageColor3[3] = "bottomGradient"
-								colored_dropdown_ImageColor3[4] = nil
-								tweenService:Create(dropdown, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-									BackgroundColor3 = library.colors.topGradient,
-									ImageColor3 = library.colors.bottomGradient
-								}):Play()
-								dropdownHolderFrame.Visible = false
-								for ins, z in next, restorezindex do
-									ins.ZIndex = z
-								end
-								precisionscrolling = (precisionscrolling and precisionscrolling:Disconnect() and nil) or nil
+								dropdownCore.Close()
 							end
 							showing = dropdownEnabled
 							if showing or dropdownEnabled then
@@ -8463,11 +8790,19 @@ function library:CreateWindow(options, ...)
 						end
 						showing = false
 						display(false)
-						if b then
+						-- Vorher zählte der getippte Name nur mit Enter. Klickte man direkt auf "Save Config",
+						-- setzte das Feld sich ~0,05s vorher auf den ALTEN Namen zurück -> die alte Config wurde
+						-- überschrieben statt eine neue angelegt. Jetzt zählt jeder nicht-leere getippte Name.
+						local typed = sanitizeConfigName(dropdownSelection.Text)
+						if b or (#typed > 0 and dropdownSelection.Text ~= tostring(library_flags[flagName])) then
 							Set(dropdownSelection.Text)
+							if configFileExists(typed) then
+								lastExistingName = typed
+							end
+							queueInfoRefresh()
 						end
-					end)
-					AddOptions(list)
+						end)
+						AddOptions(list)
 					-- Sammelt alle Elemente, die in diese Config/dieses Theme gehören
 					local function collectPersistedElements()
 						local working_with = {}
@@ -8541,6 +8876,12 @@ function library:CreateWindow(options, ...)
 								saving[cflag] = sv
 							end
 						end
+						-- Zeitpunkt der Speicherung (wird in der Info-Zeile angezeigt; beim Laden ignoriert,
+						-- weil "__meta" kein Element-Flag ist)
+						saving.__meta = {
+							savedAt = os.time(),
+							version = 1
+						}
 						local ret, reason = nil, nil
 						local savedok = false
 						local good, content = JSONEncode(saving)
@@ -8573,6 +8914,9 @@ function library:CreateWindow(options, ...)
 						if savedok and displayname and dropdownSelection.Text ~= displayname then
 							-- Feld zeigt danach exakt den Namen, unter dem wirklich gespeichert wurde
 							Set(displayname)
+						end
+						if savedok and displayname then
+							lastExistingName = displayname
 						end
 						return savedok, reason, displayname
 					end
@@ -8670,6 +9014,9 @@ function library:CreateWindow(options, ...)
 						if loadedok and displayname and dropdownSelection.Text ~= displayname then
 							Set(displayname)
 						end
+						if loadedok and displayname then
+							lastExistingName = displayname
+						end
 						return loadedok, reason, displayname
 					end
 					-- Löschen mit Bestätigung: erster Klick fragt nach, zweiter Klick (innerhalb 4s) löscht
@@ -8701,9 +9048,79 @@ function library:CreateWindow(options, ...)
 							warn("[Config] Löschen fehlgeschlagen:", errd)
 							return false, "delete error", name
 						end
+						if readAutoloadName() == name then
+							writeAutoloadName(nil)
+						end
+						if lastExistingName == name then
+							lastExistingName = nil
+						end
 						return true, nil, name
-					end
+						end
+						-- Umbenennen: zuletzt ausgewählte Config -> neuer Name aus dem Textfeld
+						local function renamestuff()
+							refreshWorkspacePath()
+							local source = lastExistingName
+							local target = sanitizeConfigName(dropdownSelection.Text or "")
+							if not source or not configFileExists(source) then
+								return false, "select an existing " .. string.lower(suffixname) .. " first"
+							end
+							if #target == 0 then
+								return false, "invalid name", source
+							end
+							if target == source then
+								return false, "type the new name into the box first", source
+							end
+							-- Nur Groß-/Kleinschreibung anders: auf Windows wäre das dieselbe Datei und
+							-- das anschließende Löschen würde die Config komplett vernichten
+							if string.lower(target) == string.lower(source) then
+								return false, "name only differs in upper/lower case", source
+							end
+							if configFileExists(target) then
+								return false, "a " .. string.lower(suffixname) .. " with that name already exists", target
+							end
+							local okr, content = pcall(readfile, configPath(source))
+							if not okr or type(content) ~= "string" then
+								return false, "read error", source
+							end
+							local okw = pcall(writefile, configPath(target), content)
+							if not okw or not configFileExists(target) then
+								return false, "write error", source
+							end
+							local okd = pcall(delfile, configPath(source))
+							if readAutoloadName() == source then
+								writeAutoloadName(target)
+							end
+							lastExistingName = target
+							Set(target)
+							if not okd then
+								return false, "copied, but the old file could not be removed", source
+							end
+							return true, nil, target, string.format('%s "%s" renamed to "%s"', suffixname, source, target)
+						end
+						-- Autoload an/aus: aktueller Name wird beim nächsten Start automatisch geladen
+						local function autoloadstuff()
+							refreshWorkspacePath()
+							local name = sanitizeConfigName(dropdownSelection.Text or "")
+							local current = readAutoloadName()
+							if current and (#name == 0 or name == current) then
+								if not writeAutoloadName(nil) then
+									return false, "write error", current
+								end
+								return true, nil, current, suffixname .. " autoload disabled"
+							end
+							if #name == 0 then
+								return false, "invalid name"
+							end
+							if not configFileExists(name) then
+								return false, "save it first", name
+							end
+							if not writeAutoloadName(name) then
+								return false, "write error", name
+							end
+							return true, nil, name, string.format('%s "%s" will load automatically on startup', suffixname, name)
+						end
 					local fram = nil
+					local persistenceRows = {}
 					do
 						local buttons, offset = {}, 0
 						local suffixText = (suffix and (" " .. tostring(suffix))) or ""
@@ -8716,18 +9133,32 @@ function library:CreateWindow(options, ...)
 							Callback = loadstuff,
 							Action = "load"
 						}}
-						-- Delete nur anbieten, wenn der Executor delfile kann
+						-- Delete/Rename nur anbieten, wenn der Executor delfile kann
 						if typeof(delfile) == "function" then
-							persistenceButtons[3] = {
-								Name = "Delete" .. suffixText,
+							persistenceButtons[1 + #persistenceButtons] = {
+								Name = "Delete",
 								Callback = deletestuff,
 								Action = "delete"
+							}
+							persistenceButtons[1 + #persistenceButtons] = {
+								Name = "Rename",
+								Callback = renamestuff,
+								Action = "rename"
+							}
+						end
+						if options.Autoload ~= false then
+							persistenceButtons[1 + #persistenceButtons] = {
+								Name = "Autoload",
+								Callback = autoloadstuff,
+								Action = "autoload"
 							}
 						end
 						local actionWords = {
 							save = {"saved", "save"},
 							load = {"loaded", "load"},
-							delete = {"deleted", "delete"}
+							delete = {"deleted", "delete"},
+							rename = {"renamed", "rename"},
+							autoload = {"set as autoload", "set autoload"}
 						}
 						for _, options in next, persistenceButtons do
 							local buttonName, callback, buttonAction = options.Name, options.Callback, options.Action
@@ -8747,6 +9178,9 @@ function library:CreateWindow(options, ...)
 								offset, fram = 0, nil
 							end
 							local newButton = fram or Instance_new("Frame")
+							if newButton ~= fram then
+								persistenceRows[1 + #persistenceRows] = newButton
+							end
 							fram = newButton
 							local button = Instance_new("ImageLabel")
 							newButton.Name = generateRandomName()
@@ -8814,16 +9248,22 @@ function library:CreateWindow(options, ...)
 									busy = true
 									task.spawn(function()
 										-- Komplett abgesichert: auch bei unerwarteten Fehlern kommt eine Meldung
-										local okCall, ok, reason, fname = pcall(callback, presses)
+										local okCall, ok, reason, fname, customText = pcall(callback, presses)
 										busy = false
 										if not okCall then
 											warn("[Config] Unerwarteter Fehler:", ok)
-											ok, reason = false, "unexpected error"
+											ok, reason, customText = false, "unexpected error", nil
 										end
-										local suffixname = (suffix and tostring(suffix)) or "Profile"
+										queueInfoRefresh()
 										local label = suffixname .. ((fname and (' "' .. tostring(fname) .. '"')) or "")
 										local words = actionWords[buttonAction] or actionWords.save
-										if reason == "confirm" then
+										if ok and type(customText) == "string" then
+											library:Notify({
+												Text = customText,
+												Time = 3,
+												Type = "success"
+											})
+										elseif reason == "confirm" then
 											library:Notify({
 												Text = 'Click "' .. tostring(buttonName) .. '" again to delete' .. ((fname and (' "' .. tostring(fname) .. '"')) or ""),
 												Time = 4
@@ -8866,9 +9306,41 @@ function library:CreateWindow(options, ...)
 							end)
 						end
 					end
+					-- Info-Zeile unter den Buttons: wann die ausgewählte Datei gespeichert wurde + aktuelles Autoload
+					local infoLabel = nil
+					local autoloadJob = nil
+					if options.ShowInfo ~= false then
+						local okl, lbl = pcall(sectionFunctions.AddLabel, sectionFunctions, {
+							Text = "Saved: - | Autoload: -",
+							Flag = flagName .. "__Info"
+						})
+						if okl and type(lbl) == "table" then
+							infoLabel = lbl
+						end
+					end
+					refreshPersistenceInfo = function()
+						if not infoLabel then
+							return
+						end
+						local savedText = "-"
+						if lastExistingName then
+							local t = readConfigSavedAt(lastExistingName)
+							savedText = (t and formatTimestamp(t)) or "unknown"
+						end
+						local auto = readAutoloadName()
+						infoLabel:Set(string.format("Saved: %s | Autoload: %s", savedText, auto or "none"))
+					end
+					do
+						local startName = sanitizeConfigName(dropdownSelection.Text or "")
+						if configFileExists(startName) then
+							lastExistingName = startName
+						end
+					end
+					queueInfoRefresh()
 					local default = library_flags[flagName]
 					function update()
 						dropdownName, custom_workspace, persistiveflags, suffix, callback, loadcallback, savecallback, postload, postsave = options.Name or dropdownName, options.Workspace or library.WorkspaceName, options.Persistive or options.Flags or "all", options.Suffix, options.Callback, options.LoadCallback, options.SaveCallback, options.PostLoadCallback, options.PostSaveCallback
+						suffixname = (suffix and tostring(suffix)) or "Profile"
 						local sstr = tostring(library_flags[flagName])
 						if dropdownSelection.Text ~= sstr then
 							dropdownSelection.Text = sstr
@@ -8893,9 +9365,19 @@ function library:CreateWindow(options, ...)
 								newDropdown.Parent = nil
 								relod = true
 							end
-							if fram then
-								fram.Parent = nil
-								relod = true
+							-- ALLE Button-Reihen entfernen (bei 5 Buttons sind es mehrere), nicht nur die letzte
+							for _, row in ipairs(persistenceRows) do
+								if row.Parent then
+									row.Parent = nil
+									relod = true
+								end
+							end
+							if infoLabel and infoLabel.Remove then
+								pcall(infoLabel.Remove)
+							end
+							-- entferntes Profil (z.B. Theme bei LockTheme) soll nicht mehr automatisch laden
+							if autoloadJob then
+								autoloadJob.Removed = true
 							end
 							if relod then
 								sectionFunctions:Update()
@@ -8987,12 +9469,98 @@ function library:CreateWindow(options, ...)
 						Reset = function()
 							return Set(nil, default)
 						end
-					}
-					tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagName] = objectdata, objectdata, objectdata
-					return objectdata
-				end
-			else
-				function sectionFunctions.AddPersistence()
+						}
+						tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagName] = objectdata, objectdata, objectdata
+						-- Die Info-Zeile soll von "Reset GUI"/"Reset Designer" nicht auf ihren Starttext zurückgesetzt werden
+						if infoLabel then
+							infoLabel.Default = nil
+						end
+						-- ===== AUTOLOAD BEIM START =====
+						-- Alle Profile (Config, Theme, eigene) melden sich hier an. Ein gemeinsamer Ablauf
+						-- wartet, bis das Script keine neuen Elemente mehr erstellt (damit auch später
+						-- gebaute Tabs mitgeladen werden), und lädt dann: erst Configs, danach Themes
+						-- (damit ein Autoload-Theme die Farben aus einer Config überschreibt).
+						if options.Autoload ~= false then
+							library.__AutoloadJobs = library.__AutoloadJobs or {}
+							autoloadJob = {
+								Priority = tonumber(options.AutoloadPriority) or ((tostring(suffix) == "Theme") and 2) or 1,
+								Run = function()
+									if autoloadJob and autoloadJob.Removed then
+										return
+									end
+									local name = readAutoloadName()
+									if not name or not configFileExists(name) then
+										return
+									end
+									local ok, reason = loadstuff(name)
+									queueInfoRefresh()
+									library:Notify({
+										Text = (ok and string.format('Autoloaded %s "%s"', string.lower(suffixname), name)) or string.format('Autoload of %s "%s" failed (%s)', string.lower(suffixname), name, tostring(reason or "unknown error")),
+											Time = 3,
+											Type = (ok and "success") or "error"
+										})
+										end
+										}
+										library.__AutoloadJobs[1 + #library.__AutoloadJobs] = autoloadJob
+										if library.__AutoloadDone then
+											-- Profil wurde erst erstellt, nachdem der Autoload-Durchlauf schon fertig war
+											-- (z.B. Config-Tab erst nach einer Wartezeit gebaut) -> einzeln nachholen
+											local lateJob = autoloadJob
+											task.delay(1, function()
+												if library.IsGuiValid() then
+													local okJob, errJob = pcall(lateJob.Run)
+													if not okJob then
+														warn("[Config] Autoload-Fehler:", errJob)
+													end
+												end
+											end)
+										end
+										if not library.__AutoloadRunnerStarted then
+								library.__AutoloadRunnerStarted = true
+								task.spawn(function()
+									local function countElements()
+										local c = 0
+										for _ in next, elements do
+											c = c + 1
+										end
+										return c
+									end
+									local started = os.clock()
+									local lastCount, stableSince = countElements(), os.clock()
+									while os.clock() - started < 15 do
+										task.wait(0.25)
+										if not library.IsGuiValid() then
+											return
+										end
+										local nowCount = countElements()
+										if nowCount ~= lastCount then
+											lastCount, stableSince = nowCount, os.clock()
+										elseif (os.clock() - stableSince >= 0.75) and (os.clock() - started >= 1) then
+											break
+										end
+									end
+									if not library.IsGuiValid() then
+										return
+									end
+									local jobs = library.__AutoloadJobs or {}
+									-- ab hier laufen neu angemeldete Profile sofort einzeln (siehe oben)
+									library.__AutoloadDone = true
+									table.sort(jobs, function(a, b)
+										return a.Priority < b.Priority
+									end)
+									for _, job in ipairs(jobs) do
+										local okJob, errJob = pcall(job.Run)
+										if not okJob then
+											warn("[Config] Autoload-Fehler:", errJob)
+										end
+									end
+									end)
+							end
+						end
+						return objectdata
+						end
+						else
+						function sectionFunctions.AddPersistence()
 					if not library.warnedpersistance then
 						library.warnedpersistance = 1
 						warn(debug.traceback("Persistance not supported"))
@@ -9615,7 +10183,24 @@ local function AddOptions(optionsTable)
 						UpdateDropdownHolder()
 					end
 				end
-				local precisionscrolling, update = nil
+				local update = nil
+				-- Öffnen/Schließen-Optik, Ebenen, Pfeiltasten-Scrollen, "nur eins offen" und
+				-- "Klick außerhalb schließt" kommen jetzt aus dem gemeinsamen Dropdown-Kern
+				local dropdownCore = createDropdownCore({
+					dropdown = dropdown,
+					dropdownToggle = dropdownToggle,
+					dropdownHolderFrame = dropdownHolderFrame,
+					realDropdownHolder = realDropdownHolder,
+					dropdownSelection = dropdownSelection,
+					newDropdown = newDropdown,
+					newSection = newSection,
+					sectionHolder = sectionHolder,
+					coloredBackground = colored_dropdown_BackgroundColor3,
+					coloredImage = colored_dropdown_ImageColor3,
+					restorezindex = restorezindex,
+					options = options,
+					scrollWhileTyping = true
+				})
 				local function display(dropdownEnabled)
 					if dropdownEnabled then
 						closeOtherSubmenu(dropdown)
@@ -9635,66 +10220,16 @@ local function AddOptions(optionsTable)
 							dropdownSelection.Visible = false
 						end
 						AddOptions(GetFilteredList())
-						submenuOpen = dropdown
-						submenuCloseFn = function() display(false) end
-						submenuOpenFrames = {newDropdown, dropdownHolderFrame}
-						dropdownToggle.Rotation = 270
-						restorezindex[newSection] = restorezindex[newSection] or newSection.ZIndex
-						restorezindex[newDropdown] = restorezindex[newDropdown] or newDropdown.ZIndex
-						restorezindex[sectionHolder] = restorezindex[sectionHolder] or sectionHolder.ZIndex
-						newSection.ZIndex = 50 + newSection.ZIndex
-						newDropdown.ZIndex = 2
-						sectionHolder.ZIndex = 2
-						colored_dropdown_BackgroundColor3[3] = "main"
-						colored_dropdown_BackgroundColor3[4] = 1.5
-						colored_dropdown_ImageColor3[3] = "main"
-						colored_dropdown_ImageColor3[4] = 2.5
-						tweenService:Create(dropdown, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-							BackgroundColor3 = darkenColor(library.colors.main, 1.5),
-							ImageColor3 = darkenColor(library.colors.main, 2.5)
-						}):Play()
-						dropdownHolderFrame.Visible = true
-						if not options.DisablePrecisionScrolling then
-							local upkey = options.ScrollUpButton or library.scrollupbutton or shared.scrollupbutton or Enum.KeyCode.Up
-							local downkey = options.ScrollDownButton or library.scrolldownbutton or shared.scrolldownbutton or Enum.KeyCode.Down
-							precisionscrolling = (precisionscrolling and precisionscrolling:Disconnect() and nil) or userInputService.InputBegan:Connect(function(input)
-								if input.UserInputType == Enum.UserInputType.Keyboard then
-									local code = input.KeyCode
-									local isup = code == upkey
-									local isdown = code == downkey
-									if isup or isdown then
-										local txt = userInputService:GetFocusedTextBox()
-										if not txt or txt == dropdownSelection then
-											while wait_check() and userInputService:IsKeyDown(code) do
-												realDropdownHolder.CanvasPosition = Vector2:new(math.clamp(realDropdownHolder.CanvasPosition.Y + ((isup and -5) or 5), 0, realDropdownHolder.AbsoluteCanvasSize.Y))
-											end
-										end
-									end
-								end
-							end)
-							library.signals[1 + #library.signals] = precisionscrolling
-						end
+						dropdownCore.Open(function()
+							display(false)
+						end)
 					else
 						if options.Searchable and dropdownSearchBox then
 							dropdownSearchBox.Text = ""
 							dropdownSearchBox.Visible = false
 							dropdownSelection.Visible = true
 						end
-						submenuOpen = nil
-						dropdownToggle.Rotation = 90
-						colored_dropdown_BackgroundColor3[3] = "topGradient"
-						colored_dropdown_BackgroundColor3[4] = nil
-						colored_dropdown_ImageColor3[3] = "bottomGradient"
-						colored_dropdown_ImageColor3[4] = nil
-						tweenService:Create(dropdown, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-							BackgroundColor3 = library.colors.topGradient,
-							ImageColor3 = library.colors.bottomGradient
-						}):Play()
-						dropdownHolderFrame.Visible = false
-						for ins, z in next, restorezindex do
-							ins.ZIndex = z
-						end
-						precisionscrolling = (precisionscrolling and precisionscrolling:Disconnect() and nil) or nil
+						dropdownCore.Close()
 					end
 					if not multiselect and (not next(list) or not table.find(list, library_flags[flagName])) then
 						Set(list[1])
@@ -10102,15 +10637,9 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 					newColorPicker.ZIndex = 0
 					newSection.ZIndex = newSection.ZIndex - 100
 					colorPickerButton.BorderSizePixel = 0
-					do
-						local colorPickerButtonStroke = Instance_new("UIStroke")
-						colorPickerButtonStroke.Name = generateRandomName()
-						colorPickerButtonStroke.Parent = colorPickerButton
-						colorPickerButtonStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-						colorPickerButtonStroke.Thickness = 1
-						colorPickerButtonStroke.Color = library.colors.elementBorder
-						colored[1 + #colored] = {colorPickerButtonStroke, "Color", "elementBorder"}
-					end
+					-- Hier wurde früher bei JEDEM Schließen ein neuer UIStroke-Rahmen erzeugt und nie
+					-- entfernt -> nach vielen Öffnen/Schließen stapelten sich dutzende Rahmen übereinander.
+					-- Der eine Rahmen, der beim Erstellen des Colorpickers angelegt wird, reicht völlig.
 					colored_colorPickerButton_BorderColor3[3] = "elementBorder"
 				end
 				library.signals[1 + #library.signals] = colorPickerButton.MouseButton1Click:Connect(function()
