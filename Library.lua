@@ -2673,7 +2673,13 @@ function library:ShowLoadingScreen(options)
 	local onAccept = options.OnAccept or options.Callback
 	local onDecline = options.OnDecline
 	local soundService = game:GetService("SoundService")
-	local backgroundTransparency = options.BackgroundTransparency or 0.3
+	-- Gleiche Transparenz wie das Hintergrundbild im Hauptmenü (Slider "Image Transparency",
+	-- Standard 50%). Vorher 0.3 -> Bild zu hell, HWID-Text schlecht lesbar
+	local backgroundTransparency = tonumber(options.BackgroundTransparency)
+	if not backgroundTransparency then
+		local menuValue = tonumber(library_flags["__Designer.Background.ImageTransparency"])
+		backgroundTransparency = (menuValue and math.clamp(menuValue / 100, 0, 1)) or 0.5
+	end
 	-- Hintergrundbild (gleiches Bild wie im Menü). Eigenes Bild per BackgroundAsset = "rbxassetid://...",
 	-- ausschalten per BackgroundAsset = false
 	local backgroundAsset = options.BackgroundAsset
@@ -2724,10 +2730,10 @@ function library:ShowLoadingScreen(options)
 		return hwid
 	end
 
-	local function addTextStroke(textLabel)
+	local function addTextStroke(textLabel, thickness)
 		local stroke = Instance.new("UIStroke")
 		stroke.Color = Color3.new(0, 0, 0)
-		stroke.Thickness = 1.5
+		stroke.Thickness = thickness or 1.5
 		stroke.Parent = textLabel
 	end
 
@@ -3020,6 +3026,7 @@ function library:ShowLoadingScreen(options)
 			HwidStaticLabel.ZIndex = 303
 			HwidStaticLabel.Text = "Your HWID: "
 			HwidStaticLabel.Parent = LoadInnerFrame
+			addTextStroke(HwidStaticLabel, 1) -- dünne schwarze Umrandung, damit der Text auf dem Bild lesbar bleibt
 
 			HwidContainer = Instance.new("Frame")
 			HwidContainer.Name = generateRandomName()
@@ -3041,6 +3048,7 @@ function library:ShowLoadingScreen(options)
 			HwidValueLabel.ZIndex = 303
 			HwidValueLabel.Text = getHWID()
 			HwidValueLabel.Parent = HwidContainer
+			addTextStroke(HwidValueLabel, 1)
 
 			local HwidNoteLabel = Instance.new("TextLabel")
 			HwidNoteLabel.Name = generateRandomName()
@@ -3054,6 +3062,7 @@ function library:ShowLoadingScreen(options)
 			HwidNoteLabel.ZIndex = 303
 			HwidNoteLabel.Text = "HWID is used to identify the Owner."
 			HwidNoteLabel.Parent = LoadInnerFrame
+			addTextStroke(HwidNoteLabel, 1)
 		end
 
 		local BarBg = Instance.new("Frame")
