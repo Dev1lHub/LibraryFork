@@ -2540,6 +2540,46 @@ local function toLogical(v)
 end
 library.subs.ToLogical = toLogical
 -- ============================================================
+-- Geräte-Erkennung (Mobile / PC)
+-- Manuell erzwingen: library.MobileMode = true / false (vor ShowLoadingScreen/CreateWindow setzen)
+-- ============================================================
+local function DetectMobile()
+	-- Manuelle Überschreibung hat Vorrang
+	if library.MobileMode ~= nil then
+		return library.MobileMode == true
+	end
+	-- Eigenschaften sicher lesen (manche Executor-Umgebungen werfen hier Fehler)
+	local function readInput(prop)
+		local ok, value = pcall(function()
+			return userInputService[prop]
+		end)
+		return ok and value == true
+	end
+	local touchEnabled = readInput("TouchEnabled")
+	local mouseEnabled = readInput("MouseEnabled")
+	local keyboardEnabled = readInput("KeyboardEnabled")
+	-- 1) Plattform direkt abfragen (funktioniert auch im Emulator)
+	local okPlat, platform = pcall(function()
+		return userInputService:GetPlatform()
+	end)
+	if okPlat and platform then
+		if platform == Enum.Platform.Android or platform == Enum.Platform.IOS then
+			return true
+		end
+		if platform == Enum.Platform.Windows or platform == Enum.Platform.OSX
+			or platform == Enum.Platform.Linux or platform == Enum.Platform.UWP then
+			-- Desktop: nur Mobile, wenn Touch ohne Maus
+			return touchEnabled and not mouseEnabled
+		end
+	end
+	-- 2) Fallback: Touch vorhanden und keine echte Tastatur
+	if touchEnabled and not keyboardEnabled then
+		return true
+	end
+	return touchEnabled and not mouseEnabled
+end
+library.DetectMobile = DetectMobile
+-- ============================================================
 -- Linoria-Feature-Port: Tooltip-System (AddToolTip)
 -- Zeigt eine kleine schwebende Box neben dem Mauszeiger, sobald man
 -- über HoverInstance hovert. DisabledInfoStr wird stattdessen gezeigt,
@@ -2713,6 +2753,14 @@ function library:ShowLoadingScreen(options)
 	local loadingSubText = options.LoadingSubText or "Loading scripts and assets..."
 	local welcomeSubText = options.WelcomeSubText or "D3v1lHub successfully loaded."
 	local showHWID = (options.ShowHWID ~= false)
+	-- Geräteanzeige ("Device: Mobile Detected" / "Device: PC Detected"), ausschalten per ShowDevice = false
+	local showDevice = (options.ShowDevice ~= false)
+	local deviceIsMobile = false
+	do
+		local okDetect, detected = pcall(DetectMobile)
+		deviceIsMobile = (okDetect and detected == true) and true or false
+	end
+	local deviceName = deviceIsMobile and "Mobile" or "PC"
 
 	local MainColor = library.colors.main
 	local TopGradColor = library.colors.topGradient
@@ -2750,6 +2798,30 @@ function library:ShowLoadingScreen(options)
 		stroke.Color = Color3.new(0, 0, 0)
 		stroke.Thickness = thickness or 1.5
 		stroke.Parent = textLabel
+	end
+
+	-- "Device: <Mobile/PC> Detected" - Gerätename in der Hauptfarbe
+	local function createDeviceLabel(parent, position, size, alignment)
+		local c = MainColor
+		local hex = string.format("#%02X%02X%02X",
+			math.clamp(math.floor(c.R * 255 + 0.5), 0, 255),
+			math.clamp(math.floor(c.G * 255 + 0.5), 0, 255),
+			math.clamp(math.floor(c.B * 255 + 0.5), 0, 255))
+		local label = Instance.new("TextLabel")
+		label.Name = generateRandomName()
+		label.BackgroundTransparency = 1
+		label.Position = position
+		label.Size = size
+		label.Font = Enum.Font.Code
+		label.TextColor3 = Color3.fromRGB(200, 190, 220)
+		label.TextSize = 12
+		label.TextXAlignment = alignment
+		label.RichText = true
+		label.ZIndex = 303
+		label.Text = 'Device: <font color="' .. hex .. '">' .. deviceName .. '</font> Detected'
+		label.Parent = parent
+		addTextStroke(label, 1)
+		return label
 	end
 
 	local function applyBackground(parentFrame)
@@ -2876,6 +2948,10 @@ function library:ShowLoadingScreen(options)
 	SubLabel.Text = confirmText
 	SubLabel.Parent = InnerFrame
 	addTextStroke(SubLabel)
+
+	if showDevice then
+		createDeviceLabel(InnerFrame, UDim2.new(0, 20, 0, 110), UDim2.new(1, -40, 0, 18), Enum.TextXAlignment.Center)
+	end
 
 	local function createButton(text, posX)
 		local btnOuter = Instance.new("TextButton")
@@ -3080,6 +3156,12 @@ function library:ShowLoadingScreen(options)
 			addTextStroke(HwidNoteLabel, 1)
 		end
 
+		-- Geräteanzeige unten im Ladefenster (unter dem Ladebalken)
+		local LoadDeviceLabel
+		if showDevice then
+			LoadDeviceLabel = createDeviceLabel(LoadInnerFrame, UDim2.new(0, 15, 0, 114), UDim2.new(1, -30, 0, 16), Enum.TextXAlignment.Left)
+		end
+
 		local BarBg = Instance.new("Frame")
 		BarBg.Name = generateRandomName()
 		BarBg.BackgroundColor3 = Color3.fromRGB(10, 8, 15)
@@ -3127,6 +3209,9 @@ function library:ShowLoadingScreen(options)
 				tweenService:Create(LoadTitle, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(0, 75, 0, 14)}):Play()
 				tweenService:Create(LoadSub, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(0, 75, 0, 38)}):Play()
 				tweenService:Create(BarBg, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(0, 75, 0, 102), Size = UDim2.new(1, -90, 0, 8)}):Play()
+				if LoadDeviceLabel then
+					tweenService:Create(LoadDeviceLabel, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(0, 75, 0, 114)}):Play()
+				end
 			end
 
 			LoadTitle.Text = "Welcome, " .. LP.Name .. "!"
@@ -4918,22 +5003,18 @@ function library:CreateWindow(options, ...)
 	end
 	-- ============================================================
 	-- MOBILE SUPPORT
-	-- Erkennt automatisch, ob auf Handy/Tablet (Touch, keine Maus/Tastatur) gespielt wird.
-	-- Erzwingen per CreateWindow({ Mobile = true/false }), sonst automatisch.
+	-- Erkennt automatisch über DetectMobile() (Plattform + Touch/Maus/Tastatur), worauf gespielt wird.
+	-- Erzwingen per CreateWindow({ Mobile = true/false }) oder library.MobileMode = true/false.
 	-- Mobile: Menü wird ans Display angepasst, verschiebbarer Button zum Ein-/Ausblenden,
 	-- kein eigener Mauszeiger, kein Resize-Griff. PC: alles bleibt wie bisher.
 	-- ============================================================
-	local function detectMobile()
-		local forced = options.Mobile
-		if forced ~= nil then
-			return forced and true or false
-		end
-		local ok, res = pcall(function()
-			return userInputService.TouchEnabled and not userInputService.KeyboardEnabled and not userInputService.MouseEnabled
-		end)
-		return (ok and res) and true or false
+	local isMobile
+	if options.Mobile ~= nil then
+		isMobile = options.Mobile == true
+	else
+		local okDetect, detected = pcall(DetectMobile)
+		isMobile = (okDetect and detected == true) and true or false
 	end
-	local isMobile = detectMobile()
 	library.IsMobile = isMobile
 	windowFunctions.IsMobile = isMobile
 	if isMobile then
