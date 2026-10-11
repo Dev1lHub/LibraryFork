@@ -540,9 +540,6 @@ function CursorModule:Enable()
 	if self.Toggled then
 		return -- läuft bereits, keinen zweiten Loop starten (sonst konkurrierende Zustände)
 	end
-	if self.Disabled then
-		return -- z.B. auf Mobile: keine Maus -> kein eigener Mauszeiger
-	end
 	
 	local UserInputService = game:GetService("UserInputService")
 	local RunService = game:GetService("RunService")
@@ -2527,58 +2524,6 @@ do
 	end
 end
 library.subs.textToSize = textToSize
--- Rechnet Bildschirm-Pixel (AbsoluteSize, AbsoluteContentSize ...) in "Menü-Pixel" zurück.
--- Auf Mobile wird das Menü per UIScale verkleinert, falls es sonst nicht in die Breite passt.
--- Roblox meldet Absolute-Werte dann bereits verkleinert -> ohne Rückrechnung würden Größen,
--- die daraus berechnet werden (Sections, Scrollbereiche ...), doppelt schrumpfen.
-local function toLogical(v)
-	local s = library.__MenuScale
-	if type(s) ~= "number" or s <= 0 then
-		return v
-	end
-	return v / s
-end
-library.subs.ToLogical = toLogical
--- ============================================================
--- Geräte-Erkennung (Mobile / PC)
--- Manuell erzwingen: library.MobileMode = true / false (vor ShowLoadingScreen/CreateWindow setzen)
--- ============================================================
-local function DetectMobile()
-	-- Manuelle Überschreibung hat Vorrang
-	if library.MobileMode ~= nil then
-		return library.MobileMode == true
-	end
-	-- Eigenschaften sicher lesen (manche Executor-Umgebungen werfen hier Fehler)
-	local function readInput(prop)
-		local ok, value = pcall(function()
-			return userInputService[prop]
-		end)
-		return ok and value == true
-	end
-	local touchEnabled = readInput("TouchEnabled")
-	local mouseEnabled = readInput("MouseEnabled")
-	local keyboardEnabled = readInput("KeyboardEnabled")
-	-- 1) Plattform direkt abfragen (funktioniert auch im Emulator)
-	local okPlat, platform = pcall(function()
-		return userInputService:GetPlatform()
-	end)
-	if okPlat and platform then
-		if platform == Enum.Platform.Android or platform == Enum.Platform.IOS then
-			return true
-		end
-		if platform == Enum.Platform.Windows or platform == Enum.Platform.OSX
-			or platform == Enum.Platform.Linux or platform == Enum.Platform.UWP then
-			-- Desktop: nur Mobile, wenn Touch ohne Maus
-			return touchEnabled and not mouseEnabled
-		end
-	end
-	-- 2) Fallback: Touch vorhanden und keine echte Tastatur
-	if touchEnabled and not keyboardEnabled then
-		return true
-	end
-	return touchEnabled and not mouseEnabled
-end
-library.DetectMobile = DetectMobile
 -- ============================================================
 -- Linoria-Feature-Port: Tooltip-System (AddToolTip)
 -- Zeigt eine kleine schwebende Box neben dem Mauszeiger, sobald man
@@ -2753,14 +2698,6 @@ function library:ShowLoadingScreen(options)
 	local loadingSubText = options.LoadingSubText or "Loading scripts and assets..."
 	local welcomeSubText = options.WelcomeSubText or "D3v1lHub successfully loaded."
 	local showHWID = (options.ShowHWID ~= false)
-	-- Geräteanzeige ("Device: Mobile Detected" / "Device: PC Detected"), ausschalten per ShowDevice = false
-	local showDevice = (options.ShowDevice ~= false)
-	local deviceIsMobile = false
-	do
-		local okDetect, detected = pcall(DetectMobile)
-		deviceIsMobile = (okDetect and detected == true) and true or false
-	end
-	local deviceName = deviceIsMobile and "Mobile" or "PC"
 
 	local MainColor = library.colors.main
 	local TopGradColor = library.colors.topGradient
@@ -2798,30 +2735,6 @@ function library:ShowLoadingScreen(options)
 		stroke.Color = Color3.new(0, 0, 0)
 		stroke.Thickness = thickness or 1.5
 		stroke.Parent = textLabel
-	end
-
-	-- "Device: <Mobile/PC> Detected" - Gerätename in der Hauptfarbe
-	local function createDeviceLabel(parent, position, size, alignment)
-		local c = MainColor
-		local hex = string.format("#%02X%02X%02X",
-			math.clamp(math.floor(c.R * 255 + 0.5), 0, 255),
-			math.clamp(math.floor(c.G * 255 + 0.5), 0, 255),
-			math.clamp(math.floor(c.B * 255 + 0.5), 0, 255))
-		local label = Instance.new("TextLabel")
-		label.Name = generateRandomName()
-		label.BackgroundTransparency = 1
-		label.Position = position
-		label.Size = size
-		label.Font = Enum.Font.Code
-		label.TextColor3 = Color3.fromRGB(200, 190, 220)
-		label.TextSize = 12
-		label.TextXAlignment = alignment
-		label.RichText = true
-		label.ZIndex = 303
-		label.Text = 'Device: <font color="' .. hex .. '">' .. deviceName .. '</font> Detected'
-		label.Parent = parent
-		addTextStroke(label, 1)
-		return label
 	end
 
 	local function applyBackground(parentFrame)
@@ -2948,10 +2861,6 @@ function library:ShowLoadingScreen(options)
 	SubLabel.Text = confirmText
 	SubLabel.Parent = InnerFrame
 	addTextStroke(SubLabel)
-
-	if showDevice then
-		createDeviceLabel(InnerFrame, UDim2.new(0, 20, 0, 110), UDim2.new(1, -40, 0, 18), Enum.TextXAlignment.Center)
-	end
 
 	local function createButton(text, posX)
 		local btnOuter = Instance.new("TextButton")
@@ -3156,12 +3065,6 @@ function library:ShowLoadingScreen(options)
 			addTextStroke(HwidNoteLabel, 1)
 		end
 
-		-- Geräteanzeige unten im Ladefenster (unter dem Ladebalken)
-		local LoadDeviceLabel
-		if showDevice then
-			LoadDeviceLabel = createDeviceLabel(LoadInnerFrame, UDim2.new(0, 15, 0, 114), UDim2.new(1, -30, 0, 16), Enum.TextXAlignment.Left)
-		end
-
 		local BarBg = Instance.new("Frame")
 		BarBg.Name = generateRandomName()
 		BarBg.BackgroundColor3 = Color3.fromRGB(10, 8, 15)
@@ -3209,9 +3112,6 @@ function library:ShowLoadingScreen(options)
 				tweenService:Create(LoadTitle, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(0, 75, 0, 14)}):Play()
 				tweenService:Create(LoadSub, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(0, 75, 0, 38)}):Play()
 				tweenService:Create(BarBg, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(0, 75, 0, 102), Size = UDim2.new(1, -90, 0, 8)}):Play()
-				if LoadDeviceLabel then
-					tweenService:Create(LoadDeviceLabel, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(0, 75, 0, 114)}):Play()
-				end
 			end
 
 			LoadTitle.Text = "Welcome, " .. LP.Name .. "!"
@@ -4595,12 +4495,6 @@ function library:CreateWindow(options, ...)
 				KeystrokesModule.JumpButton = nil
 			end)
 		end
-		if library.__MobileToggleGui then
-			pcall(function()
-				library.__MobileToggleGui:Destroy()
-			end)
-			library.__MobileToggleGui = nil
-		end
 		if library.MainScreenGui then
 			pcall(function()
 				library.MainScreenGui:Destroy()
@@ -4931,10 +4825,8 @@ function library:CreateWindow(options, ...)
 		return setWindowSize(defaultWindowSize.X, defaultWindowSize.Y, nil)
 	end
 	library.WindowSize = defaultWindowSize
-	local windowResizeGrip = nil
 	do
 		local resizeGrip = Instance_new("TextButton")
-		windowResizeGrip = resizeGrip
 		resizeGrip.Name = generateRandomName()
 		resizeGrip.AutoButtonColor = false
 		resizeGrip.BackgroundTransparency = 1
@@ -4998,159 +4890,6 @@ function library:CreateWindow(options, ...)
 				if library.RefreshVisibility then
 					pcall(library.RefreshVisibility)
 				end
-			end
-		end)
-	end
-	-- ============================================================
-	-- MOBILE SUPPORT
-	-- Erkennt automatisch über DetectMobile() (Plattform + Touch/Maus/Tastatur), worauf gespielt wird.
-	-- Erzwingen per CreateWindow({ Mobile = true/false }) oder library.MobileMode = true/false.
-	-- Mobile: Menü wird ans Display angepasst, verschiebbarer Button zum Ein-/Ausblenden,
-	-- kein eigener Mauszeiger, kein Resize-Griff. PC: alles bleibt wie bisher.
-	-- ============================================================
-	local isMobile
-	if options.Mobile ~= nil then
-		isMobile = options.Mobile == true
-	else
-		local okDetect, detected = pcall(DetectMobile)
-		isMobile = (okDetect and detected == true) and true or false
-	end
-	library.IsMobile = isMobile
-	windowFunctions.IsMobile = isMobile
-	if isMobile then
-		-- kein Mauszeiger auf Touch-Geräten
-		CursorModule.Disabled = true
-		CursorModule:Disable()
-		if windowResizeGrip then
-			windowResizeGrip.Visible = false
-		end
-		-- Menü an das Display anpassen:
-		-- Breite bleibt 480 (alles passt sauber rein); nur wenn das Display schmaler ist,
-		-- wird das ganze Menü per UIScale verkleinert. Die Höhe wird an das Display angepasst,
-		-- der Inhalt scrollt. Im Querformat (normal bei Roblox) bleibt die Schrift voll lesbar.
-		local menuScale = Instance_new("UIScale")
-		menuScale.Name = generateRandomName()
-		menuScale.Parent = main
-		local function fitMenuToScreen(recenter)
-			local cam = workspace.CurrentCamera
-			local vp = cam and cam.ViewportSize
-			if not vp or vp.X < 50 or vp.Y < 50 then
-				return
-			end
-			local inset = game:GetService("GuiService"):GetGuiInset()
-			local availW = vp.X - 16
-			local availH = vp.Y - inset.Y - 16
-			local s = math.clamp(availW / defaultWindowSize.X, 0.4, 1)
-			menuScale.Scale = s
-			library.__MenuScale = (s < 1) and s or nil
-			local h = math.floor(math.clamp(availH / s, 220, defaultWindowSize.Y))
-			main.Size = UDim2.fromOffset(defaultWindowSize.X, h)
-			library.WindowSize = Vector2.new(defaultWindowSize.X, h)
-			if recenter then
-				main.Position = UDim2.fromScale(0.5, 0.5)
-			end
-			-- Sections/Scrollbereiche mit den neuen Maßen neu berechnen
-			if library.RefreshVisibility then
-				pcall(library.RefreshVisibility)
-			end
-		end
-		fitMenuToScreen(true)
-		pcall(function()
-			library.signals[1 + #library.signals] = workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
-				-- Handy gedreht o.ä. -> neu anpassen und wieder mittig setzen
-				fitMenuToScreen(true)
-			end)
-		end)
-		-- Runder, frei verschiebbarer Button mit Decal: Tippen = Menü ein/aus, Ziehen = verschieben
-		local toggleGui = Instance_new("ScreenGui")
-		toggleGui.Name = generateRandomName()
-		toggleGui.ResetOnSpawn = false
-		toggleGui.DisplayOrder = 11 -- über dem Menü (10)
-		toggleGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-		if not protectAndParentGui(toggleGui, library.gui_parent) then
-			pcall(function()
-				toggleGui.Parent = library.gui_parent
-			end)
-		end
-		library.__MobileToggleGui = toggleGui
-		local buttonImage = options.MobileButtonImage or options.MobileButtonDecal or "rbxassetid://133158046147209"
-		if type(buttonImage) == "number" then
-			buttonImage = "rbxassetid://" .. tostring(buttonImage)
-		end
-		local buttonSize = tonumber(options.MobileButtonSize) or 54
-		local toggleButton = Instance_new("ImageButton")
-		toggleButton.Name = generateRandomName()
-		toggleButton.AutoButtonColor = false
-		toggleButton.BackgroundColor3 = library.colors.background
-		colored[1 + #colored] = {toggleButton, "BackgroundColor3", "background"}
-		toggleButton.Image = buttonImage
-		toggleButton.ScaleType = Enum.ScaleType.Crop
-		toggleButton.Size = UDim2.fromOffset(buttonSize, buttonSize)
-		toggleButton.Position = UDim2.new(0, 16, 0.3, 0)
-		toggleButton.ZIndex = 10
-		toggleButton.Parent = toggleGui
-		do
-			local corner = Instance_new("UICorner")
-			corner.Name = generateRandomName()
-			corner.CornerRadius = UDim.new(1, 0) -- rund
-			corner.Parent = toggleButton
-			local stroke = Instance_new("UIStroke")
-			stroke.Name = generateRandomName()
-			stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-			stroke.Thickness = 2
-			stroke.Color = library.colors.main
-			colored[1 + #colored] = {stroke, "Color", "main"}
-			stroke.Parent = toggleButton
-		end
-		library.MobileToggleButton = toggleButton
-		local dragInput, dragStart, buttonStart, moved = nil, nil, nil, false
-		library.signals[1 + #library.signals] = toggleButton.InputBegan:Connect(function(input)
-			if dragInput then
-				return
-			end
-			if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-				dragInput = input
-				dragStart = input.Position
-				buttonStart = toggleButton.AbsolutePosition
-				moved = false
-				toggleButton.ImageTransparency = 0.25 -- kurzes Feedback beim Antippen
-			end
-		end)
-		library.signals[1 + #library.signals] = userInputService.InputChanged:Connect(function(input)
-			if not dragInput then
-				return
-			end
-			-- nur der Finger, der den Button angefasst hat (z.B. nicht der Daumen auf dem Joystick)
-			local sameInput = (input == dragInput) or (dragInput.UserInputType == Enum.UserInputType.MouseButton1 and input.UserInputType == Enum.UserInputType.MouseMovement)
-			if not sameInput then
-				return
-			end
-			local delta = input.Position - dragStart
-			if not moved and (math.abs(delta.X) > 8 or math.abs(delta.Y) > 8) then
-				moved = true
-			end
-			if moved then
-				-- im sichtbaren Bereich halten
-				local area = toggleGui.AbsoluteSize
-				local size = toggleButton.AbsoluteSize
-				local x = math.clamp(buttonStart.X + delta.X - toggleGui.AbsolutePosition.X, 0, math.max(0, area.X - size.X))
-				local y = math.clamp(buttonStart.Y + delta.Y - toggleGui.AbsolutePosition.Y, 0, math.max(0, area.Y - size.Y))
-				toggleButton.Position = UDim2.fromOffset(x, y)
-			end
-		end)
-		library.signals[1 + #library.signals] = userInputService.InputEnded:Connect(function(input)
-			if not dragInput then
-				return
-			end
-			local sameInput = (input == dragInput) or (dragInput.UserInputType == Enum.UserInputType.MouseButton1 and input.UserInputType == Enum.UserInputType.MouseButton1)
-			if not sameInput then
-				return
-			end
-			dragInput = nil
-			toggleButton.ImageTransparency = 0
-			if not moved then
-				-- angetippt (nicht verschoben) -> Menü ein-/ausblenden
-				windowFunctions:Visibility()
 			end
 		end)
 	end
@@ -5267,26 +5006,14 @@ function library:CreateWindow(options, ...)
 		-- die Mausposition dadurch um die Inset-Höhe (~36px) verschoben - unauffällig bei den obersten
 		-- Einträgen, aber je weiter unten im Dropdown man geklickt hat (3., 4. Eintrag usw.), desto öfter
 		-- hat der Klick dadurch fälschlich als "außerhalb" gegolten und das Dropdown sofort wieder zu.
-		local guiInset = game:GetService("GuiService"):GetGuiInset()
-		local positions = {userInputService:GetMouseLocation() - guiInset}
-		if input.UserInputType == Enum.UserInputType.Touch then
-			-- Touch: Position des Fingers statt der (dort nicht aktualisierten) Mausposition.
-			-- Beide Inset-Varianten prüfen, damit ein Tipp IN das Dropdown nie fälschlich schließt.
-			local touchPos = Vector2.new(input.Position.X, input.Position.Y)
-			positions = {touchPos, touchPos - guiInset}
-		end
+		local pos = userInputService:GetMouseLocation() - game:GetService("GuiService"):GetGuiInset()
 		local inside = false
 		if submenuOpenFrames then
 			for _, fr in ipairs(submenuOpenFrames) do
 				if fr and fr.Parent and fr.Visible then
 					local ap, asz = fr.AbsolutePosition, fr.AbsoluteSize
-					for _, pos in ipairs(positions) do
-						if (pos.X >= ap.X) and (pos.X <= ap.X + asz.X) and (pos.Y >= ap.Y) and (pos.Y <= ap.Y + asz.Y) then
-							inside = true
-							break
-						end
-					end
-					if inside then
+					if (pos.X >= ap.X) and (pos.X <= ap.X + asz.X) and (pos.Y >= ap.Y) and (pos.Y <= ap.Y + asz.Y) then
+						inside = true
 						break
 					end
 				end
@@ -5305,8 +5032,8 @@ function library:CreateWindow(options, ...)
 		spawn(function()
 			tabSlider.Visible = true
 			tweenService:Create(tabSlider, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
-				Size = UDim2.fromOffset(toLogical(tabObject.AbsoluteSize.X), 1),
-				Position = UDim2.fromOffset(toLogical(tabObject.AbsolutePosition.X - main.AbsolutePosition.X), toLogical(tabObject.AbsolutePosition.Y + tabObject.AbsoluteSize.Y - main.AbsolutePosition.Y))
+				Size = UDim2.fromOffset(tabObject.AbsoluteSize.X, 1),
+				Position = UDim2.fromOffset(tabObject.AbsolutePosition.X, tabObject.AbsolutePosition.Y + tabObject.AbsoluteSize.Y) - UDim2.fromOffset(main.AbsolutePosition.X, main.AbsolutePosition.Y)
 			}):Play()
 		end)
 	end
@@ -5342,7 +5069,7 @@ function library:CreateWindow(options, ...)
 		if image then
 			newTab.Image = image
 			newTab.ImageColor3 = options.ImageColor or options.Color or Color3.new(1, 1, 1)
-			newTab.Size = UDim2:new(toLogical(tabsHolder.AbsoluteSize.Y), 1)
+			newTab.Size = UDim2:new(tabsHolder.AbsoluteSize.Y, 1)
 		else
 			colored_newTab_TextColor3 = {newTab, "TextColor3", "tabText"}
 			colored[1 + #colored] = colored_newTab_TextColor3
@@ -5429,8 +5156,8 @@ function library:CreateWindow(options, ...)
 			-- Direkt nach dem Parenten sind AbsolutePosition/AbsoluteSize teils noch nicht final
 			-- (Layout braucht einen Frame) -> Slider würde falsch/verschoben landen. Daher 1 Frame warten.
 			task.defer(function()
-				tabSlider.Size = UDim2.fromOffset(toLogical(newTab.AbsoluteSize.X), 1)
-				tabSlider.Position = UDim2.fromOffset(toLogical(newTab.AbsolutePosition.X - main.AbsolutePosition.X), toLogical(newTab.AbsolutePosition.Y + newTab.AbsoluteSize.Y - main.AbsolutePosition.Y))
+				tabSlider.Size = UDim2.fromOffset(newTab.AbsoluteSize.X, 1)
+				tabSlider.Position = UDim2.fromOffset(newTab.AbsolutePosition.X, newTab.AbsolutePosition.Y + newTab.AbsoluteSize.Y) - UDim2.fromOffset(main.AbsolutePosition.X, main.AbsolutePosition.Y)
 				tabSlider.Visible = true
 			end)
 			windowFunctions.selected.holder = newTabHolder
@@ -5571,14 +5298,14 @@ function library:CreateWindow(options, ...)
 			colored[1 + #colored] = {insideBorderHider, "BackgroundColor3", "sectionBackground"}
 			insideBorderHider.BorderSizePixel = 0
 			insideBorderHider.Position = UDim2.fromOffset(15)
-			insideBorderHider.Size = UDim2.fromOffset(toLogical(sectionHeadline.AbsoluteSize.X) + 3, 1)
+			insideBorderHider.Size = UDim2.fromOffset(sectionHeadline.AbsoluteSize.X + 3, 1)
 			outsideBorderHider.Name = generateRandomName()
 			outsideBorderHider.Parent = newSection
 			outsideBorderHider.BackgroundColor3 = library.colors.background
 			colored[1 + #colored] = {outsideBorderHider, "BackgroundColor3", "background"}
 			outsideBorderHider.BorderSizePixel = 0
 			outsideBorderHider.Position = UDim2.fromOffset(15, -1)
-			outsideBorderHider.Size = UDim2.fromOffset(toLogical(sectionHeadline.AbsoluteSize.X) + 3, 1)
+			outsideBorderHider.Size = UDim2.fromOffset(sectionHeadline.AbsoluteSize.X + 3, 1)
 			local sectionFunctions = {
 				Flags = {},
 				Remove = function()
@@ -5599,9 +5326,9 @@ function library:CreateWindow(options, ...)
 				if not newSection.Visible then
 					newSection.Visible = true
 				end
-				newSection.Size = UDim2.new(1, -20, 0, (15 + toLogical(sectionList.AbsoluteContentSize.Y)))
+				newSection.Size = UDim2.new(1, -20, 0, (15 + sectionList.AbsoluteContentSize.Y))
 				if currentHolder then
-					currentHolder.CanvasSize = UDim2:fromOffset(toLogical(currentHolder:FindFirstChildOfClass("UIListLayout").AbsoluteContentSize.Y) + 22 + (tonumber(extra) or 0))
+					currentHolder.CanvasSize = UDim2:fromOffset(currentHolder:FindFirstChildOfClass("UIListLayout").AbsoluteContentSize.Y + 22 + (tonumber(extra) or 0))
 				end
 			end
 			function sectionFunctions:UpdateAll(...)
@@ -6322,7 +6049,7 @@ function library:CreateWindow(options, ...)
 					colored[1 + #colored] = colored_realButton_TextColor3
 					realButton.TextSize = 14
 					local textsize = textToSize(realButton).X + 14
-					if newSection.Parent and (toLogical(newSection.Parent.AbsoluteSize.X) < (offset + textsize + 8)) then
+					if newSection.Parent and (newSection.Parent.AbsoluteSize.X < (offset + textsize + 8)) then
 						offset, fram = 0, nil
 					end
 					local newButton = fram or Instance_new("Frame")
@@ -7999,9 +7726,9 @@ function library:CreateWindow(options, ...)
 				end)
 				local function UpdateDropdownHolder()
 					if optionCount >= 6 then
-						realDropdownHolder.CanvasSize = UDim2:fromOffset(toLogical(realDropdownHolderList.AbsoluteContentSize.Y) + 2)
+						realDropdownHolder.CanvasSize = UDim2:fromOffset(realDropdownHolderList.AbsoluteContentSize.Y + 2)
 					elseif optionCount <= 5 then
-						dropdownHolderFrame.Size = UDim2.new(0.95, 0, 0, toLogical(realDropdownHolderList.AbsoluteContentSize.Y) + 4)
+						dropdownHolderFrame.Size = UDim2.new(0.95, 0, 0, realDropdownHolderList.AbsoluteContentSize.Y + 4)
 					end
 				end
 				local validate = nil
@@ -8872,9 +8599,9 @@ function library:CreateWindow(options, ...)
 					local restorezindex = {}
 					local function UpdateDropdownHolder()
 						if optionCount >= 6 then
-							realDropdownHolder.CanvasSize = UDim2:fromOffset(toLogical(realDropdownHolderList.AbsoluteContentSize.Y) + 2)
+							realDropdownHolder.CanvasSize = UDim2:fromOffset(realDropdownHolderList.AbsoluteContentSize.Y + 2)
 						elseif optionCount <= 5 then
-							dropdownHolderFrame.Size = UDim2.new(0.95, 0, 0, (toLogical(realDropdownHolderList.AbsoluteContentSize.Y) + 4))
+							dropdownHolderFrame.Size = UDim2.new(0.95, 0, 0, (realDropdownHolderList.AbsoluteContentSize.Y + 4))
 						end
 					end
 					local function AddOptions(optionsTable, filter)
@@ -9480,7 +9207,7 @@ function library:CreateWindow(options, ...)
 							colored[1 + #colored] = {realButton, "TextColor3", "elementText"}
 							realButton.TextSize = 14
 							local textsize = textToSize(realButton).X + 14
-							if newSection.Parent and (toLogical(newSection.Parent.AbsoluteSize.X) < (offset + textsize + 8)) then
+							if newSection.Parent and (newSection.Parent.AbsoluteSize.X < (offset + textsize + 8)) then
 								offset, fram = 0, nil
 							end
 							local newButton = fram or Instance_new("Frame")
@@ -10156,13 +9883,13 @@ local resolvelist = getresolver(listt, options.Filter, options.Method)
 				local showing = false
 				local function UpdateDropdownHolder()
 					if optionCount >= 6 then
-						realDropdownHolder.CanvasSize = UDim2:fromOffset(toLogical(realDropdownHolderList.AbsoluteContentSize.Y) + 2)
+						realDropdownHolder.CanvasSize = UDim2:fromOffset(realDropdownHolderList.AbsoluteContentSize.Y + 2)
 						if userMaxVisibleItems then
 							-- Linoria-Feature-Port: MaxVisibleDropdownItems begrenzt die sichtbare Hoehe, der Rest scrollt
 							dropdownHolderFrame.Size = UDim2.new(0.95, 0, 0, math.min(optionCount, userMaxVisibleItems) * 18 + 4)
 						end
 					elseif optionCount <= 5 then
-						dropdownHolderFrame.Size = UDim2.new(0.95, 0, 0, toLogical(realDropdownHolderList.AbsoluteContentSize.Y) + 4)
+						dropdownHolderFrame.Size = UDim2.new(0.95, 0, 0, realDropdownHolderList.AbsoluteContentSize.Y + 4)
 					end
 				end
 				local validate = nil
@@ -10992,7 +10719,7 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 				colorPickerHolderFrame.Position = UDim2.fromScale(0.025, 1.012)
 				colorPickerHolderFrame.Size = UDim2.fromOffset(206, 250)
 				if math.ceil(colorPickerHolderFrame.AbsolutePosition.Y + colorPickerHolderFrame.AbsoluteSize.Y) > floor(newTabHolder.AbsoluteSize.Y + newTabHolder.AbsolutePosition.Y) then
-					colorPickerHolderFrame.Position = UDim2.new(0.025, 0, 1.012, -toLogical(colorPickerHolderFrame.AbsoluteSize.Y + colorPickerButton.AbsoluteSize.Y) - 2)
+					colorPickerHolderFrame.Position = UDim2.new(0.025, 0, 1.012, -colorPickerHolderFrame.AbsoluteSize.Y - colorPickerButton.AbsoluteSize.Y - 2)
 				end
 				colorPickerHolderFrame.Visible = false
 				colorPickerHolderFrame.Image = "rbxassetid://2454009026"
