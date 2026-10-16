@@ -1455,15 +1455,6 @@ function KeystrokesModule:StartLoop()
 	local UserInputService = game:GetService("UserInputService")
 	local mobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 
-	if mobile and not self.JumpButton then
-		task.spawn(function()
-			while self.Holder and self.Connection and not self.JumpButton do
-				self:SetupJumpButton()
-				task.wait(0.25)
-			end
-		end)
-	end
-
 	self.Connection = RunService.RenderStepped:Connect(function()
 		if mobile then
 			local move = self:GetMobileMovement()
@@ -1480,6 +1471,17 @@ function KeystrokesModule:StartLoop()
 			self:SetKeyState("SPACE", UserInputService:IsKeyDown(Enum.KeyCode.Space))
 		end
 	end)
+
+	-- Sprung-Button erst NACH dem Verbinden suchen (vorher war self.Connection hier noch nil,
+	-- die Suche brach sofort ab). pcall: SetupJumpButton darf die Schleife nie abbrechen lassen.
+	if mobile and not self.JumpButton then
+		task.spawn(function()
+			while self.Holder and self.Connection and not self.JumpButton do
+				pcall(self.SetupJumpButton, self)
+				task.wait(0.5)
+			end
+		end)
+	end
 end
 
 -- Stoppt die RenderStepped-Abfrage, damit im ausgeblendeten Zustand keine Performance verschwendet wird
@@ -2347,6 +2349,14 @@ local function makeMarquee(headline)
 			end
 			-- +2px: das rechte Ende des Texts verschwindet schon 2px bevor es den echten Rand erreicht, nur auf der rechten Seite
 			local overflow = (headline.AbsoluteSize.X - wrapper.AbsoluteSize.X) + 2
+			-- Mobile mit verkleinertem Menü (UIScale): Absolute-Werte sind dann skaliert -> zurückrechnen
+			local menuScale = library.__MenuScale
+			if type(menuScale) == "number" and menuScale > 0 then
+				overflow = overflow / menuScale
+			end
+			if overflow ~= overflow then
+				return
+			end
 			if overflow > 2 then
 				local duration = math.clamp(overflow / 30, 1.5, 8)
 				-- Ablauf: 2 Sek. warten -> hin scrollen -> 2 Sek. warten -> zurück scrollen -> wiederholen
@@ -2521,9 +2531,14 @@ library.Mouse = mouse
 local textToSize = nil
 do
 	local textService = game:GetService("TextService")
-	local bigv2 = Vector2.one * math.huge
+	-- große, aber ENDLICHE Grenze statt math.huge (unendliche Werte sind auf manchen Geräten heikel)
+	local bigv2 = Vector2.new(100000, 100000)
 	function textToSize(object)
-		return textService:GetTextSize(object.Text, object.TextSize, object.Font, bigv2)
+		local ok, size = pcall(textService.GetTextSize, textService, object.Text, object.TextSize, object.Font, bigv2)
+		if ok and typeof(size) == "Vector2" then
+			return size
+		end
+		return Vector2.new(#tostring(object.Text) * (object.TextSize or 14) * 0.6, object.TextSize or 14)
 	end
 end
 library.subs.textToSize = textToSize
@@ -2539,6 +2554,24 @@ local function toLogical(v)
 	return v / s
 end
 library.subs.ToLogical = toLogical
+-- Füllstand eines Sliders (0..1) ohne NaN/Unendlich: Min == Max oder ungültige Werte ergaben
+-- vorher 0/0 = NaN als GUI-Größe - so etwas kann den Roblox-Client (v.a. auf Handys) abstürzen lassen
+local function safeFillRatio(value, minV, maxV)
+	value, minV, maxV = tonumber(value), tonumber(minV), tonumber(maxV)
+	if not value or not minV or not maxV then
+		return 0
+	end
+	local range = maxV - minV
+	if range == 0 or range ~= range then
+		return 0
+	end
+	local r = (value - minV) / range
+	if r ~= r then
+		return 0
+	end
+	return math.clamp(r, 0, 1)
+end
+library.subs.SafeFillRatio = safeFillRatio
 -- ============================================================
 -- Geräte-Erkennung (Mobile / PC)
 -- Manuell erzwingen: library.MobileMode = true / false (vor ShowLoadingScreen/CreateWindow setzen)
@@ -2654,7 +2687,14 @@ function library:AddToolTip(InfoStr, DisabledInfoStr, HoverInstance)
 
 	UpdateText(InfoStr or DisabledInfoStr)
 
+	-- Generationszähler: pro Tooltip läuft immer nur EINE Positions-Schleife.
+	-- Auf Handys feuert MouseEnter bei jedem Antippen, MouseLeave aber oft nie -> vorher startete
+	-- jeder Tipp eine weitere Heartbeat-Schleife, die nie endete (wurde mit der Zeit immer
+	-- langsamer, bis das Spiel abstürzte).
+	local hoverGeneration = 0
 	GiveSignal(HoverInstance.MouseEnter:Connect(function()
+		hoverGeneration = hoverGeneration + 1
+		local myGeneration = hoverGeneration
 		if not TooltipTable.Disabled then
 			if not InfoStr then
 				TooltipOuter.Visible = false
@@ -2677,22 +2717,43 @@ function library:AddToolTip(InfoStr, DisabledInfoStr, HoverInstance)
 		TooltipOuter.Position = UDim2.fromOffset(mouse.X + 15, mouse.Y + 12)
 		TooltipOuter.Visible = true
 
-		while IsHovering do
+		-- Touch (Handy/Tablet): kein echtes "Hovern" -> Tooltip nur kurz anzeigen und dann selbst ausblenden
+		local touchMode = library.IsMobile
+		if touchMode == nil then
+			local okTouch, isTouch = pcall(function()
+				return userInputService.TouchEnabled and not userInputService.MouseEnabled
+			end)
+			touchMode = okTouch and isTouch
+		end
+		local shownAt = os.clock()
+
+		while IsHovering and hoverGeneration == myGeneration do
 			if TooltipTable.Disabled and not DisabledInfoStr then
 				break
 			end
+			-- Tooltip/Hover-Element wurde entfernt oder ist nicht mehr sichtbar -> Schleife beenden
+			if not TooltipOuter.Parent or not HoverInstance.Parent or (HoverInstance:IsA("GuiObject") and not HoverInstance.Visible) then
+				break
+			end
+			if touchMode and (os.clock() - shownAt) > 2.5 then
+				break
+			end
 			runService.Heartbeat:Wait()
-			if not IsHovering then
+			if not IsHovering or hoverGeneration ~= myGeneration then
 				break
 			end
 			TooltipOuter.Position = UDim2.fromOffset(mouse.X + 15, mouse.Y + 12)
 		end
 
-		IsHovering = false
-		TooltipOuter.Visible = false
+		-- nur die aktuelle Schleife darf den Tooltip ausblenden (eine ältere würde sonst den neuen verstecken)
+		if hoverGeneration == myGeneration then
+			IsHovering = false
+			TooltipOuter.Visible = false
+		end
 	end))
 
 	GiveSignal(HoverInstance.MouseLeave:Connect(function()
+		hoverGeneration = hoverGeneration + 1
 		IsHovering = false
 		TooltipOuter.Visible = false
 	end))
@@ -3295,6 +3356,9 @@ local floor = math.floor
 -- jedem Save/Load-Durchlauf minimal dunkler
 local function Color3ToHex(color)
 	local function channel(v)
+		if type(v) ~= "number" or v ~= v then
+			return 0 -- NaN -> schwarz statt Fehler
+		end
 		return math.clamp(floor(v * 255 + 0.5), 0, 255)
 	end
 	return string.format("%02X%02X%02X", channel(color.R), channel(color.G), channel(color.B))
@@ -5055,10 +5119,53 @@ function library:CreateWindow(options, ...)
 			end
 		end
 		fitMenuToScreen(true)
-		pcall(function()
-			library.signals[1 + #library.signals] = workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+		-- ViewportSize ändert sich auf Handys oft viele Male hintereinander (Drehen, Tastatur
+		-- ein/aus, Vollbild-Animation). Vorher wurde bei JEDER Änderung das ganze Menü neu
+		-- berechnet -> kurze Lastspitzen. Jetzt: kurz warten und nur einmal anpassen, und nur,
+		-- wenn sich die Größe wirklich spürbar geändert hat.
+		local lastFitViewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize
+		local fitQueued = false
+		local function queueFit()
+			if fitQueued then
+				return
+			end
+			fitQueued = true
+			task.delay(0.25, function()
+				fitQueued = false
+				if not main or not main.Parent then
+					return
+				end
+				local cam = workspace.CurrentCamera
+				local vp = cam and cam.ViewportSize
+				if not vp then
+					return
+				end
+				if lastFitViewport and math.abs(vp.X - lastFitViewport.X) < 4 and math.abs(vp.Y - lastFitViewport.Y) < 4 then
+					return
+				end
+				lastFitViewport = vp
 				-- Handy gedreht o.ä. -> neu anpassen und wieder mittig setzen
-				fitMenuToScreen(true)
+				pcall(fitMenuToScreen, true)
+			end)
+		end
+		local viewportConnection = nil
+		local function hookCamera()
+			if viewportConnection then
+				viewportConnection:Disconnect()
+				viewportConnection = nil
+			end
+			local cam = workspace.CurrentCamera
+			if cam then
+				viewportConnection = cam:GetPropertyChangedSignal("ViewportSize"):Connect(queueFit)
+				library.signals[1 + #library.signals] = viewportConnection
+			end
+		end
+		pcall(hookCamera)
+		-- Kamera kann vom Spiel ersetzt werden (z.B. nach dem Respawn) -> neu verbinden
+		pcall(function()
+			library.signals[1 + #library.signals] = workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+				pcall(hookCamera)
+				queueFit()
 			end)
 		end)
 		-- Runder, frei verschiebbarer Button mit Decal: Tippen = Menü ein/aus, Ziehen = verschieben
@@ -5106,7 +5213,14 @@ function library:CreateWindow(options, ...)
 		local dragInput, dragStart, buttonStart, moved = nil, nil, nil, false
 		library.signals[1 + #library.signals] = toggleButton.InputBegan:Connect(function(input)
 			if dragInput then
-				return
+				-- Wurde der alte Finger vom System abgebrochen (z.B. Benachrichtigung/Wischgeste),
+				-- kam nie ein InputEnded -> Button wäre für immer blockiert. Dann neu starten.
+				local state = dragInput.UserInputState
+				if state ~= Enum.UserInputState.End and state ~= Enum.UserInputState.Cancel then
+					return
+				end
+				dragInput = nil
+				toggleButton.ImageTransparency = 0
 			end
 			if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
 				dragInput = input
@@ -5941,6 +6055,9 @@ function library:CreateWindow(options, ...)
 						end)
 					end
 					options.Mode = (options.Mode and string.lower(tostring(options.Mode))) or "dynamic"
+					-- Platz für die aktuelle "Taste losgelassen"-Verbindung (wird beim Unload mit getrennt)
+					local holdReleaseSlot = {}
+					library.signals[1 + #library.signals] = holdReleaseSlot
 					local modes = {
 						dynamic = 1,
 						hold = 1,
@@ -5969,17 +6086,29 @@ function library:CreateWindow(options, ...)
 									end
 									Set(true)
 									local now = os.clock()
+									-- nur EINE "Loslassen"-Verbindung gleichzeitig; vorher wurde bei jedem Tastendruck
+									-- eine neue Verbindung dauerhaft in library.signals gespeichert (Liste wuchs endlos)
+									if holdReleaseSlot[1] then
+										holdReleaseSlot[1]:Disconnect()
+										holdReleaseSlot[1] = nil
+									end
 									local xconnection = nil
 									xconnection = userInputService.InputEnded:Connect(function(input, chatting)
 										chatting = chatting or userInputService:GetFocusedTextBox()
 										if not chatting and (key == input.KeyCode or key == input.UserInputType) then
-											xconnection = (xconnection and xconnection:Disconnect() and nil) or nil
+											if xconnection then
+												xconnection:Disconnect()
+											end
+											if holdReleaseSlot[1] == xconnection then
+												holdReleaseSlot[1] = nil
+											end
+											xconnection = nil
 											if mode == "hold" or os.clock() - now > math.clamp(tonumber(options.DynamicTime) or 0.65, 0.05, 20) then
 												Set(false)
 											end
 										end
 									end)
-									library.signals[1 + #library.signals] = xconnection
+									holdReleaseSlot[1] = xconnection
 								else
 									Set(not library_flags[flagName])
 								end
@@ -7422,7 +7551,7 @@ function library:CreateWindow(options, ...)
 				colored[1 + #colored] = {sliderColored, "BackgroundColor3", "main", 1.5}
 				sliderColored.BorderSizePixel = 0
 				sliderColored.Selectable = true
-				sliderColored.Size = UDim2.fromScale(((startingValue or minValue) - minValue) / (maxValue - minValue), 1)
+				sliderColored.Size = UDim2.fromScale(safeFillRatio(startingValue or minValue, minValue, maxValue), 1)
 				sliderColored.Image = "rbxassetid://2454009026"
 				addCorner(sliderColored, 4)
 				sliderColored.ImageColor3 = darkenColor(library.colors.main, 2.5)
@@ -7463,7 +7592,7 @@ function library:CreateWindow(options, ...)
 						do
 							local newValue = (options.IllegalInput and math.clamp(newValue, minValue or -math.huge, maxValue or math.huge)) or newValue
 							tweenService:Create(sliderColored, TweenInfo.new(0.25, library.configuration.easingStyle, library.configuration.easingDirection), {
-								Size = UDim2.fromScale(((newValue or minValue) - minValue) / (maxValue - minValue), 1)
+								Size = UDim2.fromScale(safeFillRatio(newValue or minValue, minValue, maxValue), 1)
 							}):Play()
 						end
 						sliderHeadline.Text = resolvedisplay(newValue, last_val)
@@ -7632,15 +7761,24 @@ function library:CreateWindow(options, ...)
 				end)
 				local function sliding(input, sb, sc)
 					local last_val = library_flags[flagName]
-					local pos = UDim2.fromScale(math.clamp((input.Position.X - sb.AbsolutePosition.X) / sb.AbsoluteSize.X, 0, 1), 1)
+					-- Breite 0 (z.B. während das Menü gerade skaliert/aufgebaut wird) -> kein Teilen durch 0 (NaN)
+					local barWidth = sb.AbsoluteSize.X
+					if not (barWidth > 0) then
+						return
+					end
+					local ratio = (input.Position.X - sb.AbsolutePosition.X) / barWidth
+					if ratio ~= ratio then
+						return
+					end
+					local pos = UDim2.fromScale(math.clamp(ratio, 0, 1), 1)
 					tweenService:Create(sc, TweenInfo.new(0.25, library.configuration.easingStyle, library.configuration.easingDirection), {
 						Size = pos
 					}):Play()
 					local sliderValue = nil
 					if decimalprecision then
-						sliderValue = tonumber(string.format("%0." .. decimalprecision .. "f", ((pos.X.Scale * maxValue) / maxValue) * (maxValue - minValue) + minValue))
+						sliderValue = tonumber(string.format("%0." .. decimalprecision .. "f", pos.X.Scale * (maxValue - minValue) + minValue))
 					end
-					sliderValue = sliderValue or tonumber(string.format("%0.2f", (floor(((pos.X.Scale * maxValue) / maxValue) * (maxValue - minValue) + minValue))))
+					sliderValue = sliderValue or tonumber(string.format("%0.2f", (floor(pos.X.Scale * (maxValue - minValue) + minValue))))
 					library_flags[flagName] = sliderValue
 					if options.Location then
 						options.Location[options.LocationFlag or flagName] = sliderValue
@@ -7655,29 +7793,89 @@ function library:CreateWindow(options, ...)
 					end
 					last_val = sliderValue
 				end
-				library.signals[1 + #library.signals] = newSlider.InputBegan:Connect(function(input)
-					if not library.colorpicker and input.UserInputType == Enum.UserInputType.MouseButton1 then
-						sliderDragging = true
-						isDraggingSomething = true
+					-- Maus UND Touch: auf Handys kommt beim Antippen "Touch" statt "MouseButton1".
+					-- sliderTouch merkt sich den Finger, der den Slider angefasst hat, damit z.B. der
+					-- Daumen auf dem Joystick den Slider nicht mitbewegt.
+					-- Touch: erst wenn der Finger eher waagerecht zieht, wird geschoben; zieht er senkrecht
+					-- (Scroll-Versuch), passiert nichts. Kurzes Antippen setzt den Wert auf die Tipp-Stelle.
+					local sliderTouch, sliderTouchStart, sliderTouchDecided = nil, nil, false
+					local function stopSliderDrag(endInput)
+						local touch, decided = sliderTouch, sliderTouchDecided
+						if sliderDragging then
+							sliderDragging = false
+							isDraggingSomething = false
+						end
+						sliderTouch, sliderTouchStart, sliderTouchDecided = nil, nil, false
+						-- nur angetippt (nicht gezogen) -> Wert an die Tipp-Stelle setzen
+						if touch and not decided and endInput == touch and not library.colorpicker then
+							sliding(endInput, sliderInner, sliderColored)
+						end
 					end
-				end)
-				library.signals[1 + #library.signals] = newSlider.InputEnded:Connect(function(input)
-					if not library.colorpicker and input.UserInputType == Enum.UserInputType.MouseButton1 then
-						sliderDragging = false
-						isDraggingSomething = false
-					end
-				end)
-				library.signals[1 + #library.signals] = newSlider.InputBegan:Connect(function(input)
-					if not library.colorpicker and not isDraggingSomething and input.UserInputType == Enum.UserInputType.MouseButton1 then
-						isDraggingSomething = true
-						sliding(input, sliderInner, sliderColored)
-					end
-				end)
-				library.signals[1 + #library.signals] = userInputService.InputChanged:Connect(function(input)
-					if not library.colorpicker and sliderDragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-						sliding(input, sliderInner, sliderColored)
-					end
-				end)
+					library.signals[1 + #library.signals] = newSlider.InputBegan:Connect(function(input)
+						if library.colorpicker then
+							return
+						end
+						if sliderTouch then
+							-- alter Finger wurde vom System abgebrochen (kein InputEnded) -> nicht für immer blockieren
+							local state = sliderTouch.UserInputState
+							if state ~= Enum.UserInputState.End and state ~= Enum.UserInputState.Cancel then
+								return
+							end
+							stopSliderDrag()
+						end
+						local inputType = input.UserInputType
+						if inputType == Enum.UserInputType.MouseButton1 then
+							sliderDragging = true
+							isDraggingSomething = true
+							sliding(input, sliderInner, sliderColored)
+						elseif inputType == Enum.UserInputType.Touch then
+							sliderDragging = true
+							isDraggingSomething = true
+							sliderTouch = input
+							sliderTouchStart = Vector2.new(input.Position.X, input.Position.Y)
+							sliderTouchDecided = false
+						end
+					end)
+					library.signals[1 + #library.signals] = newSlider.InputEnded:Connect(function(input)
+						if input.UserInputType == Enum.UserInputType.MouseButton1 or (sliderTouch and input == sliderTouch) then
+							stopSliderDrag(input)
+						end
+					end)
+					-- Loslassen AUSSERHALB des Sliders beendet das Ziehen ebenfalls (sonst blieb es hängen)
+					library.signals[1 + #library.signals] = userInputService.InputEnded:Connect(function(input)
+						if (sliderDragging or sliderTouch) and (input.UserInputType == Enum.UserInputType.MouseButton1 or (sliderTouch and input == sliderTouch)) then
+							stopSliderDrag(input)
+						end
+					end)
+					library.signals[1 + #library.signals] = userInputService.InputChanged:Connect(function(input)
+						if library.colorpicker or not sliderDragging then
+							return
+						end
+						if sliderTouch then
+							if input ~= sliderTouch then
+								return
+							end
+							if not sliderTouchDecided then
+								local start = sliderTouchStart or Vector2.new(input.Position.X, input.Position.Y)
+								local dx = math.abs(input.Position.X - start.X)
+								local dy = math.abs(input.Position.Y - start.Y)
+								if dx >= 6 and dx >= dy then
+									sliderTouchDecided = true
+								elseif dy >= 10 then
+									-- senkrecht gewischt -> war kein Slider-Zug, Slider loslassen
+									sliderTouchDecided = true
+									sliderDragging = false
+									isDraggingSomething = false
+									return
+								else
+									return
+								end
+							end
+							sliding(input, sliderInner, sliderColored)
+						elseif input.UserInputType == Enum.UserInputType.MouseMovement then
+							sliding(input, sliderInner, sliderColored)
+						end
+					end)
 				local default = library_flags[flagName]
 				local function Update(t, last_val)
 					if last_val == nil and t ~= nil and type(t) ~= "table" then
@@ -7688,7 +7886,7 @@ function library:CreateWindow(options, ...)
 					do
 						local newValue = math.clamp(newValue, options.Min or -math.huge, options.Max or math.huge)
 						tweenService:Create(sliderColored, TweenInfo.new(0.25, library.configuration.easingStyle, library.configuration.easingDirection), {
-							Size = UDim2.fromScale(((newValue or minValue) - minValue) / (maxValue - minValue), 1)
+							Size = UDim2.fromScale(safeFillRatio(newValue or minValue, minValue, maxValue), 1)
 						}):Play()
 					end
 					sliderHeadline.Text = resolvedisplay(newValue, last_val)
@@ -10907,6 +11105,16 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 				colored[1 + #colored] = colored_colorPickerButton_BorderColor3
 				local function UpdateColorPicker(force, rainbsow)
 					local last_vv = library_flags[flagName]
+					-- NaN-Schutz (NaN ~= NaN): niemals eine ungültige Farbe erzeugen
+					if type(colorH) ~= "number" or colorH ~= colorH then
+						colorH = 0
+					end
+					if type(colorS) ~= "number" or colorS ~= colorS then
+						colorS = 1
+					end
+					if type(colorV) ~= "number" or colorV ~= colorV then
+						colorV = 1
+					end
 					local newColor = force or Color3.fromHSV(colorH, colorS, colorV)
 					if not force then
 						colorH, colorS, colorV = newColor:ToHSV()
@@ -11229,9 +11437,11 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 					end
 					if colorInput then
 						colorInput = (colorInput:Disconnect() and nil) or nil
+						isDraggingSomething = false -- sonst bleibt das Verschieben des Fensters blockiert
 					end
 					if hueInput then
 						hueInput = (hueInput:Disconnect() and nil) or nil
+						isDraggingSomething = false
 					end
 					pcall(function()
 						if destroyrainbows and library.rainbows <= 0 then
@@ -11309,50 +11519,105 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 						UpdateColorPicker((not_fucked and clr) or last_vv)
 					end
 				end)
-				colorH = 1 - (math.clamp(selectorHue.AbsolutePosition.X - hue.AbsolutePosition.X, 0, hue.AbsoluteSize.X) / hue.AbsoluteSize.X)
-				colorS = (math.clamp(selectorColor.AbsolutePosition.X - color.AbsolutePosition.X, 0, color.AbsoluteSize.X) / color.AbsoluteSize.X)
-				colorV = 1 - (math.clamp(selectorColor.AbsolutePosition.Y - color.AbsolutePosition.Y, 0, color.AbsoluteSize.Y) / color.AbsoluteSize.Y)
+				-- sichere Teilung: Breite/Höhe 0 (Colorpicker noch nicht aufgebaut/ausgeblendet) ergab
+				-- vorher 0/0 = NaN -> kaputte Farbe + Fehler in jedem Frame (Hex-Umwandlung), auf Handys bis zum Absturz
+				local function axisRatio(pos, origin, size)
+					if not (size > 0) then
+						return nil
+					end
+					local r = math.clamp(pos - origin, 0, size) / size
+					if r ~= r then
+						return nil
+					end
+					return r
+				end
+				colorH = 1 - (axisRatio(selectorHue.AbsolutePosition.X, hue.AbsolutePosition.X, hue.AbsoluteSize.X) or 0)
+				colorS = axisRatio(selectorColor.AbsolutePosition.X, color.AbsolutePosition.X, color.AbsoluteSize.X) or 1
+				colorV = 1 - (axisRatio(selectorColor.AbsolutePosition.Y, color.AbsolutePosition.Y, color.AbsoluteSize.Y) or 0)
+				-- Maus UND Touch: auf Handys kommt "Touch" statt "MouseButton1". Bei Touch wird die Position
+				-- des Fingers genommen, der das Farbfeld angefasst hat (nicht die eines anderen Fingers).
+				local colorTouch, hueTouch = nil, nil
+				local function pointerPosition(touchInput)
+					if touchInput then
+						return touchInput.Position.X, touchInput.Position.Y
+					end
+					return mouse.X, mouse.Y
+				end
+				local function isPressInput(input)
+					return input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch
+				end
+				local function stopColorDrag()
+					if colorInput then
+						colorInput:Disconnect()
+						colorInput = nil
+						isDraggingSomething = false
+					end
+					colorTouch = nil
+				end
+				local function stopHueDrag()
+					if hueInput then
+						hueInput:Disconnect()
+						hueInput = nil
+						isDraggingSomething = false
+					end
+					hueTouch = nil
+				end
 				library.signals[1 + #library.signals] = color.InputBegan:Connect(function(input)
-					if input.UserInputType == Enum.UserInputType.MouseButton1 then
+					if isPressInput(input) then
+						stopColorDrag()
 						isDraggingSomething = true
-						colorInput = (colorInput and colorInput:Disconnect() and nil) or runService.RenderStepped:Connect(function()
-							local colorX = (math.clamp(mouse.X - color.AbsolutePosition.X, 0, color.AbsoluteSize.X) / color.AbsoluteSize.X)
-							local colorY = (math.clamp(mouse.Y - color.AbsolutePosition.Y, 0, color.AbsoluteSize.Y) / color.AbsoluteSize.Y)
+						colorTouch = (input.UserInputType == Enum.UserInputType.Touch) and input or nil
+						local myTouch = colorTouch
+						colorInput = runService.RenderStepped:Connect(function()
+							local px, py = pointerPosition(myTouch)
+							local colorX = axisRatio(px, color.AbsolutePosition.X, color.AbsoluteSize.X)
+							local colorY = axisRatio(py, color.AbsolutePosition.Y, color.AbsoluteSize.Y)
+							if not colorX or not colorY then
+								return
+							end
 							selectorColor.Position = UDim2.fromScale(colorX, colorY)
 							colorS = colorX
 							colorV = 1 - colorY
 							UpdateColorPicker()
 						end)
-						library.signals[1 + #library.signals] = colorInput
-					end
-				end)
-				library.signals[1 + #library.signals] = color.InputEnded:Connect(function(input)
-					if input.UserInputType == Enum.UserInputType.MouseButton1 then
-						if colorInput then
-							isDraggingSomething = false
-							colorInput:Disconnect()
-						end
 					end
 				end)
 				library.signals[1 + #library.signals] = hue.InputBegan:Connect(function(input)
-					if input.UserInputType == Enum.UserInputType.MouseButton1 then
-						if hueInput then
-							hueInput:Disconnect()
-						end
+					if isPressInput(input) then
+						stopHueDrag()
 						isDraggingSomething = true
+						hueTouch = (input.UserInputType == Enum.UserInputType.Touch) and input or nil
+						local myTouch = hueTouch
 						hueInput = runService.RenderStepped:Connect(function()
-							local hueX = math.clamp(mouse.X - hue.AbsolutePosition.X, 0, hue.AbsoluteSize.X) / hue.AbsoluteSize.X
+							local px = pointerPosition(myTouch)
+							local hueX = axisRatio(px, hue.AbsolutePosition.X, hue.AbsoluteSize.X)
+							if not hueX then
+								return
+							end
 							selectorHue.Position = UDim2.new(hueX)
 							colorH = 1 - hueX
 							UpdateColorPicker()
 						end)
-						library.signals[1 + #library.signals] = hueInput
+					end
+				end)
+				-- Loslassen irgendwo (auch außerhalb des Farbfelds) beendet das Ziehen. Vorher lief die
+				-- RenderStepped-Schleife weiter, wenn man außerhalb losgelassen hat.
+				library.signals[1 + #library.signals] = userInputService.InputEnded:Connect(function(input)
+					if colorInput and (input.UserInputType == Enum.UserInputType.MouseButton1 or (colorTouch and input == colorTouch)) then
+						stopColorDrag()
+					end
+					if hueInput and (input.UserInputType == Enum.UserInputType.MouseButton1 or (hueTouch and input == hueTouch)) then
+						stopHueDrag()
+					end
+				end)
+				library.signals[1 + #library.signals] = color.InputEnded:Connect(function(input)
+					if colorInput and (input.UserInputType == Enum.UserInputType.MouseButton1 or (colorTouch and input == colorTouch)) then
+						stopColorDrag()
 					end
 				end)
 				library.signals[1 + #library.signals] = hue.InputEnded:Connect(function(input)
-					if hueInput and input.UserInputType == Enum.UserInputType.MouseButton1 then
-						isDraggingSomething = false
-						hueInput:Disconnect()
+					if hueInput and (input.UserInputType == Enum.UserInputType.MouseButton1 or (hueTouch and input == hueTouch)) then
+						stopHueDrag()
 					end
 				end)
 				if rainbowColorMode then
