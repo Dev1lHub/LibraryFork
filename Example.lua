@@ -1,12 +1,26 @@
 local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Dev1lHub/LibraryFork/refs/heads/main/D3v1lLoader.lua"))()
 local Wait = library.subs.Wait
 
--- ✅ Loading-Screen davor: Yes/No-Prompt + Ladebildschirm. Erst wenn der Nutzer
--- auf "Yes" klickt und die Lade-Animation fertig ist, wird hier drin alles ganz
--- normal aufgebaut (CreateWindow, Tabs, Sections, usw.) - exakt wie vorher, nur
--- eben hinter dem Loader. Bei "No" wird NICHTS davon ausgeführt: kein Window,
--- keine Tabs, keine Sections, keine Toggles usw. werden überhaupt erst erstellt -
--- es gibt dadurch nichts, was man noch extra "unloaden" müsste.
+-- D3v1lHub Beispiel-Script
+--
+-- Ablauf:
+--   1. D3v1lLoader.lua erkennt das Gerät und lädt NUR die passende Library:
+--        PC / Laptop    -> PCGUILib.lua     (volles Menü)
+--        Handy / Tablet -> MobileGUILib.lua (schlankes Touch-Menü, baut sich schrittweise auf)
+--   2. Der Loader zeigt Yes/No, "Detected device", HWID und den Ladebalken.
+--   3. Bei "Yes" läuft OnAccept: hier wird das Menü aufgebaut. Bei "No" wird nichts erstellt (OnDecline).
+--
+-- Gerät erzwingen (VOR dem Laden des Loaders setzen):
+--   getgenv().D3v1lHubMobileMode = true   -- immer Mobile
+--   getgenv().D3v1lHubMobileMode = false  -- immer PC
+--
+-- Nur Mobile: Aufbau schneller/langsamer machen (VOR CreateWindow):
+--   library.MobileBuildBatch = 2      -- Elemente pro Pause
+--   library.MobileBuildDelay = 0.06   -- Pause in Sekunden, 0 = alles auf einmal
+--
+-- Loader-Texte anpassen (VOR dem Laden des Loaders):
+--   getgenv().D3v1lLoaderOptions = { TitlePart1 = "D3v1l", ConfirmText = "Execute?", ShowHWID = false }
+
 library:ShowLoadingScreen({
     OnAccept = function()
         local PepsisWorld = library:CreateWindow({
@@ -16,10 +30,11 @@ library:ShowLoadingScreen({
             }
         })
 
-        -- Beispiel für die smoothe Notify-Funktion (fährt sanft rein/raus, wie bei Linoria)
+        -- Notify: Text, Time (Sekunden), Type = "success" / "error" (optional, färbt den Rahmen)
         library:Notify({
             Text = "D3v1lHub wurde geladen!",
-            Time = 5
+            Time = 5,
+            Type = "success"
         })
 
         local MainTab = PepsisWorld:CreateTab({
@@ -34,7 +49,7 @@ library:ShowLoadingScreen({
             Name = "World"
         })
 
-        -- Settings-Tab kommt automatisch (durch "Themeable" oben) und wird immer als letzter Tab angehängt.
+        -- Der Settings-Tab (Configs, Menü-Einstellungen) kommt automatisch durch "Themeable" oben und ist immer der letzte Tab.
 
         local FarmingSection = MainTab:CreateSection({
             Name = "Farming"
@@ -207,6 +222,44 @@ library:ShowLoadingScreen({
             Callback = print
         })
 
+        MiscSection:AddTextbox({
+            Name = "Spielername",
+            Flag = "MiscSection_PlayerName",
+            Placeholder = "Name eingeben...",
+            Callback = print
+        })
+
+        MiscSection:AddLabel({
+            Name = "Labels zeigen einfach Text an."
+        })
+
+        -- Prompt: kleines Auswahl-Fenster mit Knöpfen (Options: Name = Funktion)
+        MiscSection:AddButton({
+            Name = "Prompt öffnen",
+            Callback = function()
+                library:Prompt({
+                    Name = "Bist du sicher?",
+                    Description = "Das ist ein Beispiel für library:Prompt.",
+                    Options = {
+                        Ja = function()
+                            library:Notify({Text = "Du hast Ja gewählt.", Time = 3, Type = "success"})
+                        end,
+                        Nein = function()
+                            library:Notify({Text = "Du hast Nein gewählt.", Time = 3, Type = "error"})
+                        end
+                    }
+                })
+            end
+        })
+
+        -- Colorpicker stehen immer GANZ UNTEN in der Gruppe
+        MiscSection:AddColorpicker({
+            Name = "Beispiel-Farbe",
+            Flag = "MiscSection_ExampleColor",
+            Value = Color3.fromRGB(168, 85, 247),
+            Callback = print
+        })
+
         local FunSection = MainTab:CreateSection({
             Name = "Fun Cosmetics"
         })
@@ -334,7 +387,6 @@ library:ShowLoadingScreen({
             Callback = print
         })
 
-        -- ESP-Tab (noch ohne Beispiel-Elemente, wie gewünscht bleibt alles Beispielhafte nur in "Main")
         local ESPSection = ESPTab:CreateSection({
             Name = "ESP"
         })
@@ -343,7 +395,6 @@ library:ShowLoadingScreen({
             Name = "Kommt bald..."
         })
 
-        -- World-Tab (noch ohne Beispiel-Elemente, wie gewünscht bleibt alles Beispielhafte nur in "Main")
         local WorldSection = WorldTab:CreateSection({
             Name = "World"
         })
@@ -353,9 +404,7 @@ library:ShowLoadingScreen({
         })
     end,
 
-    -- ✅ Bei "No" wird nichts davon oben ausgeführt (OnAccept läuft dann einfach nie),
-    -- es existiert also kein Window/keine Tabs/Sections/Toggles usw. - nichts zum Aufräumen.
-    -- Falls der Executor hier zusätzlich das komplette Script beenden soll, kann das hier passieren:
+    -- Bei "No" läuft OnAccept nie: es wird kein Window, Tab oder Element erstellt.
     OnDecline = function()
         print("[D3v1lHub] Laden abgebrochen - es wurde nichts erstellt.")
         -- Optional, falls gewünscht: das ganze Script danach hart beenden

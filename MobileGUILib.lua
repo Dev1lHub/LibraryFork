@@ -1,5 +1,3 @@
--- D3v1lHub Library - MOBILE-Version (MobileGUILib.lua), schlank: unter 3200 Zeilen, Menü baut sich schrittweise auf
--- Wird vom Loader (D3v1lLoader.lua) automatisch auf Handys/Tablets geladen. Schneller/langsamer: library.MobileBuildDelay / MobileBuildBatch
 math.randomseed(tick())
 local function generateRandomName()
 	local chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -59,24 +57,24 @@ local library = {
 		easingDirection = Enum.EasingDirection.Out
 	},
 colors = {
-        main = Color3.fromRGB(168, 85, 247),          -- Kräftiges Anime-Neon-Lila (Akzente)
-        background = Color3.fromRGB(18, 16, 24),        -- Sehr dunkles, leicht violettes Schwarz (Hintergrund)
-        outerBorder = Color3.fromRGB(10, 8, 15),        -- Tiefer, dunkler äußerer Rahmen
-        innerBorder = Color3.fromRGB(59, 43, 76),       -- Dezenter lila-grauer innerer Rahmen
-        topGradient = Color3.fromRGB(28, 24, 38),       -- Oberer Farbverlauf (dunkles Lila-Grau)
-        bottomGradient = Color3.fromRGB(20, 17, 27),    -- Unterer Farbverlauf
-        sectionBackground = Color3.fromRGB(24, 21, 33), -- Sektions-Hintergrund
-        section = Color3.fromRGB(216, 180, 254),        -- Helles Lavendel für Sektions-Titel
-        otherElementText = Color3.fromRGB(156, 145, 175),-- Gedimmter Text
-        elementText = Color3.fromRGB(230, 220, 245),    -- Haupttext (klar und gut lesbar)
-        elementBorder = Color3.fromRGB(12, 10, 18),     -- Element-Rahmen
-        selectedOption = Color3.fromRGB(50, 38, 70),    -- Ausgewählte Option (sattes Lila)
-        unselectedOption = Color3.fromRGB(24, 21, 33),  -- Nicht ausgewählte Option
-        hoveredOptionTop = Color3.fromRGB(70, 52, 98),  -- Hover-Effekt (helleres Lila, oben)
-        unhoveredOptionTop = Color3.fromRGB(38, 32, 52),-- Standard oben
-        hoveredOptionBottom = Color3.fromRGB(55, 40, 78),-- Hover-Effekt (unten)
-        unhoveredOptionBottom = Color3.fromRGB(28, 23, 38),-- Standard unten
-        tabText = Color3.fromRGB(200, 190, 220)       -- Tab-Textfarbe
+        main = Color3.fromRGB(168, 85, 247),
+        background = Color3.fromRGB(18, 16, 24),
+        outerBorder = Color3.fromRGB(10, 8, 15),
+        innerBorder = Color3.fromRGB(59, 43, 76),
+        topGradient = Color3.fromRGB(28, 24, 38),
+        bottomGradient = Color3.fromRGB(20, 17, 27),
+        sectionBackground = Color3.fromRGB(24, 21, 33),
+        section = Color3.fromRGB(216, 180, 254),
+        otherElementText = Color3.fromRGB(156, 145, 175),
+        elementText = Color3.fromRGB(230, 220, 245),
+        elementBorder = Color3.fromRGB(12, 10, 18),
+        selectedOption = Color3.fromRGB(50, 38, 70),
+        unselectedOption = Color3.fromRGB(24, 21, 33),
+        hoveredOptionTop = Color3.fromRGB(70, 52, 98),
+        unhoveredOptionTop = Color3.fromRGB(38, 32, 52),
+        hoveredOptionBottom = Color3.fromRGB(55, 40, 78),
+        unhoveredOptionBottom = Color3.fromRGB(28, 23, 38),
+        tabText = Color3.fromRGB(200, 190, 220)
     },
 	gui_parent = (function()
 		local x, c = pcall(function() return game:GetService("CoreGui") end)
@@ -635,7 +633,7 @@ function DebugLog:Add(text)
 	local stamp = string.format("[%7.2f] ", os.clock() - (self.StartClock or os.clock()))
 	self.Lines[1 + #self.Lines] = stamp .. tostring(text)
 	while #self.Lines > self.MaxLines do
-		table.remove(self.Lines, 2) -- Zeile 1 (Kopf mit Gerät/Executor) bleibt immer erhalten
+		table.remove(self.Lines, 2)
 	end
 end
 function DebugLog:Start()
@@ -667,7 +665,7 @@ function DebugLog:Start()
 				self.Lines[#self.Lines] = string.format("[%7.2f] ", os.clock() - self.StartClock) .. text .. " (x" .. self.LastErrorCount .. ")"
 			else
 				if self.ErrorLines >= 150 then
-					return -- nicht endlos Fehler sammeln
+					return
 				end
 				self.ErrorLines = self.ErrorLines + 1
 				self.LastError, self.LastErrorCount = text, 1
@@ -692,7 +690,7 @@ function DebugLog:Start()
 			pcall(function() fps = tostring(math.floor(1 / renderStepped:Wait())) end)
 			pcall(function() if library.MainScreenGui then objects = tostring(#library.MainScreenGui:GetDescendants()) end end)
 			pcall(function() signals = tostring(#library.signals) end)
-			self.LastError = nil -- Statuszeile trennt Fehler-Gruppen
+			self.LastError = nil
 			self:Add(string.format("Status: Speicher %s | Lua %s | FPS %s | GUI-Objekte %s | Verbindungen %s", mem, lua, fps, objects, signals))
 			self:Flush()
 		end
@@ -712,15 +710,13 @@ function library:ShowLoadingScreen(options)
 	local onAccept = options.OnAccept or options.Callback
 	local onDecline = options.OnDecline
 	local soundService = game:GetService("SoundService")
-	-- Gleiche Transparenz wie das Hintergrundbild im Hauptmenü (Slider "Image Transparency",
-	-- Standard 50%). Vorher 0.3 -> Bild zu hell, HWID-Text schlecht lesbar
+
 	local backgroundTransparency = tonumber(options.BackgroundTransparency)
 	if not backgroundTransparency then
 		local menuValue = tonumber(library_flags["__Designer.Background.ImageTransparency"])
 		backgroundTransparency = (menuValue and math.clamp(menuValue / 100, 0, 1)) or 0.5
 	end
-	-- Hintergrundbild (gleiches Bild wie im Menü). Eigenes Bild per BackgroundAsset = "rbxassetid://...",
-	-- ausschalten per BackgroundAsset = false
+
 	local backgroundAsset = options.BackgroundAsset
 	if backgroundAsset == nil then
 		backgroundAsset = "rbxassetid://133158046147209"
@@ -1065,7 +1061,7 @@ function library:ShowLoadingScreen(options)
 			HwidStaticLabel.ZIndex = 303
 			HwidStaticLabel.Text = "Your HWID: "
 			HwidStaticLabel.Parent = LoadInnerFrame
-			addTextStroke(HwidStaticLabel, 1) -- dünne schwarze Umrandung, damit der Text auf dem Bild lesbar bleibt
+			addTextStroke(HwidStaticLabel, 1)
 
 			HwidContainer = Instance.new("Frame")
 			HwidContainer.Name = generateRandomName()
@@ -1176,8 +1172,6 @@ function library:ShowLoadingScreen(options)
 			closeLoad.Completed:Wait()
 			LoadGui:Destroy()
 
-			-- ✅ Statt eines fremden loadstring(HttpGet(...))() geht's hier einfach ganz normal weiter,
-			-- wie es vorher (ohne Loader) direkt der Fall war - z.B. CreateWindow(...) usw.
 			pcall(DebugLog.Mark, DebugLog, "Loader fertig -> OnAccept (Menü wird aufgebaut)")
 			if onAccept then
 				task.spawn(onAccept)
@@ -1185,8 +1179,6 @@ function library:ShowLoadingScreen(options)
 		end)
 	end
 
-	-- Nur EINE Entscheidung zählen: ein Doppeltipp (auf Handys sehr häufig) hat vorher alles
-	-- zweimal gestartet -> zwei Fenster gleichzeitig -> Script abgestürzt.
 	local promptDecided = false
 	YesBtn.MouseButton1Click:Connect(function()
 		if promptDecided then
@@ -1238,7 +1230,7 @@ local floor = math.floor
 local function Color3ToHex(color)
 	local function channel(v)
 		if type(v) ~= "number" or v ~= v then
-			return 0 -- NaN -> schwarz statt Fehler
+			return 0
 		end
 		return math.clamp(floor(v * 255 + 0.5), 0, 255)
 	end
@@ -2638,7 +2630,7 @@ do
 					local valueLabel = label(valueBox, {Position = UDim2.fromOffset(8, 0), Size = UDim2.new(1, -30, 1, 0), TextSize = 12, TextColor3 = C("otherElementText")})
 					label(valueBox, {AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -8, 0, 0), Size = UDim2.new(0, 14, 1, 0), TextXAlignment = Enum.TextXAlignment.Right, TextSize = 11, TextColor3 = C("main"), Text = "▼"})
 					local element
-					local overlayRebuild = nil -- gesetzt, solange die Liste dieses Dropdowns offen ist
+					local overlayRebuild = nil
 					local function displayText()
 						local v = library_flags[flag]
 						if multi then

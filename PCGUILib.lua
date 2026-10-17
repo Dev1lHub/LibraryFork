@@ -1,468 +1,3 @@
---[[ Pepsi's UI Library
-Better and updated web-based docs are planned in distant future.
-Library v0.36 [
-    CreateWindow: Function (
-        (table | nil) Options [
-            (string | nil) Name = "Window Name"
-            (JSON | nil) DefaultTheme/Theme = "[...]"
-            (boolean | nil) Themeable/DefaultTheme/Theme = true or false | Options [
-                (string | number | nil) Image = "rbxassetid://7483871523" | 7483871523
-                (boolean | nil) Credit = true or false // You're removing my credits? Kinda hurts.
-                (string | table | nil) Info = "Extra info displayed in designer" | Lines ["line 1", "line 2", "line 3", "and so on..."]
-				(string | number | table | nil) Background/Backdrop/Grahpic = "rbxassetid://13337" | 13337 | Options [
-					(string | number | nil) 1/Asset = "rbxassetid://13337" | 13337
-					(number | nil) 2/Transparency = 0.5 | 50 // Both examples will make the backdrop half visible
-					(boolean | number | nil) 3/Visible = true or false | 1 or 0 // 1: true, 0: false
-				]
-            ]
-        ]
-    ) -> Window [
-        CreateTab: Function (
-            (table | nil) Options [
-                (string | nil) Name = "Tab Name"
-                (string | number | nil) Image = "rbxassetid://133337" | 133337
-            ]
-        ) -> Tab [
-            CreateSection: Function (
-                (table) Options [
-                    (string | nil) Name = "Section Name"
-                    (string | nil) Side = "Left" or "Right"
-                ]
-            ) -> Section [
-                AddLabel: Function (
-                    (table) Options [
-                        (string | nil) Text/Value/Name = "Label Text"
-                        (string | nil) Flag = "FlagName"
-                        (any) UnloadValue = UnloadValue
-                        (function | nil) UnloadFunc = Function
-                    ]
-                ) -> Label [
-                    Options: Table
-                    Name: String
-                    Type: String
-                    Default: String
-                    Parent: Section
-                    Instance: Instance
-                    Set: Function (NewText) -> NewText
-					RawSet: Function (NewText) -> NewText // Same function as Set. For backwards compatibility.
-                    Reset: Function -> DefaultText
-                    Get: Function -> CurrentText
-					Update: Function -> CurrentText // Same function as Get, exists for compat.
-                ]
-                AddToggle: Function (
-                    (table) Options [
-                        (string) Name = "Toggle Name"
-                        (boolean | nil) Value/Enabled = true or false
-                        (function | nil) Callback = Function (NewValue, OldValue)
-                        (string | nil) Flag = "FlagName"
-                        (table | nil) Location = Table
-                        (string | nil) LocationFlag = "LocationFlag"
-                        (any) UnloadValue = UnloadValue
-                        (function | nil) UnloadFunc = Function
-                        (boolean | nil) Locked = true or false
-                        (table | boolean | EnumItem | nil) Keybind/Key/KeyBind = Keybind [
-                            (string | nil) Flag = "ToggleKeybindFlag"
-                            (EnumItem | nil) Value = Enum.KeyCode.F
-                            (function | nil) Callback = Function (NewValue, OldValue)
-                            (function | nil) Pressed = Function
-                            (string | nil) Mode = "Dynamic" or "Hold" or "Toggle"
-                            (number | nil) DynamicTime = 0.65
-                            (table | nil) Location = Table
-                            (string | nil) LocationFlag = "LocationFlag"
-                            (table | nil) KeyNames = Table
-                        ]
-                        (function | nil) Condition = Function (NewValue, LastValue) // Will only allow the toggle state to be changed, if this function returns true
-						(boolean | nil) AllowDuplicateCalls = true or false // Allow the callback to be fired with same value set()
-                    ]
-                ) -> ToggleInfo [
-                    Options: Table
-                    Type: String
-                    Name: String
-                    Default: Boolean
-                    Parent: Section
-                    Instance: Instance
-                    SetLocked: Function (LockedState) -> LockState
-                    Unlock: function
-                    Lock: Function
-                    Update: Function -> CurrentValue
-                    Set: Function (NewValue) -> NewValue
-                    RawSet: Function (NewValue, Condition) -> NewValue // Sets the flag without firing the callback
-                    Reset: Function -> DefaultText
-                    Get: Function -> CurrentValue
-                    SetCondition: Function (NewCondition) -> NewCondition
-                ]
-                AddTextbox: Function (
-                    (table) Options [
-                        (string) Name = "Textbox Name"
-                        (string | number) Value = "String" or 1337
-                        (function | nil) Callback = Function (NewValue, OldValue)
-                        (string | nil) Flag = "FlagName"
-                        (table | nil) Location = Table
-                        (string | nil) LocationFlag = "LocationFlag"
-                        (any) UnloadValue = UnloadValue
-                        (function | nil) UnloadFunc = Function
-                        (string | nil) Placeholder = "Text to display by default"
-                        (string | nil) Type = "number"
-                        (number | nil) Min = 0
-                        (number | nil) Max = 100
-                        (number | nil) Decimals/Precision/Precise = 2
-                        (boolean | nil) Hex = true or false
-                        (boolean | nil) Binary = true or false
-                        (number | nil) Base = 10
-                        (boolean | nil) Rich/RichText/RichTextBox = true or false
-                        (boolean | nil) Lines/MultiLine = true or false
-                        (boolean | nil) Scaled/TextScaled = true or false
-                        (EnumItem | nil) Font/TextFont = Enum.Font.Code
-                        (function | nil) PreFormat = Function (Value)
-                        (function | nil) PostFormat = Function (Value)
-                        (table | nil) CustomProperties = Properties [
-                        	TextTruncate = Enum.TextTruncate.None
-                        ]
-						(boolean | nil) AllowDuplicateCalls = true or false // Allow the callback to be fired with same value set()
-                    ]
-                ) -> Textbox [
-                    Options: Table
-                    Name: String
-                    Type: String
-                    Default: String/Number
-                    Parent: Section
-                    Instance: Textbox
-                    Update: Function -> CurrentValue
-                    Set: Function (NewValue) -> NewValue
-					RawSet: Function (NewValue) -> NewValue // Sets the flag without firing the callback
-                    Reset: Function -> DefaultText
-                    Get: Function -> CurrentValue
-                ]
-                AddSlider: Function (
-                    (table) Options [
-                        (string) Name = "Slider Name"
-                        (number | nil) Value = 0
-                        (function | nil) Callback = Function (Value, OldValue)
-                        (string | nil) Flag = "FlagName"
-                        (table | nil) Location = Table
-                        (string | nil) LocationFlag = "LocationFlag"
-                        (any) UnloadValue = UnloadValue
-                        (function | nil) UnloadFunc = Function
-                        (number) Min = 0
-                        (number) Max = 100
-                        (number | nil) Decimals/Precision/Precise = 2
-                        (string | function | nil) Format = "Value %s" | Function (Value, LastValue)
-                        (boolean | nil) IllegalInput = true or false // Allow textbox to break min & max limits
-                        (boolean | table | nil) Textbox/InputBox/CustomInput = true | Options [
-                            (boolean | nil) Hex = true or false
-                            (boolean | nil) Binary = true or false
-                            (number | nil) Base = 10
-                            (function | nil) PreFormat = Function (Value)
-                            (function | nil) PostFormat = Function (Value)
-                            (boolean | nil) IllegalInput = true or false // Allow textbox to break min & max limits
-                        ]
-						(boolean | nil) AllowDuplicateCalls = true or false // Allow the callback to be fired with same value set()
-                    ]
-                ) -> Slider [
-                    Options: Table
-                    Name: String
-                    Type: String
-                    Default: Number
-                    Parent: Section
-                    Instance: Instance
-                    Update: Function (FromValue) -> CurrentValue
-                    Set: Function (NewValue) -> NewValue
-                	RawSet: Function (NewValue) -> NewValue // Changes value without firing callback
-                    Reset: Function -> DefaultText
-                    Get: Function -> CurrentValue
-                    SetConstraints: Function (NewMin, NewMax)
-                    SetMin: Function (NewMin)
-                    SetMax: Function (NewMax)
-                ]
-                AddButton: Function (
-                    (table) Options [
-                        (string) Name = "Button Name"
-                        (function | nil) Callback = Function (NumPresses)
-						(boolean | nil) Locked = true or false
-						(function | nil) Condition = Function (NumPresses) // Will only allow the button to be pressed, if this function returns true
-                    ]
-                    (table | nil) Options ...
-                ) -> Buttons [
-                    Options: Table
-                    Name: String
-                    Type: String
-                    Parent: Section
-                    Instance: Instance
-                    Update: Function -> ButtonName
-                    Press: Function (...)
-                    SetLocked: Function (LockedState) -> LockState
-                    Unlock: function
-                    Lock: Function
-					SetCondition: Function(NewCondition) -> NewCondition
-					RawPress: Function (...) // Does not update press count
-                    Get: Function -> Callback, NumPresses
-					SetText: Function (NewText) -> NewText
-					SetCallback: Function (NewCallback) -> NewCallback
-                ]
-                AddKeybind: Function (
-                    (table) Options [
-                        (string) Name = "Keybind Name"
-                        (EnumItem | nil) Value = Enum.KeyCode.F
-                        (function | nil) Callback = Function (NewValue, OldValue)
-                        (string | nil) Flag = "FlagName"
-                        (table | nil) Location = Table
-                        (string | nil) LocationFlag = "LocationFlag"
-                        (any) UnloadValue = UnloadValue
-                        (function | nil) UnloadFunc = Function
-                        (function | nil) Pressed = Function (InputObject, GameProcessed)
-                        (table | nil) KeyNames = Table
-						(boolean | nil) AllowDuplicateCalls = true or false // Allow the callback to be fired with same value set()
-                    ]
-                ) -> Keybind [
-                    Options: Table
-                    Name: String
-                    Type: String
-                    Parent: Section
-                    Instance: Instance
-                    Update: Function
-                    Set: Function (NewValue) -> NewValue
-                    Reset: Function -> DefaultText
-                    Get: Function -> CurrentValue
-                ]
-                AddDropdown: Function (
-                    (table) Options [
-                        (string) Name = "Dropdown Name"
-                        (any) Value = Value
-                        (function | nil) Callback = Function (NewValue, LastValue)
-                        (string | nil) Flag = "FlagName"
-                        (table | nil) Location = Table
-                        (string | nil) LocationFlag = "LocationFlag"
-                        (any) UnloadValue = UnloadValue
-                        (function | nil) UnloadFunc = Function
-                        (table | Instance | Enum | function) List = Table | workspace | Enum.Font | Function () -> New List
-                        (string | function | table | nil) Filter = "StringToMatch" | Function (ValueToCheck) | Table [
-                            (boolean | nil) [0] = InverseBool
-                            (any) [1] ... = "StringToMatch" | Enum.Font.Code/ValuesToMatch
-                        ]
-                        (string | function | table | nil) Method = "GetDescendants" | workspace.GetDescendants | Parameters [
-                        	(string | function) [1/Method] = "GetFriendsOnline" | Player.GetFriendsOnline
-                        	(any) [1/2/Args/Arguments] ... = 50
-                        ]
-                        (string | nil) BlankValue/NoValueString/Nothing = "No Selection"
-                        (boolean | function | nil) Sort = true or false | Function
-                        (boolean | string | nil) Multi/Multiple/MultiSelect = true or false | "Text to display"
-                        (function | nil) ItemAdded/AddedCallback = Function (Item, AllItems)
-                        (function | nil) ItemRemoved/RemovedCallback = Function (Item, AllItems)
-                        (function | nil) ItemChanged/ChangedCallback = Function (Item, SelectedState, Items)
-                        (function | nil) ItemsCleared/ClearedCallback = Function (Items, PreviousItems)
-						(EnumItem/Keycode | nil) ScrollUpButton = Enum.KeyCode.Up // Default is Enum.KeyCode.Up
-						(EnumItem/Keycode | nil) ScrollDownButton = Enum.KeyCode.Down // Default is Enum.KeyCode.Down
-						(number | nil) ScrollButtonRate / ScrollRate = 5 // How fast the scroller goes by pressing the scroll buttons
-						(bool | nil) DisablePrecisionScrolling = true or false // Dissallows use of keys to control pan
-						(boolean | nil) AllowDuplicateCalls = true or false // Allow the callback to be fired with same value set()
-                    ]
-                ) -> Dropdown [
-                    Options: Table
-                    Name: String
-                    Type: String
-                    Default: Value
-                    Parent: Section
-                    Instance: Instance
-                    Update: Function
-                    Set: Function (NewValue) -> NewValue
-					RawSet: Function (NewValue) -> NewValue // Sets value without firing callback
-                    Reset: Function -> DefaultValue
-                    Get: Function -> CurrentValue
-                    UpdateList: Function (
-                    	(table | Instance | Enum | function) List = Table | workspace | Enum.Font | Function () -> New List
-                    	(boolean | nil) ValidateValues = true or false | nil // When set to true, will call Validate() on it
-                    ) -> NewList
-                    Validate: Function (
-                    	(any | nil) InvalidValue = "Optional value to be set, if the list's current value is no longer in list"
-                    ) -> IsValidBool
-                ]
-                AddSearchBox: Function (
-                    (table) Options [
-                        (string) Name = "SearchBox Name"
-                        (any) Value = Value
-                        (function | nil) Callback = Function (NewValue, LastValue)
-                        (string | nil) Flag = "FlagName"
-                        (table | nil) Location = Table
-                        (string | nil) LocationFlag = "LocationFlag"
-                        (any) UnloadValue = UnloadValue
-                        (function | nil) UnloadFunc = Function
-                        (table | Instance | Enum | function) List = Table | workspace | Enum.Font | Function () -> New List
-                        (string | function | table | nil) Filter = "StringToMatch" | Function (ValueToCheck) | Table [
-                            (boolean | nil) [0] = InverseBool
-                            (string | any | nil) [1] ... = "StringToMatch" | Enum.Font.Code
-                        ]
-                        (string | function | table | nil) Method = "GetDescendants" | workspace.GetDescendants | Parameters [
-                        	(string | function) [1/Method] = "GetFriendsOnline" | Player.GetFriendsOnline
-                        	(any) [1/2/Args/Arguments] ... = 50
-                        ]
-                        (boolean | function | nil) Sort = true or false | Function
-                        (string | nil) BlankValue/NoValueString/Nothing = "No Selection"
-                        (boolean | string | nil) Multi/Multiple/MultiSelect = true or false | "Text to display"
-                        (function | nil) ItemAdded/AddedCallback = Function (Item, AllItems)
-                        (function | nil) ItemRemoved/RemovedCallback = Function (Item, AllItems)
-                        (function | nil) ItemChanged/ChangedCallback = Function (Item, SelectedState, Items)
-                        (function | nil) ItemsCleared/ClearedCallback = Function (Items, PreviousItems)
-						(EnumItem/Keycode | nil) ScrollUpButton = Enum.KeyCode.Up // Default is Enum.KeyCode.Up
-						(EnumItem/Keycode | nil) ScrollDownButton = Enum.KeyCode.Down // Default is Enum.KeyCode.Down
-						(number | nil) ScrollButtonRate / ScrollRate = 5 // How fast the scroller goes by pressing the scroll buttons
-						(bool | nil) DisablePrecisionScrolling = true or false // Dissallows use of keys to control pan
-						(boolean | nil) RegEx = true or false // Enables use of %d and %w, etc (False by default)
-						(boolean | nil) AllowDuplicateCalls = true or false // Allow the callback to be fired with same value set()
-                    ]
-                ) -> SearchBox [
-                    Options: Table
-                    Name: String
-                    Type: String
-                    Default: Value
-                    Parent: Section
-                    Instance: Instance
-                    Update: Function
-                    Set: Function (NewValue) -> NewValue
-					RawSet: Function (NewValue) -> NewValue // Sets value without firing callback
-                    Reset: Function -> DefaultValue
-                    Get: Function -> CurrentValue
-                    UpdateList: Function (
-                    	(table | Instance | Enum | function) List = Table | workspace | Enum.Font | Function () -> New List
-                    	(boolean | nil) ValidateValues = true or false | nil // When set to true, will call Validate() on it
-                    ) -> NewList
-                    Validate: Function (
-                    	(any | nil) InvalidValue = "Optional value to be set, if the list's current value is no longer in list"
-                    ) -> IsValidBool
-                ]
-                AddColorpicker: Function (
-                    (table) Options [
-                        (string) Name = "Colorpicker Name"
-                        (string | Color3 | nil) Value = "rainbow" or "random" | Color3.new()
-                        (function | nil) Callback = Function (NewValue, LastValue)
-                        (string | nil) Flag = "FlagName"
-                        (table | nil) Location = Table
-                        (string | nil) LocationFlag = "LocationFlag"
-                        (any) UnloadValue = UnloadValue
-                        (function | nil) UnloadFunc = Function
-                        (boolean | nil) Rainbow = true or false
-                        (boolean | nil) Random = true or false
-						(boolean | nil) AllowDuplicateCalls = true or false // Allow the callback to be fired with same value set()
-                    ]
-                ) -> Colorpicker [
-                    Options: Table
-                    Name: String
-                    Type: String
-                    Default: Color3
-                    Parent: Section
-                    Instance: Instance
-                    Update: Function
-                    Set: Function (NewValue) -> NewValue
-					RawSet: Function (NewValue) -> NewValue // Sets value without firing callback
-                    Reset: Function -> DefaultColor
-                    Get: Function -> CurrentValue
-                    SetRainbow: Function (
-                        (boolean | nil) RainbowMode = true or false
-                    )
-                ]
-                AddPersistence: Function (
-                    (table) Options [
-                        (string) Name = "Persistence Name"
-                        (string | nil) Value = "FileName"
-                        (function | nil) Callback = Function (NewValue, LastValue)
-                        (string | nil) Flag = "FlagName"
-                        (table | nil) Location = Table
-                        (string | nil) LocationFlag = "LocationFlag"
-                        (any) UnloadValue = UnloadValue
-                        (function | nil) UnloadFunc = Function
-                        (string | nil) Workspace = "FolderName"
-                        (boolean | string | number | table | nil) Persistive/Flags = true | "all" | 1 (Window) or 2 (Tab) or 3 (Section) | FlagNames [...]
-                        (string | nil) Suffix = "Mods"
-                        (function | nil) LoadCallback = Function (FilePath, FileName) // 'PreLoad'
-                        (function | nil) SaveCallback = Function (FilePath, FileName)
-                        (function | nil) PostLoadCallback = Function (FilePath, FileName)
-                        (function | nil) PostSaveCallback = Function (FilePath, FileName)
-						(EnumItem/Keycode | nil) ScrollUpButton = Enum.KeyCode.Up // Default is Enum.KeyCode.Up
-						(EnumItem/Keycode | nil) ScrollDownButton = Enum.KeyCode.Down // Default is Enum.KeyCode.Down
-						(number | nil) ScrollButtonRate / ScrollRate = 5 // How fast the scroller goes by pressing the scroll buttons
-						(bool | nil) DisablePrecisionScrolling = true or false // Dissallows use of keys to control pan
-						(boolean | nil) AllowDuplicateCalls = true or false // Allow the callback to be fired with same value set()
-                    ]
-                ) -> Persistence [
-                    Options: Table
-                    Name: String
-                    Type: String
-                    Default: Value
-                    Parent: Section
-                    Instance: Instance
-                    Update: Function
-                    Set: Function (NewValue) -> NewValue
-					RawSet: Function (NewValue) -> NewValue // Sets value without firing callback
-                    Reset: Function -> DefaultFile
-                    Get: Function -> CurrentValue
-					SaveFile: Function (FileName) // Mimics the Save Button with optional file input
-					LoadFile: Function (FileName) // Mimics the Load Button with optional file input
-					LoadJSON: Function (JSON) // Mimics the Load Button with specific json
-					LoadFileRaw: Function (FileName) // Mimics the Load Button with optional file input using Obj:RawSet
-					LoadJSONRaw: Function (JSON) // Mimics the Load Button with specific json using Obj:RawSet
-					GetJSON: Function (Func) // Gets the json, and passes it as the first argument of Func. Set to true to use setclipboard
-                ]
-            ]
-            Flags: Table
-        ]
-        CreateDesigner: Function (
-            (table) Options [
-				(string | number | table | nil) Background/Backdrop/Grahpic = "rbxassetid://13337" | 13337 | Options [
-					(string | number | nil) 1/Asset = "rbxassetid://13337" | 13337
-					(number | nil) 2/Transparency = 0.5 | 50 // Both examples will make the backdrop half visible
-					(boolean | number | nil) 3/Visible = true or false | 1 or 0 // 1: true, 0: false
-				]
-                (string | number | nil) Image = "rbxassetid://7483871523" | 7483871523
-                (string | table | nil) Info = "Extra info displayed in designer" | Lines ["line 1", "line 2", "line 3", "and so on..."]
-                (boolean | nil) Credit = true
-            ]
-        ) -> Designer [
-            Options: Table
-            Parent: Window
-            Name: String
-            Type: String
-            Instance: Instance,
-            SetBackground: Function (
-            	(string | boolean | number | nil) AssetString = "rbxassetid://7483871523" | true or false (as Visible arg) | 7483871523 or transparency (0-100 or 0-1) | nil (Toggle visibility)
-            	(number | boolean | nil) Transparency = 0.7 or 70 | true or false (as Visible arg)
-            	(number | boolean | nil) Visible = true/1 or false/0 | nil (Dont change)
-            )
-        ]
-        MoveTabSlider: Function (
-            (Instance) tabObject = tabVar
-        )
-        GoHome: Function
-        Flags: Table
-    ]
-    Designer: Designer
-    LP: LocalPlayer
-    Players: game.Players
-    Mouse: LP:GetMouse()
-    Unload: Function
-	ResetAll: Function // Resets all elements to their default value
-	SaveFile: Function (FileName) // Only if designer is present; this would save all non-deisgner elements
-	LoadFile: Function (FileName)
-	LoadJSON: Function (JSON)
-	LoadFileRaw: Function (FileName)
-	LoadJSONRaw: Function (JSON)
-	GetJSON: Function (Func)
-	signals: Table // All :connection()'s go in that table, and are disconnected upon unloading the gui. Feel free to add yours here, too
-    (function | nil) UnloadCallback = Function
-	(EnumItem/Keycode | nil) scrollupbutton = Enum.KeyCode.Up // Default is Enum.KeyCode.Up
-	(EnumItem/Keycode | nil) scrolldownbutton = Enum.KeyCode.Down // Default is Enum.KeyCode.Down
-    Subs: Shared Functions [
-		updatecolors: Function // Re-Applys all colors from designer
-		Wait: Function (Time) // Only waits & returns true if the library has not been unloaded
-		removeSpaces: Function (String)
-		Color3ToHex: Function (Color3)
-		Color3FromHex: Function (String/Hex)
-		textToSize: Function (String)
-		Instance_new: Function (Class, Parent) // Automatically protects instances with syn.protect_gui, and adds the instance to library.objects (all objects destroyed when unloading)
-    ]
-]
-]]
--- ============================================================
--- SHARED HELPERS (zufällige 10-Zeichen-Namen zur Verschleierung)
--- ============================================================
 math.randomseed(tick())
 local function generateRandomName()
 	local chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -474,13 +9,11 @@ local function generateRandomName()
 	return name
 end
 
--- Versucht ein ScreenGui bestmöglich zu schützen/zu verstecken (protect_gui -> gethui -> normaler Parent)
--- gibt true zurück, wenn es geschützt geparented wurde, sonst false (dann muss der Aufrufer selbst .Parent setzen)
 local function protectAndParentGui(gui, fallbackParent)
 	local CoreGui = game:GetService("CoreGui")
 	local syn = (typeof(getgenv) == "function" and getgenv().syn) or nil
 	local gethui = (typeof(gethui) == "function" and gethui) or nil
-	
+
 	if syn and syn.protect_gui then
 		local ok = pcall(function()
 			syn.protect_gui(gui)
@@ -490,7 +23,7 @@ local function protectAndParentGui(gui, fallbackParent)
 			return true
 		end
 	end
-	
+
 	if gethui then
 		local ok = pcall(function()
 			gui.Parent = gethui()
@@ -499,14 +32,14 @@ local function protectAndParentGui(gui, fallbackParent)
 			return true
 		end
 	end
-	
+
 	local ok = pcall(function()
 		gui.Parent = CoreGui
 	end)
 	if ok then
 		return true
 	end
-	
+
 	if fallbackParent then
 		pcall(function()
 			gui.Parent = fallbackParent
@@ -515,7 +48,6 @@ local function protectAndParentGui(gui, fallbackParent)
 	return false
 end
 
--- Fügt einer Instanz abgerundete ("smoothe") Ecken hinzu
 local function addCorner(instance, radius)
 	local ok, corner = pcall(function()
 		local c = Instance.new("UICorner")
@@ -529,53 +61,44 @@ local function addCorner(instance, radius)
 	return nil
 end
 
--- ============================================================
--- CURSOR MODULE
--- ============================================================
 local CursorModule = {}
 CursorModule.Toggled = false
-CursorModule.MenuFrame = nil -- wird gesetzt, sobald das Fenster (main) erstellt wurde
+CursorModule.MenuFrame = nil
 
 function CursorModule:Enable()
 	if self.Toggled then
-		return -- läuft bereits, keinen zweiten Loop starten (sonst konkurrierende Zustände)
+		return
 	end
-	
+
 	local UserInputService = game:GetService("UserInputService")
 	local RunService = game:GetService("RunService")
 	local RenderStepped = RunService.RenderStepped
-	
+
 	self.Toggled = true
-	-- Generationszähler: schnelles Aus/An startet eine neue Schleife, die alte beendet sich
-	-- dann selbst, ohne die neue mit abzuschalten
+
 	self.Generation = (self.Generation or 0) + 1
 	local myGeneration = self.Generation
 
 	task.spawn(function()
-		-- Der Cursor ist jetzt ein normales Roblox-GUI statt eines Drawing-Objekts.
-		-- Drawing hängt komplett vom Executor ab: bei manchen (z.B. "Real") werden die
-		-- Dreiecke gar nicht oder hinter dem Menü gezeichnet -> Cursor unsichtbar.
-		-- Ein ScreenGui mit sehr hoher DisplayOrder rendert Roblox selbst, in jedem
-		-- Executor, und immer ÜBER dem Menü.
+
 		local CursorGui = Instance.new("ScreenGui")
 		CursorGui.Name = generateRandomName()
-		CursorGui.IgnoreGuiInset = true -- damit GetMouseLocation() 1:1 zur GUI-Position passt
+		CursorGui.IgnoreGuiInset = true
 		CursorGui.ResetOnSpawn = false
 		CursorGui.DisplayOrder = 999999
 		CursorGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-		
+
 		local CursorImage = Instance.new("ImageLabel")
 		CursorImage.Name = generateRandomName()
 		CursorImage.BackgroundTransparency = 1
-		-- Roblox' eingebauter Pfeil (liegt im Client selbst, muss nicht geladen werden).
-		-- Die Pfeilspitze sitzt genau in der Bildmitte -> AnchorPoint 0.5/0.5
+
 		CursorImage.Image = "rbxasset://textures/Cursors/KeyboardMouse/ArrowFarCursor.png"
 		CursorImage.Size = UDim2.fromOffset(64, 64)
 		CursorImage.AnchorPoint = Vector2.new(0.5, 0.5)
 		CursorImage.ZIndex = 10
 		CursorImage.Visible = false
 		CursorImage.Parent = CursorGui
-		
+
 		if not protectAndParentGui(CursorGui) then
 			local ok = pcall(function()
 				CursorGui.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui", 5)
@@ -588,65 +111,59 @@ function CursorModule:Enable()
 				return
 			end
 		end
-		
+
 		local tickStart = tick()
 		local State = UserInputService.MouseIconEnabled
 		local BehaviorState = UserInputService.MouseBehavior
-		local wasMenuVisible = false -- für Flanken-Erkennung (nur beim Wechsel etwas ändern)
+		local wasMenuVisible = false
 		local colorLightLila = Color3.fromRGB(185, 110, 255)
 		local colorDarkLila = Color3.fromRGB(75, 20, 120)
-		
+
 		while self.Toggled and self.Generation == myGeneration and CursorGui.Parent do
-			-- ✅ NUR ZEIGEN WENN MENU OFFEN IST
+
 			local menuVisible = (CursorModule.MenuFrame and CursorModule.MenuFrame.Parent and CursorModule.MenuFrame.Visible) and true or false
-			
+
 			if menuVisible then
 				if not wasMenuVisible then
-					-- Menu wurde gerade geöffnet → aktuellen Mausstatus (inkl. Shiftlock) jetzt merken,
-					-- BEVOR wir ihn überschreiben, damit wir ihn beim Schließen korrekt wiederherstellen können
+
 					BehaviorState = UserInputService.MouseBehavior
 				end
-				
-				-- ✅ Rechtsklick gehalten → normale Roblox-Kamera-Drehung zulassen (nicht überschreiben)
+
 				local rightMouseHeld = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
 				UserInputService.MouseIconEnabled = false
-				
+
 				if rightMouseHeld then
-					-- Während des Drehens: eigenen Cursor ausblenden und Roblox selbst
-					-- über MouseBehavior entscheiden lassen (üblicherweise LockCenter zum Drehen)
+
 					CursorImage.Visible = false
 				else
-					-- Jeden Frame erzwingen, da z.B. Shiftlock (Roblox's eigener MouseLockController)
-					-- MouseBehavior sonst ständig wieder auf LockCenter zurücksetzt
+
 					if UserInputService.MouseBehavior ~= Enum.MouseBehavior.Default then
 						UserInputService.MouseBehavior = Enum.MouseBehavior.Default
 					end
-					
+
 					local mPos = UserInputService:GetMouseLocation()
 					local timePassed = (tick() - tickStart) * 2
 					local pulse = (math.sin(timePassed) + 1) / 2
-					
+
 					CursorImage.ImageColor3 = colorLightLila:Lerp(colorDarkLila, pulse)
 					CursorImage.Position = UDim2.fromOffset(mPos.X, mPos.Y)
 					CursorImage.Visible = true
 				end
 			else
 				UserInputService.MouseIconEnabled = State
-				
+
 				if wasMenuVisible then
-					-- Menu wurde gerade geschlossen → ursprüngliches Mausverhalten (z.B. Shiftlock/LockCenter) einmalig wiederherstellen
-					-- (danach NICHT mehr jeden Frame erzwingen, sonst kämpft es gegen die normale Kamera-/Shiftlock-Steuerung des Spiels)
+
 					UserInputService.MouseBehavior = BehaviorState
 				end
-				
+
 				CursorImage.Visible = false
 			end
-			
+
 			wasMenuVisible = menuVisible
 			RenderStepped:Wait()
 		end
-		
-		-- nur zurücksetzen, wenn nicht schon eine neuere Cursor-Schleife läuft
+
 		if self.Generation == myGeneration then
 			self.Toggled = false
 			UserInputService.MouseIconEnabled = State
@@ -662,9 +179,6 @@ function CursorModule:Disable()
 	self.Toggled = false
 end
 
--- ============================================================
--- WATERMARK MODULE
--- ============================================================
 local WatermarkModule = {}
 WatermarkModule.WatermarkOuter = nil
 
@@ -674,25 +188,25 @@ function WatermarkModule:Create()
 	local Stats = game:GetService("Stats")
 	local UserInputService = game:GetService("UserInputService")
 	local MarketplaceService = game:GetService("MarketplaceService")
-	
+
 	local syn = (typeof(getgenv) == "function" and getgenv().syn) or nil
 	local gethui = (typeof(gethui) == "function" and gethui) or nil
-	
+
 	local ScreenGui = Instance.new("ScreenGui")
 	ScreenGui.Name = generateRandomName()
 	ScreenGui.IgnoreGuiInset = true
 	ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	
+
 	protectAndParentGui(ScreenGui)
-	
+
 	local MainColor = (self.GetMainColor and self.GetMainColor()) or Color3.fromRGB(168, 85, 247)
-	local TopGradColor = Color3.fromRGB(32, 32, 37) -- grau, noch dunkler
-	local BottomGradColor = Color3.fromRGB(6, 6, 8) -- schwarz
+	local TopGradColor = Color3.fromRGB(32, 32, 37)
+	local BottomGradColor = Color3.fromRGB(6, 6, 8)
 
 	local WatermarkOuter = Instance.new("Frame")
 	WatermarkOuter.Name = generateRandomName()
 	WatermarkOuter.BorderSizePixel = 0
-	WatermarkOuter.Position = UDim2.new(0, 20, 0, 150) -- weiter unten links statt oben
+	WatermarkOuter.Position = UDim2.new(0, 20, 0, 150)
 	WatermarkOuter.Size = UDim2.new(0, 0, 0, 20)
 	WatermarkOuter.AutomaticSize = Enum.AutomaticSize.X
 	WatermarkOuter.ZIndex = 200
@@ -730,7 +244,7 @@ function WatermarkModule:Create()
 	InnerFrame.ZIndex = 202
 	InnerFrame.Parent = WatermarkInner
 	addCorner(InnerFrame, 3)
-	
+
 	local Gradient = Instance.new("UIGradient")
 	Gradient.Name = generateRandomName()
 	Gradient.Color = ColorSequence.new({
@@ -739,7 +253,7 @@ function WatermarkModule:Create()
 	})
 	Gradient.Rotation = 90
 	Gradient.Parent = InnerFrame
-	
+
 	local WatermarkLabel = Instance.new("TextLabel")
 	WatermarkLabel.Name = generateRandomName()
 	WatermarkLabel.Position = UDim2.new(0, 6, 0, 0)
@@ -756,12 +270,12 @@ function WatermarkModule:Create()
 	if self.RegisterColor then
 		self.RegisterColor(WatermarkLabel, "TextColor3")
 	end
-	
+
 	local UIPadding = Instance.new("UIPadding")
 	UIPadding.Name = generateRandomName()
 	UIPadding.PaddingRight = UDim.new(0, 8)
 	UIPadding.Parent = WatermarkLabel
-	
+
 	local gameName = "Unknown Game"
 	pcall(function()
 		local info = MarketplaceService:GetProductInfo(game.PlaceId)
@@ -769,7 +283,7 @@ function WatermarkModule:Create()
 			gameName = info.Name
 		end
 	end)
-	
+
 	local dragging, dragInput, dragStart, startPos
 	WatermarkOuter.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -783,20 +297,20 @@ function WatermarkModule:Create()
 			end)
 		end
 	end)
-	
+
 	WatermarkOuter.InputChanged:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
 			dragInput = input
 		end
 	end)
-	
+
 	UserInputService.InputChanged:Connect(function(input)
 		if input == dragInput and dragging then
 			local delta = input.Position - dragStart
 			WatermarkOuter.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
 		end
 	end)
-	
+
 	task.spawn(function()
 		while task.wait(0.5) do
 			pcall(function()
@@ -806,7 +320,7 @@ function WatermarkModule:Create()
 			end)
 		end
 	end)
-	
+
 	self.WatermarkOuter = WatermarkOuter
 	return WatermarkOuter
 end
@@ -823,9 +337,6 @@ function WatermarkModule:Show()
 	end
 end
 
--- ============================================================
--- KEYBINDS LIST MODULE (listet automatisch alle vergebenen Keybinds auf, Look angelehnt an Linoria)
--- ============================================================
 local KeybindsListModule = {}
 KeybindsListModule.Frame = nil
 KeybindsListModule.Container = nil
@@ -837,18 +348,18 @@ function KeybindsListModule:Create()
 	if self.Frame then
 		return self.Frame
 	end
-	
+
 	local UserInputService = game:GetService("UserInputService")
-	
+
 	local ScreenGui = Instance.new("ScreenGui")
 	ScreenGui.Name = generateRandomName()
 	ScreenGui.IgnoreGuiInset = true
 	ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	
+
 	protectAndParentGui(ScreenGui)
-	
-	local TopGradColor = Color3.fromRGB(32, 32, 37) -- grau, noch dunkler, wie beim Watermark
-	local BottomGradColor = Color3.fromRGB(6, 6, 8) -- schwarz, wie beim Watermark
+
+	local TopGradColor = Color3.fromRGB(32, 32, 37)
+	local BottomGradColor = Color3.fromRGB(6, 6, 8)
 
 	if self.GetMainColor then
 		self.MainColor = self.GetMainColor()
@@ -858,8 +369,8 @@ function KeybindsListModule:Create()
 	Outer.Name = generateRandomName()
 	Outer.AnchorPoint = Vector2.new(0, 0)
 	Outer.BorderSizePixel = 0
-	Outer.Position = UDim2.new(0, 20, 0, 178) -- direkt unter dem Watermark (Position 20,150 + Höhe 20 + Abstand), weiter unten links
-	Outer.Size = UDim2.new(0, 180, 0, 20) -- Höhe wird ab jetzt manuell verwaltet (siehe applyHeight weiter unten), AutomaticSize hat den äußeren Rahmen beim Einklappen nicht mitschrumpfen lassen
+	Outer.Position = UDim2.new(0, 20, 0, 178)
+	Outer.Size = UDim2.new(0, 180, 0, 20)
 	Outer.ZIndex = 300
 	Outer.Visible = false
 	Outer.Parent = ScreenGui
@@ -873,7 +384,6 @@ function KeybindsListModule:Create()
 		OuterStroke.Color = Color3.new(0, 0, 0)
 	end
 
-	-- Ab hier identischer Aufbau wie beim Watermark: Inner (Akzentfarbe als dünner Rahmen) -> GradientFrame (grau/pink Gradient)
 	local Inner = Instance.new("Frame")
 	Inner.Name = generateRandomName()
 	Inner.BackgroundColor3 = self.MainColor
@@ -924,7 +434,6 @@ function KeybindsListModule:Create()
 	Title.ZIndex = 303
 	Title.Parent = GradientFrame
 
-	-- Pfeil zum Ein-/Ausklappen: eingeklappt steht nur noch "Keybinds" da
 	local ToggleArrow = Instance.new("TextButton")
 	ToggleArrow.Name = generateRandomName()
 	ToggleArrow.AnchorPoint = Vector2.new(1, 0.5)
@@ -945,7 +454,6 @@ function KeybindsListModule:Create()
 		self.RegisterColor(ToggleArrow, "TextColor3")
 	end
 
-	-- CollapseWrapper klemmt/animiert die Höhe des Inhalts, damit das Ein-/Ausklappen sanft statt abrupt passiert
 	local CollapseWrapper = Instance.new("Frame")
 	CollapseWrapper.Name = generateRandomName()
 	CollapseWrapper.BackgroundTransparency = 1
@@ -964,10 +472,8 @@ function KeybindsListModule:Create()
 	Container.ZIndex = 303
 	Container.Parent = CollapseWrapper
 
-	-- Der ganze äußere Rahmen (Outer) wird jetzt selbst mitanimiert, nicht nur der Inhalt dahinter -
-	-- vorher schrumpfte nur der Text weg, die Box drumherum blieb gleich groß.
 	local TweenService = game:GetService("TweenService")
-	local BASE_HEIGHT = 20 -- Höhe der Titelzeile allein (eingeklappter Zustand)
+	local BASE_HEIGHT = 20
 	local collapseTween, outerTween = nil, nil
 	local collapsed = false
 	local function applyHeight(height, animate)
@@ -990,15 +496,14 @@ function KeybindsListModule:Create()
 			Outer.Size = outerTarget
 		end
 	end
-	-- Höhe live an den Inhalt anpassen (neue Keybinds können jederzeit über Upsert() dazukommen),
-	-- solange nicht eingeklappt ist; im eingeklappten Zustand bleibt sie bei BASE_HEIGHT
+
 	Container:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
 		if not collapsed then
 			applyHeight(BASE_HEIGHT + Container.AbsoluteSize.Y, false)
 		end
 	end)
 	task.defer(function()
-		-- Startgröße auf die tatsächliche Inhaltshöhe setzen, sobald sie feststeht
+
 		applyHeight(BASE_HEIGHT + Container.AbsoluteSize.Y, false)
 	end)
 	ToggleArrow.MouseButton1Click:Connect(function()
@@ -1018,8 +523,7 @@ function KeybindsListModule:Create()
 	Padding.PaddingLeft = UDim.new(0, 6)
 	Padding.PaddingBottom = UDim.new(0, 4)
 	Padding.Parent = Container
-	
-	-- Draggable (gleiches Muster wie beim Watermark)
+
 	local dragging, dragInput, dragStart, startPos
 	Outer.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -1033,25 +537,25 @@ function KeybindsListModule:Create()
 			end)
 		end
 	end)
-	
+
 	Outer.InputChanged:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
 			dragInput = input
 		end
 	end)
-	
+
 	UserInputService.InputChanged:Connect(function(input)
 		if input == dragInput and dragging then
 			local delta = input.Position - dragStart
 			Outer.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
 		end
 	end)
-	
+
 	self.ScreenGui = ScreenGui
 	self.Frame = Outer
 	self.Container = Container
 	self.Entries = {}
-	
+
 	return Outer
 end
 
@@ -1068,14 +572,13 @@ function KeybindsListModule:Hide()
 	end
 end
 
--- Erstellt oder aktualisiert die Zeile für einen Keybind (id = eindeutiger Flag-Name)
 function KeybindsListModule:Upsert(id, name, keyText)
 	if not self.Frame then
 		self:Create()
 	end
-	
+
 	keyText = keyText or "NONE"
-	
+
 	local entry = self.Entries[id]
 	if not entry then
 		local Row = Instance.new("Frame")
@@ -1090,7 +593,7 @@ function KeybindsListModule:Upsert(id, name, keyText)
 			return n
 		end)()
 		Row.Parent = self.Container
-		
+
 		local Label = Instance.new("TextLabel")
 		Label.BackgroundTransparency = 1
 		Label.Size = UDim2.new(1, 0, 1, 0)
@@ -1100,7 +603,7 @@ function KeybindsListModule:Upsert(id, name, keyText)
 		Label.TextColor3 = self.IdleColor
 		Label.ZIndex = 304
 		Label.Parent = Row
-		
+
 		entry = {
 			Row = Row,
 			Label = Label,
@@ -1108,7 +611,7 @@ function KeybindsListModule:Upsert(id, name, keyText)
 		}
 		self.Entries[id] = entry
 	end
-	
+
 	entry.Name = name
 	entry.KeyText = keyText
 	entry.Label.Text = string.format("[%s] %s", tostring(keyText), tostring(name))
@@ -1116,7 +619,6 @@ function KeybindsListModule:Upsert(id, name, keyText)
 	entry.Label.TextColor3 = entry.Active and self.MainColor or self.IdleColor
 end
 
--- Hebt den Eintrag farblich hervor, solange die zugehörige Funktion aktiv ist
 function KeybindsListModule:SetActive(id, active)
 	local entry = self.Entries[id]
 	if not entry then
@@ -1127,9 +629,6 @@ function KeybindsListModule:SetActive(id, active)
 	entry.Label.TextColor3 = entry.Active and self.MainColor or self.IdleColor
 end
 
--- ============================================================
--- KEYSTROKES MODULE (WASD + SPACE Tastatur-Anzeige, Look angelehnt an Watermark/Keybinds-Liste)
--- ============================================================
 local KeystrokesModule = {}
 KeystrokesModule.ScreenGui = nil
 KeystrokesModule.Holder = nil
@@ -1167,15 +666,12 @@ function KeystrokesModule:Create()
 	Holder.AnchorPoint = Vector2.new(1, 1)
 	Holder.BackgroundTransparency = 1
 	Holder.Active = true
-	Holder.Position = UDim2.new(1, -20, 1, -20) -- unten rechts, gleicher 20px-Abstand wie zuvor unten links
-	Holder.Size = UDim2.fromOffset(150, 171) -- +6px Höhe, damit die W-Taste inkl. Border oben nicht mehr an der CanvasGroup-Kante anliegt (siehe Top-Padding unten)
+	Holder.Position = UDim2.new(1, -20, 1, -20)
+	Holder.Size = UDim2.fromOffset(150, 171)
 	Holder.ZIndex = 300
 	Holder.Visible = true
 	Holder.Parent = ScreenGui
 
-	-- CanvasGroup als Inhalts-Container: erlaubt ein einziges GroupTransparency-Tween fürs Ein-/Ausblenden
-	-- des gesamten Panels, statt jede Taste einzeln faden zu müssen. Deckt exakt das Holder-Rechteck ab
-	-- und ist am gleichen Eck (unten rechts) verankert, damit der Scale-In/Out optisch aus der Ecke wächst.
 	local Content = Instance.new("CanvasGroup")
 	Content.Name = generateRandomName()
 	Content.AnchorPoint = Vector2.new(1, 1)
@@ -1222,7 +718,7 @@ function KeystrokesModule:Create()
 	end)
 
 	local NormalColor = Color3.fromRGB(28, 28, 32)
-	local NormalTextColor = Color3.fromRGB(200, 200, 210) -- gleicher Grauton wie KeybindsListModule.IdleColor
+	local NormalTextColor = Color3.fromRGB(200, 200, 210)
 	local ActiveTextColor = Color3.fromRGB(255, 255, 255)
 
 	local function makeKey(name, text, size, pos)
@@ -1230,11 +726,10 @@ function KeystrokesModule:Create()
 
 		local Outer = Instance.new("Frame")
 		Outer.Name = generateRandomName()
-		Outer.BackgroundColor3 = Color3.fromRGB(6, 6, 8) -- schwarz, wie beim Watermark/Keybinds-Liste
+		Outer.BackgroundColor3 = Color3.fromRGB(6, 6, 8)
 		Outer.BorderSizePixel = 0
 		Outer.Size = UDim2.new(0, outerSizeX, 0, outerSizeY)
-		-- mittig verankert (statt oben-links), damit der UIScale-"Pop" beim Tastendruck symmetrisch
-		-- aus der Mitte wächst statt sich nach unten rechts zu verschieben
+
 		Outer.AnchorPoint = Vector2.new(0.5, 0.5)
 		Outer.Position = UDim2.new(0, pos.X.Offset - 2 + outerSizeX / 2, 0, pos.Y.Offset - 2 + outerSizeY / 2)
 		Outer.ZIndex = 300
@@ -1275,7 +770,7 @@ function KeystrokesModule:Create()
 		KeyStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		KeyStroke.Thickness = 1
 		KeyStroke.Color = self.MainColor
-		KeyStroke.Transparency = 0.5 -- idle: dezent gedimmter Rand, wird beim Tastendruck weggetweent
+		KeyStroke.Transparency = 0.5
 		KeyStroke.Parent = Key
 		if self.RegisterColor then
 			self.RegisterColor(KeyStroke, "Color")
@@ -1284,8 +779,6 @@ function KeystrokesModule:Create()
 		return {Label = Key, Stroke = KeyStroke, Scale = OuterScale, Active = false}
 	end
 
-	-- +6px Top-Padding für alle Tasten (Y-Offset), damit die W-Taste samt Border und dem 1.08x-Scale-"Pop"
-	-- nicht mehr oben von der CanvasGroup (Content) abgeschnitten wird; Holder.Size.Y wurde entsprechend erhöht
 	self.Keys = {
 		W = makeKey("W", "W", UDim2.fromOffset(42, 42), UDim2.fromOffset(54, 6)),
 		A = makeKey("A", "A", UDim2.fromOffset(42, 42), UDim2.fromOffset(4, 56)),
@@ -1302,14 +795,14 @@ function KeystrokesModule:Create()
 
 		on = on and true or false
 		if key.Active == on then
-			return -- wird pro RenderStepped-Frame aufgerufen; ohne diese Sperre würde das Tween jeden Frame neu starten
+			return
 		end
 		key.Active = on
 
 		local targetColor = on and self.MainColor or NormalColor
 		local targetTextColor = on and ActiveTextColor or NormalTextColor
 		local targetStrokeTransparency = on and 0 or 0.5
-		-- kurze, knackige Dauer (0.08-0.12s), damit schnelles WASD-Tippen nicht "hinterherhinkt"
+
 		local feedbackInfo = TweenInfo.new(on and 0.08 or 0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
 		if key.ColorTween then
@@ -1324,9 +817,6 @@ function KeystrokesModule:Create()
 		key.StrokeTween = TweenService:Create(key.Stroke, feedbackInfo, {Transparency = targetStrokeTransparency})
 		key.StrokeTween:Play()
 
-		-- Scale-"Pop": kurz hoch- und wieder runtertweenen. Läuft eine vorherige Pop-Animation noch,
-		-- wird sie sauber abgebrochen (Tween + Completed-Connection), damit sich bei schnellem
-		-- Drücken/Loslassen nichts überlagert oder hängen bleibt.
 		if key.PopConnection then
 			key.PopConnection:Disconnect()
 			key.PopConnection = nil
@@ -1364,7 +854,6 @@ function KeystrokesModule:Create()
 	return Holder
 end
 
--- Ermittelt die Mobile-Bewegungsrichtung (WASD-Äquivalent) relativ zur Kamera
 function KeystrokesModule:GetMobileMovement()
 	local Players = game:GetService("Players")
 	local plr = Players.LocalPlayer
@@ -1402,7 +891,6 @@ function KeystrokesModule:GetMobileMovement()
 	return Vector3.new(move:Dot(right), 0, move:Dot(look))
 end
 
--- Hängt sich an den mobilen Sprung-Button (TouchGui) für das SPACE-Äquivalent auf Mobile
 function KeystrokesModule:SetupJumpButton()
 	if self.JumpButton then
 		return
@@ -1442,7 +930,6 @@ function KeystrokesModule:SetupJumpButton()
 	end)
 end
 
--- Startet die RenderStepped-Abfrage der Tasten (wird nur ausgeführt, solange das Feature sichtbar ist)
 function KeystrokesModule:StartLoop()
 	if self.Connection then
 		return
@@ -1479,7 +966,6 @@ function KeystrokesModule:StartLoop()
 	end)
 end
 
--- Stoppt die RenderStepped-Abfrage, damit im ausgeblendeten Zustand keine Performance verschwendet wird
 function KeystrokesModule:StopLoop()
 	if self.Connection then
 		self.Connection:Disconnect()
@@ -1487,8 +973,6 @@ function KeystrokesModule:StopLoop()
 	end
 end
 
--- Liefert den Easing-Stil des Panel-Fades (angelehnt an das Ein-/Ausblenden der Notify-Popups);
--- wird erst nach Erstellung von "library" via KeystrokesModule.GetEasing gesetzt, daher der Fallback
 function KeystrokesModule:GetPanelEasing()
 	if self.GetEasing then
 		local style, direction = self.GetEasing()
@@ -1553,8 +1037,6 @@ function KeystrokesModule:Hide()
 		self.PanelScaleTween = TweenService:Create(self.ContentScale, info, {Scale = 0.85})
 		self.PanelScaleTween:Play()
 
-		-- Generation-Token (gleiches Prinzip wie makeMarquee): verhindert, dass ein verspätetes
-		-- "jetzt ausblenden" den Holder wieder versteckt, falls zwischenzeitlich erneut Show() kam
 		local generation = self.HideGeneration or 0
 		task.delay(0.2, function()
 			if self.HideGeneration == generation and Holder then
@@ -1583,24 +1065,24 @@ local library = {
 		easingDirection = Enum.EasingDirection.Out
 	},
 colors = {
-        main = Color3.fromRGB(168, 85, 247),          -- Kräftiges Anime-Neon-Lila (Akzente)
-        background = Color3.fromRGB(18, 16, 24),        -- Sehr dunkles, leicht violettes Schwarz (Hintergrund)
-        outerBorder = Color3.fromRGB(10, 8, 15),        -- Tiefer, dunkler äußerer Rahmen
-        innerBorder = Color3.fromRGB(59, 43, 76),       -- Dezenter lila-grauer innerer Rahmen
-        topGradient = Color3.fromRGB(28, 24, 38),       -- Oberer Farbverlauf (dunkles Lila-Grau)
-        bottomGradient = Color3.fromRGB(20, 17, 27),    -- Unterer Farbverlauf
-        sectionBackground = Color3.fromRGB(24, 21, 33), -- Sektions-Hintergrund
-        section = Color3.fromRGB(216, 180, 254),        -- Helles Lavendel für Sektions-Titel
-        otherElementText = Color3.fromRGB(156, 145, 175),-- Gedimmter Text
-        elementText = Color3.fromRGB(230, 220, 245),    -- Haupttext (klar und gut lesbar)
-        elementBorder = Color3.fromRGB(12, 10, 18),     -- Element-Rahmen
-        selectedOption = Color3.fromRGB(50, 38, 70),    -- Ausgewählte Option (sattes Lila)
-        unselectedOption = Color3.fromRGB(24, 21, 33),  -- Nicht ausgewählte Option
-        hoveredOptionTop = Color3.fromRGB(70, 52, 98),  -- Hover-Effekt (helleres Lila, oben)
-        unhoveredOptionTop = Color3.fromRGB(38, 32, 52),-- Standard oben
-        hoveredOptionBottom = Color3.fromRGB(55, 40, 78),-- Hover-Effekt (unten)
-        unhoveredOptionBottom = Color3.fromRGB(28, 23, 38),-- Standard unten
-        tabText = Color3.fromRGB(200, 190, 220)       -- Tab-Textfarbe
+        main = Color3.fromRGB(168, 85, 247),
+        background = Color3.fromRGB(18, 16, 24),
+        outerBorder = Color3.fromRGB(10, 8, 15),
+        innerBorder = Color3.fromRGB(59, 43, 76),
+        topGradient = Color3.fromRGB(28, 24, 38),
+        bottomGradient = Color3.fromRGB(20, 17, 27),
+        sectionBackground = Color3.fromRGB(24, 21, 33),
+        section = Color3.fromRGB(216, 180, 254),
+        otherElementText = Color3.fromRGB(156, 145, 175),
+        elementText = Color3.fromRGB(230, 220, 245),
+        elementBorder = Color3.fromRGB(12, 10, 18),
+        selectedOption = Color3.fromRGB(50, 38, 70),
+        unselectedOption = Color3.fromRGB(24, 21, 33),
+        hoveredOptionTop = Color3.fromRGB(70, 52, 98),
+        unhoveredOptionTop = Color3.fromRGB(38, 32, 52),
+        hoveredOptionBottom = Color3.fromRGB(55, 40, 78),
+        unhoveredOptionBottom = Color3.fromRGB(28, 23, 38),
+        tabText = Color3.fromRGB(200, 190, 220)
     },
 	gui_parent = (function()
 		local x, c = pcall(function()
@@ -1800,8 +1282,7 @@ end
 library.subs.ResolveID = resolveid
 library.resolvercache = resolvercache
 local colored, colors = library.colored, library.colors
--- Watermark & Keybinds-Liste wurden vor "library" definiert und können dessen Farb-System
--- daher nicht direkt referenzieren; wir reichen ihnen hier nachträglich Zugriff durch.
+
 WatermarkModule.GetMainColor = function()
 	return library.colors.main
 end
@@ -1853,9 +1334,9 @@ do
 				local data = colored[DataIndex]
 				data = data and data[1]
 				if data and (typeof(data) == "Instance") and IsDescendantOf(data, game) then
-					-- Instanz existiert noch irgendwo im Spiel (Hauptmenü, Watermark, Keybinds-Liste, Notify usw.) -> behalten
+
 				elseif data and typeof(data) ~= "Instance" then
-					-- Kein Roblox-Instance (z. B. ein internes Modul-Table wie KeybindsListModule.MainColor) -> nie automatisch entfernen
+
 				elseif MayGC <= 0 then
 					RemoveTable(colored, DataIndex)
 				else
@@ -1941,15 +1422,6 @@ library.colors = setmetatable({}, {
 local elements = library.elements
 library.__AllSections = library.__AllSections or {}
 
--- ============================================================
--- SEARCH (filtert Toggles/Slider/Buttons/usw. live nach Namen und blendet
--- alles andere aus; leere Groupboxen werden dabei ebenfalls versteckt)
--- ============================================================
--- Gemeinsames Sichtbarkeits-System für Suche UND Dependency Boxes:
--- ein Element ist sichtbar, wenn (a) seine DependsOn-Bedingung erfüllt ist und
--- (b) keine Suche läuft oder sein Name zur Suche passt. Sections ohne sichtbaren
--- Inhalt werden ausgeblendet. Vorher hat Update() leere Sections bei der Suche
--- sofort wieder eingeblendet.
 library.__SearchQuery = ""
 local function sectionHasVisibleChild(holder)
 	for _, child in next, holder:GetChildren() do
@@ -1964,7 +1436,7 @@ local function updateSectionVisibility()
 		local frame, holder, functions = entry.Frame, entry.Holder, entry.Functions
 		if frame and holder and frame.Parent and functions then
 			if sectionHasVisibleChild(holder) then
-				-- Update() blendet die Section ein und berechnet Größe + Scrollbereich neu
+
 				pcall(functions.Update, functions)
 			elseif frame.Visible then
 				frame.Visible = false
@@ -1977,14 +1449,13 @@ local visibilityRefreshAgain = false
 local function refreshElementVisibility()
 	local query = library.__SearchQuery or ""
 	local searching = query ~= ""
-	-- Erst alle Element-Container verstecken: mehrere Elemente können sich einen
-	-- Container teilen (z.B. mehrere Buttons in einer Reihe) ...
+
 	for _, obj in next, elements do
 		if type(obj) == "table" and obj.Container and obj.Container.Visible then
 			obj.Container.Visible = false
 		end
 	end
-	-- ... und dann jeden Container zeigen, in dem mindestens ein Element sichtbar sein soll
+
 	for _, obj in next, elements do
 		if type(obj) == "table" and obj.Container and not obj.__DepHidden then
 			local show = true
@@ -1997,8 +1468,7 @@ local function refreshElementVisibility()
 			end
 		end
 	end
-	-- Layout-Größen aktualisiert Roblox erst im nächsten Frame -> Sections danach anpassen.
-	-- Mehrere Aufrufe kurz hintereinander werden zu einem Durchlauf zusammengefasst.
+
 	if visibilityRefreshRunning then
 		visibilityRefreshAgain = true
 		return
@@ -2009,7 +1479,7 @@ local function refreshElementVisibility()
 			visibilityRefreshAgain = false
 			task.wait()
 			pcall(updateSectionVisibility)
-			-- zweiter Durchlauf: Scrollbereich der Spalten passt erst, wenn die Sections ihre neue Größe haben
+
 			task.wait()
 			pcall(updateSectionVisibility)
 		until not visibilityRefreshAgain
@@ -2024,18 +1494,7 @@ local function applySearch(query)
 	library.__SearchQuery = query
 	refreshElementVisibility()
 end
--- ============================================================
--- DEPENDENCY BOXES (wie bei Linoria): jedes Element kann per Option
---   DependsOn = "Flag"                          -> sichtbar, wenn der Flag-Wert truthy ist (z.B. Toggle an)
---   DependsOn = {"Flag", Wert}                  -> sichtbar, wenn Flag == Wert (z.B. {"Modus", "Legit"})
---   DependsOn = {{"FlagA", true}, {"FlagB", false}} -> alle Bedingungen müssen stimmen
---   ACHTUNG: {"FlagA", "FlagB"} bedeutet "FlagA hat den Wert 'FlagB'" - mehrere Flags
---   immer verschachtelt angeben: {{"FlagA"}, {"FlagB"}}
---   DependsOn = function(flags) return ... end  -> eigene Bedingung
--- automatisch ein-/ausgeblendet werden. Statt eines Flag-Namens kann auch das
--- zurückgegebene Element-Objekt selbst angegeben werden (z.B. DependsOn = MeinToggle).
--- Die Bedingung kann zur Laufzeit geändert werden: obj.Options.DependsOn = ...
--- ============================================================
+
 local function resolveDependencyFlag(ref)
 	if type(ref) == "table" and ref.Flag ~= nil then
 		return ref.Flag
@@ -2053,7 +1512,7 @@ function evaluateDependency(dep, depth)
 	if t == "function" then
 		local ok, res = pcall(dep, library_flags)
 		if not ok then
-			-- nur einmal pro Bedingung warnen, sonst 20x pro Sekunde
+
 			if not warnedDependencyFns[dep] then
 				warnedDependencyFns[dep] = true
 				warn("[DependsOn] Fehler in der Bedingung:", res)
@@ -2064,7 +1523,7 @@ function evaluateDependency(dep, depth)
 	elseif t == "string" then
 		return library_flags[dep] and true or false
 	elseif t == "table" then
-		-- Ein Element-Objekt oder {Flag = "...", Value = ...}
+
 		if dep.Flag ~= nil then
 			if dep.Value ~= nil then
 				return library_flags[dep.Flag] == dep.Value
@@ -2072,7 +1531,7 @@ function evaluateDependency(dep, depth)
 			return library_flags[dep.Flag] and true or false
 		end
 		local first = dep[1]
-		-- {"Flag", Wert} bzw. {Element, Wert}
+
 		if type(first) == "string" or (type(first) == "table" and first.Flag ~= nil and type(first[1]) == "nil" and dep[2] ~= nil and type(dep[2]) ~= "table") then
 			local flag = resolveDependencyFlag(first)
 			if dep[2] == nil then
@@ -2080,7 +1539,7 @@ function evaluateDependency(dep, depth)
 			end
 			return library_flags[flag] == dep[2]
 		end
-		-- Liste von Bedingungen: alle müssen erfüllt sein
+
 		for _, sub in ipairs(dep) do
 			if not evaluateDependency(sub, depth) then
 				return false
@@ -2113,8 +1572,7 @@ end
 task.spawn(function()
 	local warnedLoopError = false
 	while wait_check(0.05) do
-		-- abgesichert: ein Fehler (z.B. weil sich die Element-Liste während des Durchlaufs
-		-- geändert hat) beendet die Schleife nicht mehr, DependsOn läuft einfach weiter
+
 		local ok, err = pcall(scanDependencies)
 		if not ok and not warnedLoopError then
 			warnedLoopError = true
@@ -2306,8 +1764,7 @@ end) or function(...)
 	return unpack(x)
 end
 library.subs.Instance_new = Instance_new
--- Laufschrift/Marquee: wenn ein Text-Label breiter ist als der ihm zugewiesene Platz,
--- wird der Text stattdessen in einer geclippten Box hin und her animiert statt zu überlappen/umzubrechen.
+
 local function makeMarquee(headline)
 	local originalPosition = headline.Position
 	local originalSize = headline.Size
@@ -2315,12 +1772,12 @@ local function makeMarquee(headline)
 	wrapper.Name = generateRandomName()
 	wrapper.BackgroundTransparency = 1
 	wrapper.ClipsDescendants = true
-	-- Y um 8px vergrößern (und mittig ausgleichen), damit Unterlängen wie g/y/p nicht abgeschnitten werden
+
 	wrapper.Position = UDim2.new(originalPosition.X.Scale, originalPosition.X.Offset, originalPosition.Y.Scale, originalPosition.Y.Offset - 4)
 	wrapper.Size = UDim2.new(originalSize.X.Scale, originalSize.X.Offset, originalSize.Y.Scale, originalSize.Y.Offset + 8)
 	wrapper.AnchorPoint = headline.AnchorPoint
 	wrapper.ZIndex = headline.ZIndex
-	wrapper.LayoutOrder = headline.LayoutOrder -- wichtig, falls der Parent (z.B. titleBar) eine UIListLayout benutzt
+	wrapper.LayoutOrder = headline.LayoutOrder
 	wrapper.Parent = headline.Parent
 	headline.Parent = wrapper
 	headline.AnchorPoint = Vector2.new(0, 0.5)
@@ -2342,11 +1799,11 @@ local function makeMarquee(headline)
 			if generation ~= myGeneration then
 				return
 			end
-			-- +2px: das rechte Ende des Texts verschwindet schon 2px bevor es den echten Rand erreicht, nur auf der rechten Seite
+
 			local overflow = (headline.AbsoluteSize.X - wrapper.AbsoluteSize.X) + 2
 			if overflow > 2 then
 				local duration = math.clamp(overflow / 30, 1.5, 8)
-				-- Ablauf: 2 Sek. warten -> hin scrollen -> 2 Sek. warten -> zurück scrollen -> wiederholen
+
 				task.spawn(function()
 					while generation == myGeneration do
 						task.wait(2)
@@ -2524,12 +1981,7 @@ do
 	end
 end
 library.subs.textToSize = textToSize
--- ============================================================
--- Linoria-Feature-Port: Tooltip-System (AddToolTip)
--- Zeigt eine kleine schwebende Box neben dem Mauszeiger, sobald man
--- über HoverInstance hovert. DisabledInfoStr wird stattdessen gezeigt,
--- wenn TooltipTable.Disabled == true ist (z.B. bei gesperrten/deaktivierten Elementen).
--- ============================================================
+
 local Tooltips = {}
 function library:AddToolTip(InfoStr, DisabledInfoStr, HoverInstance)
 	InfoStr = (typeof(InfoStr) == "string" and InfoStr ~= "" and InfoStr) or nil
@@ -2658,30 +2110,19 @@ function library:AddToolTip(InfoStr, DisabledInfoStr, HoverInstance)
 	return TooltipTable
 end
 library.subs.AddToolTip = library.AddToolTip
--- ============================================================
--- Loading-Screen / Execute-Prompt (Linoria-Style-Port vom Nutzer)
--- Zeigt zuerst ein Yes/No-Prompt, dann (bei Yes) einen Ladebildschirm
--- mit Avatar/HWID/Progressbar, und ruft danach options.OnAccept() auf,
--- damit genau an der Stelle ganz normal wie vorher weitergemacht wird
--- (z.B. library:CreateWindow(...) usw.), statt wie im Original ein
--- rbxassetid-fremdes loadstring(HttpGet(...))() nachzuladen.
--- Läuft komplett über protectAndParentGui/generateRandomName der Lib,
--- macht also KEINE eigenen, ungesicherten GUI-Parentings.
--- ============================================================
+
 function library:ShowLoadingScreen(options)
 	options = options or {}
 	local onAccept = options.OnAccept or options.Callback
 	local onDecline = options.OnDecline
 	local soundService = game:GetService("SoundService")
-	-- Gleiche Transparenz wie das Hintergrundbild im Hauptmenü (Slider "Image Transparency",
-	-- Standard 50%). Vorher 0.3 -> Bild zu hell, HWID-Text schlecht lesbar
+
 	local backgroundTransparency = tonumber(options.BackgroundTransparency)
 	if not backgroundTransparency then
 		local menuValue = tonumber(library_flags["__Designer.Background.ImageTransparency"])
 		backgroundTransparency = (menuValue and math.clamp(menuValue / 100, 0, 1)) or 0.5
 	end
-	-- Hintergrundbild (gleiches Bild wie im Menü). Eigenes Bild per BackgroundAsset = "rbxassetid://...",
-	-- ausschalten per BackgroundAsset = false
+
 	local backgroundAsset = options.BackgroundAsset
 	if backgroundAsset == nil then
 		backgroundAsset = "rbxassetid://133158046147209"
@@ -3026,7 +2467,7 @@ function library:ShowLoadingScreen(options)
 			HwidStaticLabel.ZIndex = 303
 			HwidStaticLabel.Text = "Your HWID: "
 			HwidStaticLabel.Parent = LoadInnerFrame
-			addTextStroke(HwidStaticLabel, 1) -- dünne schwarze Umrandung, damit der Text auf dem Bild lesbar bleibt
+			addTextStroke(HwidStaticLabel, 1)
 
 			HwidContainer = Instance.new("Frame")
 			HwidContainer.Name = generateRandomName()
@@ -3137,8 +2578,6 @@ function library:ShowLoadingScreen(options)
 			closeLoad.Completed:Wait()
 			LoadGui:Destroy()
 
-			-- ✅ Statt eines fremden loadstring(HttpGet(...))() geht's hier einfach ganz normal weiter,
-			-- wie es vorher (ohne Loader) direkt der Fall war - z.B. CreateWindow(...) usw.
 			if onAccept then
 				task.spawn(onAccept)
 			end
@@ -3170,7 +2609,7 @@ local function removeSpaces(str)
 	end
 end
 library.subs.removeSpaces = removeSpaces
--- Gibt bei ungültigem Input nil zurück statt zu crashen (akzeptiert "A855F7", "#a855f7", "0xA855F7", "F0A")
+
 local function Color3FromHex(hex)
 	if typeof(hex) == "Color3" then
 		return hex
@@ -3191,8 +2630,7 @@ local function Color3FromHex(hex)
 end
 library.subs.Color3FromHex = Color3FromHex
 local floor = math.floor
--- Runden statt Abschneiden: vorher wurde z.B. 167.9999 zu 167 -> Farben wurden bei
--- jedem Save/Load-Durchlauf minimal dunkler
+
 local function Color3ToHex(color)
 	local function channel(v)
 		return math.clamp(floor(v * 255 + 0.5), 0, 255)
@@ -3270,8 +2708,7 @@ do
 		local corrections = 0
 		local predname = string_gsub(str, "%W", function(c)
 			local byt = c:byte()
-			-- byt >= 128 = Teil einer UTF-8-Mehrbyte-Sequenz (Umlaute wie ä/ö/ü/ß, Akzente usw.) -> unverändert durchlassen,
-			-- sonst wurden einzelne Bytes dieser Buchstaben rausgefiltert/entfernt und der Config-Name kam beim Save/Load kaputt an
+
 			if ((byt == 0) or (byt == 32) or (byt == 33) or (byt == 59) or (byt == 61) or ((byt >= 35) and (byt <= 41)) or ((byt >= 43) and (byt <= 57)) or ((byt >= 64) and (byt <= 123)) or ((byt >= 125) and (byt <= 127)) or (byt >= 128)) then
 			else
 				corrections = 1 + corrections
@@ -3282,13 +2719,7 @@ do
 	end
 	library.subs.ConvertFilename = convertfilename
 end
--- ============================================================
--- CONFIG-SYSTEM HELPERS (gemeinsam für Save, Load, Delete, Liste, Copy Theme)
--- ============================================================
--- Ein einziger Namens-Filter für ALLES (Speichern, Laden, Löschen, Ordner).
--- Vorher hat Save alle Nicht-Buchstaben (Leerzeichen, _, -, Umlaute) gelöscht,
--- Load aber nicht -> "My Config" wurde als "MyConfig.txt" gespeichert und beim
--- Laden als "My Config.txt" gesucht -> nicht gefunden.
+
 local sanitizeConfigName
 do
 	local reservedNames = {CON = true, PRN = true, AUX = true, NUL = true}
@@ -3323,10 +2754,7 @@ do
 	end
 	library.subs.SanitizeConfigName = sanitizeConfigName
 end
--- Holt aus einem listfiles()-Eintrag nur den reinen Config-Namen, egal ob der
--- Executor "./Ordner/x.txt", "Ordner\x.txt" oder einen absoluten Pfad liefert.
--- Vorher wurde stur eine feste Zeichenanzahl abgeschnitten -> bei manchen
--- Executoren fehlten dadurch vorne Buchstaben im Config-Namen.
+
 local function extractConfigName(path)
 	if type(path) ~= "string" then
 		return nil
@@ -3335,18 +2763,15 @@ local function extractConfigName(path)
 	return string.match(name, "^(.+)%.[Tt][Xx][Tt]$")
 end
 library.subs.ExtractConfigName = extractConfigName
--- Diese Flags werden nie in Configs/Themes gespeichert bzw. daraus geladen:
--- der Workspace-Name bestimmt den Ordner selbst - ein Theme/Config hätte sonst
--- beim Laden still den Ordner gewechselt und deine Configs "verschwanden".
+
 local configIgnoredFlags = {
 	["__Designer.Files.WorkspaceFile"] = true
 }
 library.subs.ConfigIgnoredFlags = configIgnoredFlags
--- Wandelt einen Flag-Wert in etwas JSON-taugliches um.
--- Gibt (true, wert) zurück, oder false, wenn der Wert nicht gespeichert werden soll.
+
 local function serializeFlagValue(cflag, value, elementType)
 	if value == nil then
-		-- Keybinds auf NONE müssen mitgespeichert werden, sonst bleibt beim Laden die alte Taste drin
+
 		if elementType == "Keybind" then
 			return true, "NONE"
 		end
@@ -3383,8 +2808,7 @@ local function serializeFlagValue(cflag, value, elementType)
 	return true, tostring(value)
 end
 library.subs.SerializeFlagValue = serializeFlagValue
--- Wandelt einen geladenen JSON-Wert passend zum Element zurück.
--- Gibt (wert, true) zurück, oder (nil, false), wenn der Wert nicht passt.
+
 local function deserializeFlagValue(val, data)
 	if val == nil then
 		return nil, false
@@ -3423,8 +2847,7 @@ local function deserializeFlagValue(val, data)
 		if type(val) ~= "number" or val ~= val then
 			return nil, false
 		end
-		-- Werte außerhalb von Min/Max (z.B. weil das Script die Grenzen geändert hat)
-		-- wurden vorher stillschweigend ignoriert -> jetzt sauber auf den Bereich begrenzen
+
 		if type(opts.Min) == "number" and type(opts.Max) == "number" and not opts.IllegalInput then
 			val = math.clamp(val, math.min(opts.Min, opts.Max), math.max(opts.Min, opts.Max))
 		end
@@ -3986,7 +3409,7 @@ do
 					end
 					table.remove(Notifications, Index)
 					if Noti.Object then
-						-- ✅ Beim automatischen Ablaufen ebenfalls smooth raustweenen statt hart zerstören (+ Fade-Out)
+
 						local ObjToKill = Noti.Object
 						local FadeList = Noti.FadeParts
 						Noti.Object = nil
@@ -4225,13 +3648,7 @@ do
 			else
 				Popups.Parent = MainScreenGui
 			end
-			-- ✅ Smoothes Rein-Tweenen (Breite wächst von 0 auf Zielgröße + Fade-In)
-			-- Ein Frame warten bevor die Eingangs-Animation startet: sonst kann Roblox bei
-			-- mehreren Notifies die kurz hintereinander/gleichzeitig erstellt werden die
-			-- Start-Werte schon "fertig" rendern bevor der Tween greift -> dadurch poppen
-			-- mittlere Notifies in einem Stapel ohne sichtbare Animation auf, während nur
-			-- die erste/letzte sauber faden. Mit dem Wait bekommt JEDE Notify garantiert
-			-- ihr eigenes Fade-In.
+
 			local progressTween = tweenService:Create(ProgressBar, TweenInfo.new(dur, Enum.EasingStyle.Linear, Enum.EasingDirection.In), {
 				Size = UDim2.new(0, 0, 0, 2)
 			})
@@ -4296,7 +3713,7 @@ do
 							progressTween:Pause()
 						end)
 					end
-					-- ✅ Smoothes Raus-Tweenen statt hartem Destroy (+ Fade-Out)
+
 					task.spawn(function()
 						pcall(function()
 							task.wait()
@@ -4330,8 +3747,7 @@ function library:CreateWindow(options, ...)
 	if windowName and #windowName > 0 and library.WorkspaceName == "D3v1lHub Lib" then
 		library.WorkspaceName = convertfilename(windowName, "D3v1lHub Lib")
 	end
-	-- Anti-Double-Loading: falls die Library (z.B. durch erneutes Ausführen des Skripts) bereits einmal
-	-- geladen wurde, wird die alte Instanz sauber über ihre eigene Unload-Logik entfernt, bevor eine neue entsteht
+
 	if typeof(getgenv) == "function" then
 		local genv = getgenv()
 		if genv.D3v1lHub_ActiveTerminate then
@@ -4361,9 +3777,7 @@ function library:CreateWindow(options, ...)
 	local splitter2 = Instance_new("TextLabel")
 	local execNameLabel = Instance_new("TextLabel")
 	local submenuOpen = nil
-	-- Fuer das automatische Schliessen von offenen Dropdowns/Colorpickern bei Klick ausserhalb
-	-- bzw. beim Schliessen des ganzen Menüs: wird von jedem Dropdown-artigen Element beim
-	-- Oeffnen befuellt (Close-Funktion + Liste der Frames, bei denen ein Klick NICHT schliessen soll)
+
 	local submenuCloseFn = nil
 	local submenuOpenFrames = nil
 	library.globals["__Window" .. options.Name] = {
@@ -4376,14 +3790,14 @@ function library:CreateWindow(options, ...)
 	d3v1lLibrary.ResetOnSpawn = false
 	main.Name = generateRandomName()
 	main.Parent = d3v1lLibrary
-	CursorModule.MenuFrame = main -- damit CursorModule den echten Sichtbarkeits-Status des Menüs kennt
+	CursorModule.MenuFrame = main
 	main.AnchorPoint = Vector2.new(0.5, 0.5)
 	main.BackgroundColor3 = library.colors.background
 	colored[1 + #colored] = {main, "BackgroundColor3", "background"}
 	main.BorderSizePixel = 0
-	main.ClipsDescendants = true -- verhindert, dass Inhalte über die abgerundeten Ecken hinausragen
+	main.ClipsDescendants = true
 	main.Position = UDim2.fromScale(0.5, 0.5)
-	main.Size = UDim2.fromOffset(480, 550) -- Breite wieder etwas größer, damit die Groupboxen mehr Platz haben (Höhe bleibt kompakt)
+	main.Size = UDim2.fromOffset(480, 550)
 	addCorner(main, 8)
 	do
 		local mainStroke = Instance_new("UIStroke")
@@ -4419,7 +3833,7 @@ function library:CreateWindow(options, ...)
 	innerMain.BackgroundColor3 = library.colors.background
 	colored[1 + #colored] = {innerMain, "BackgroundColor3", "background"}
 	innerMain.BorderSizePixel = 0
-	innerMain.ClipsDescendants = true -- Groupboxen/Hintergrundbild etc. bleiben innerhalb der runden Ecken
+	innerMain.ClipsDescendants = true
 	innerMain.Position = UDim2.fromScale(0.5, 0.5)
 	innerMain.Size = UDim2.new(1, -14, 1, -14)
 	addCorner(innerMain, 6)
@@ -4455,7 +3869,7 @@ function library:CreateWindow(options, ...)
 	innerMainHolder.BackgroundColor3 = Color3.new(1, 1, 1)
 	innerMainHolder.BackgroundTransparency = 1
 	innerMainHolder.Position = UDim2.new(0, 8, 0, 50)
-	innerMainHolder.Size = UDim2.new(1, -16, 1, -50) -- gleicher Abstand (8px) links UND rechts, Groupboxen sitzen näher am Fensterrand
+	innerMainHolder.Size = UDim2.new(1, -16, 1, -50)
 	innerBackdrop.Name = generateRandomName()
 	innerBackdrop.Parent = innerMainHolder
 	innerBackdrop.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -4467,7 +3881,7 @@ function library:CreateWindow(options, ...)
 	innerBackdrop.ImageTransparency = (library_flags["__Designer.Background.ImageTransparency"] or 95) / 100
 	innerBackdrop.Image = resolveid(library_flags["__Designer.Background.ImageAssetID"], "__Designer.Background.ImageAssetID") or ""
 	library.Backdrop = innerBackdrop
-	-- Einheitliche Unload-Logik (wird von der Top-Bar UND vom Designer "Terminate GUI"-Button genutzt)
+
 	local function terminateGui()
 		if CursorModule then
 			CursorModule:Disable()
@@ -4504,12 +3918,11 @@ function library:CreateWindow(options, ...)
 		end
 		library.unload()
 	end
-	-- Anti-Double-Loading: diese Instanz als "aktiv" registrieren, damit ein erneutes Laden des Skripts
-	-- sie über terminateGui() sauber entfernen kann, bevor die neue GUI aufgebaut wird
+
 	if typeof(getgenv) == "function" then
 		getgenv().D3v1lHub_ActiveTerminate = terminateGui
 	end
-	-- Neue obere Leiste: Unload-Button | D3v1lHub | Spiel | Executor -------- Search
+
 	local MarketplaceService = game:GetService("MarketplaceService")
 	local currentGameName = "Unknown Game"
 	pcall(function()
@@ -4536,7 +3949,7 @@ function library:CreateWindow(options, ...)
 	end)
 	titleBar.Name = generateRandomName()
 	titleBar.Parent = innerMain
-	titleBar.BackgroundColor3 = library.colors.sectionBackground -- bewusst anders als die Tabs-Leiste (kein Gradient-Look), damit beide Leisten sich unterscheiden
+	titleBar.BackgroundColor3 = library.colors.sectionBackground
 	colored[1 + #colored] = {titleBar, "BackgroundColor3", "sectionBackground"}
 	titleBar.BorderSizePixel = 0
 	titleBar.Position = UDim2.fromOffset(1, 1)
@@ -4588,7 +4001,7 @@ function library:CreateWindow(options, ...)
 	headline.Text = (windowName and tostring(windowName)) or "???"
 	headline.TextColor3 = library.colors.main
 	colored[1 + #colored] = {headline, "TextColor3", "main"}
-	headline.TextSize = 15 -- etwas größer als der Tab-Text, damit sich Titel- und Tableiste unterscheiden
+	headline.TextSize = 15
 	headline.TextStrokeColor3 = library.colors.outerBorder
 	colored[1 + #colored] = {headline, "TextStrokeColor3", "outerBorder"}
 	headline.TextStrokeTransparency = 0.75
@@ -4621,7 +4034,7 @@ function library:CreateWindow(options, ...)
 	colored[1 + #colored] = {gameNameLabel, "TextStrokeColor3", "outerBorder"}
 	gameNameLabel.TextStrokeTransparency = 0.75
 	gameNameLabel.Size = UDim2:new(math.min(textToSize(gameNameLabel).X + 4, 90), 1)
-	makeMarquee(gameNameLabel) -- falls der Spielname zu lang ist, läuft er als Laufschrift statt die Titelleiste zu sprengen
+	makeMarquee(gameNameLabel)
 	splitter2.Name = generateRandomName()
 	splitter2.Parent = titleBar
 	splitter2.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -4650,7 +4063,7 @@ function library:CreateWindow(options, ...)
 	colored[1 + #colored] = {execNameLabel, "TextStrokeColor3", "outerBorder"}
 	execNameLabel.TextStrokeTransparency = 0.75
 	execNameLabel.Size = UDim2:new(math.min(textToSize(execNameLabel).X + 4, 90), 1)
-	makeMarquee(execNameLabel) -- falls der Executor-Name zu lang ist, läuft er als Laufschrift statt die Titelleiste zu sprengen
+	makeMarquee(execNameLabel)
 	tabsHolder.Name = generateRandomName()
 	tabsHolder.Parent = innerMain
 	tabsHolder.BackgroundColor3 = library.colors.topGradient
@@ -4671,12 +4084,12 @@ function library:CreateWindow(options, ...)
 	tabHolderPadding.Name = generateRandomName()
 	tabHolderPadding.Parent = tabsHolder
 	tabHolderPadding.PaddingLeft = UDim:new(7)
-	-- Search-Box jetzt ganz rechts in der NEUEN oberen Leiste (nicht mehr unten bei den Tabs)
+
 	local searchBoxHolder = Instance_new("ImageLabel")
 	local searchBoxInner = Instance_new("ImageLabel")
 	local searchBoxInput = Instance_new("TextBox")
 	searchBoxHolder.Name = generateRandomName()
-	searchBoxHolder.Parent = innerMain -- NICHT titleBar! Sonst reißt dessen UIListLayout die Box mit in den Flow (Bug: landete ganz links)
+	searchBoxHolder.Parent = innerMain
 	searchBoxHolder.Active = true
 	searchBoxHolder.AnchorPoint = Vector2.new(1, 0)
 	searchBoxHolder.BackgroundColor3 = library.colors.topGradient
@@ -4691,7 +4104,7 @@ function library:CreateWindow(options, ...)
 		searchBoxHolderStroke.Color = library.colors.elementBorder
 		colored[1 + #colored] = {searchBoxHolderStroke, "Color", "elementBorder"}
 	end
-	searchBoxHolder.Position = UDim2.new(1, -4, 0, 3) -- oben rechts, mittig in der titleBar-Zeile (die bei y=1..24 liegt)
+	searchBoxHolder.Position = UDim2.new(1, -4, 0, 3)
 	searchBoxHolder.Selectable = true
 	searchBoxHolder.Size = UDim2.fromOffset(110, 17)
 	searchBoxHolder.ZIndex = 5
@@ -4786,11 +4199,7 @@ function library:CreateWindow(options, ...)
 		end
 		return main.Visible
 	end
-	-- ============================================================
-	-- FENSTERGRÖSSE ÄNDERN: Griff unten rechts zum Ziehen + windowFunctions:SetSize(w, h)
-	-- Breite kann nicht kleiner als die Standardgröße werden, damit Elemente mit fester
-	-- Breite (z.B. Toggle-Texte) nie über den Rand ragen.
-	-- ============================================================
+
 	local defaultWindowSize = Vector2.new(main.Size.X.Offset, main.Size.Y.Offset)
 	local minWindowSize = Vector2.new(defaultWindowSize.X, math.min(350, defaultWindowSize.Y))
 	local function getMaxWindowSize()
@@ -4798,14 +4207,14 @@ function library:CreateWindow(options, ...)
 		local vp = (cam and cam.ViewportSize) or Vector2.new(1600, 1000)
 		return Vector2.new(math.max(minWindowSize.X, vp.X - 20), math.max(minWindowSize.Y, vp.Y - 20))
 	end
-	-- topLeftAnchor: {Größe, Position} beim Start des Ziehens -> obere linke Ecke bleibt stehen
+
 	local function setWindowSize(w, h, topLeftAnchor)
 		local maxSize = getMaxWindowSize()
 		w = math.floor(math.clamp(tonumber(w) or defaultWindowSize.X, minWindowSize.X, maxSize.X))
 		h = math.floor(math.clamp(tonumber(h) or defaultWindowSize.Y, minWindowSize.Y, maxSize.Y))
 		main.Size = UDim2.fromOffset(w, h)
 		if topLeftAnchor then
-			-- Fenster ist mittig verankert -> Position mitschieben, damit die obere linke Ecke stehen bleibt
+
 			local startSize, startPos = topLeftAnchor[1], topLeftAnchor[2]
 			main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + (w - startSize.X) * main.AnchorPoint.X, startPos.Y.Scale, startPos.Y.Offset + (h - startSize.Y) * main.AnchorPoint.Y)
 		end
@@ -4868,7 +4277,7 @@ function library:CreateWindow(options, ...)
 		library.signals[1 + #library.signals] = resizeGrip.InputBegan:Connect(function(input)
 			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 				resizing = true
-				isDraggingSomething = true -- blockiert währenddessen das Verschieben des Fensters
+				isDraggingSomething = true
 				resizeStart = input.Position
 				resizeAnchor = {Vector2.new(main.Size.X.Offset, main.Size.Y.Offset), main.Position}
 				setGripHighlight(true)
@@ -4876,7 +4285,7 @@ function library:CreateWindow(options, ...)
 		end)
 		library.signals[1 + #library.signals] = userInputService.InputChanged:Connect(function(input)
 			if resizing and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-				-- immer vom Klickpunkt aus rechnen -> Griff bleibt exakt unter dem Mauszeiger
+
 				local delta = input.Position - resizeStart
 				setWindowSize(resizeAnchor[1].X + delta.X, resizeAnchor[1].Y + delta.Y, resizeAnchor)
 			end
@@ -4886,16 +4295,14 @@ function library:CreateWindow(options, ...)
 				resizing = false
 				isDraggingSomething = false
 				setGripHighlight(false)
-				-- Scrollbereiche der Spalten an die neue Höhe anpassen
+
 				if library.RefreshVisibility then
 					pcall(library.RefreshVisibility)
 				end
 			end
 		end)
 	end
-	-- ✅ Offene Dropdowns/Colorpicker/Searchboxen automatisch schließen:
-	-- erstens wenn man irgendwo außerhalb von ihnen klickt,
-	-- zweitens wenn das ganze Menü unsichtbar wird/geschlossen wird
+
 	local function closeOpenSubmenu()
 		if submenuCloseFn then
 			local fn = submenuCloseFn
@@ -4903,22 +4310,13 @@ function library:CreateWindow(options, ...)
 			pcall(fn)
 		end
 	end
-	-- ✅ Es darf immer nur ein Dropdown/Colorpicker/Searchbox gleichzeitig offen sein:
-	-- wird ein anderes als das aktuell offene geöffnet, wird das alte vorher automatisch geschlossen
+
 	local function closeOtherSubmenu(selfRef)
 		if (submenuOpen ~= nil) and (submenuOpen ~= selfRef) then
 			closeOpenSubmenu()
 		end
 	end
-	-- ============================================================
-	-- GEMEINSAMER DROPDOWN-KERN für Dropdown, SearchBox und Config/Theme-Profil:
-	-- Öffnen/Schließen-Optik, Ebenen (ZIndex), Pfeiltasten-Scrollen und die
-	-- Anmeldung für "nur eins offen" / "Klick außerhalb schließt" stehen hier
-	-- EINMAL statt dreimal - Fixes daran gelten ab jetzt automatisch für alle drei.
-	-- ctx-Felder: dropdown, dropdownToggle, dropdownHolderFrame, realDropdownHolder,
-	-- dropdownSelection, newDropdown, newSection, sectionHolder, coloredBackground,
-	-- coloredImage, restorezindex, options, scrollWhileTyping
-	-- ============================================================
+
 	local function createDropdownCore(ctx)
 		local core = {}
 		local precisionscrolling = nil
@@ -5000,12 +4398,7 @@ function library:CreateWindow(options, ...)
 		if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.MouseButton2 and input.UserInputType ~= Enum.UserInputType.Touch then
 			return
 		end
-		-- ✅ GetMouseLocation() liefert die ROHE Bildschirmposition (inkl. oberer Roblox-Topbar-Inset),
-		-- während AbsolutePosition/AbsoluteSize der Dropdown-Frames (deren ScreenGui IgnoreGuiInset
-		-- NICHT gesetzt hat) relativ zum Bereich UNTER der Topbar gemessen werden. Ohne Korrektur war
-		-- die Mausposition dadurch um die Inset-Höhe (~36px) verschoben - unauffällig bei den obersten
-		-- Einträgen, aber je weiter unten im Dropdown man geklickt hat (3., 4. Eintrag usw.), desto öfter
-		-- hat der Klick dadurch fälschlich als "außerhalb" gegolten und das Dropdown sofort wieder zu.
+
 		local pos = userInputService:GetMouseLocation() - game:GetService("GuiService"):GetGuiInset()
 		local inside = false
 		if submenuOpenFrames then
@@ -5087,13 +4480,13 @@ function library:CreateWindow(options, ...)
 			newTab.Size = UDim2:new(textToSize(newTab).X + 4, 1)
 		end
 		if windowFunctions.tabCount > 1 then
-			-- kleiner Trennstrich links vom Tab, damit man die einzelnen Tabs klar auseinanderhalten kann
+
 			local tabDivider = Instance_new("Frame")
 			tabDivider.Name = generateRandomName()
 			tabDivider.AnchorPoint = Vector2.new(0, 0.5)
 			tabDivider.Position = UDim2.new(0, -3, 0.5, 0)
 			tabDivider.Size = UDim2.new(0, 1, 0, 14)
-			tabDivider.BackgroundColor3 = Color3.fromRGB(55, 54, 62) -- dezent/unauffällig, wie gewünscht
+			tabDivider.BackgroundColor3 = Color3.fromRGB(55, 54, 62)
 			tabDivider.BackgroundTransparency = 0.35
 			tabDivider.BorderSizePixel = 0
 			tabDivider.ZIndex = 2
@@ -5141,7 +4534,7 @@ function library:CreateWindow(options, ...)
 			homepage = goto
 		end
 		library.signals[1 + #library.signals] = newTab.MouseButton1Click:Connect(goto)
-		-- dezentes Aufleuchten im Hintergrund beim Hovern über den Tab
+
 		library.signals[1 + #library.signals] = newTab.MouseEnter:Connect(function()
 			tweenService:Create(newTab, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
 				BackgroundTransparency = 0.88
@@ -5153,8 +4546,7 @@ function library:CreateWindow(options, ...)
 			}):Play()
 		end)
 		if windowFunctions.tabCount == 1 then
-			-- Direkt nach dem Parenten sind AbsolutePosition/AbsoluteSize teils noch nicht final
-			-- (Layout braucht einen Frame) -> Slider würde falsch/verschoben landen. Daher 1 Frame warten.
+
 			task.defer(function()
 				tabSlider.Size = UDim2.fromOffset(newTab.AbsoluteSize.X, 1)
 				tabSlider.Position = UDim2.fromOffset(newTab.AbsolutePosition.X, newTab.AbsolutePosition.Y + newTab.AbsoluteSize.Y) - UDim2.fromOffset(main.AbsolutePosition.X, main.AbsolutePosition.Y)
@@ -5180,7 +4572,7 @@ function library:CreateWindow(options, ...)
 		leftList.Parent = left
 		leftList.HorizontalAlignment = Enum.HorizontalAlignment.Center
 		leftList.SortOrder = Enum.SortOrder.LayoutOrder
-		leftList.Padding = UDim:new(12) -- etwas größerer Abstand zwischen den Groupboxes untereinander
+		leftList.Padding = UDim:new(12)
 		leftPadding.Name = generateRandomName()
 		leftPadding.Parent = left
 		leftPadding.PaddingTop = UDim:new(12)
@@ -5196,7 +4588,7 @@ function library:CreateWindow(options, ...)
 		rightList.Parent = right
 		rightList.HorizontalAlignment = Enum.HorizontalAlignment.Center
 		rightList.SortOrder = Enum.SortOrder.LayoutOrder
-		rightList.Padding = UDim:new(12) -- etwas größerer Abstand zwischen den Groupboxes untereinander
+		rightList.Padding = UDim:new(12)
 		rightPadding.Name = generateRandomName()
 		rightPadding.Parent = right
 		rightPadding.PaddingTop = UDim:new(12)
@@ -5238,7 +4630,7 @@ function library:CreateWindow(options, ...)
 			newSection.BackgroundColor3 = library.colors.sectionBackground
 			colored[1 + #colored] = {newSection, "BackgroundColor3", "sectionBackground"}
 			newSection.BorderSizePixel = 0
-			newSection.Size = UDim2.new(1, -4) -- minimaler Abstand zwischen Groupbox und Spaltenrand, Groupboxen füllen die Spalte fast komplett aus
+			newSection.Size = UDim2.new(1, -4)
 			newSection.Visible = false
 			addCorner(newSection, 6)
 			do
@@ -5441,7 +4833,7 @@ function library:CreateWindow(options, ...)
 				colored[1 + #colored] = colored_toggleHeadline_TextColor3
 				toggleHeadline.TextSize = 14
 				toggleHeadline.TextXAlignment = Enum.TextXAlignment.Left
-				-- Linoria-Feature-Port: Tooltip (Tooltip / DisabledTooltip)
+
 				local Tooltip = nil
 				if typeof(options.Tooltip) == "string" or typeof(options.DisabledTooltip) == "string" then
 					Tooltip = library:AddToolTip(options.Tooltip, options.DisabledTooltip, newToggle)
@@ -5450,7 +4842,7 @@ function library:CreateWindow(options, ...)
 					end
 				end
 				local last_v = nil
-				local kbSyncFlag = nil -- wird gesetzt, falls dieser Toggle einen Keybind besitzt (für die Keybinds-Liste)
+				local kbSyncFlag = nil
 				local function Set(t, newStatus)
 					if nil == newStatus and t ~= nil then
 						newStatus = t
@@ -5476,9 +4868,7 @@ function library:CreateWindow(options, ...)
 						if kbSyncFlag then
 							KeybindsListModule:SetActive(kbSyncFlag, newStatus)
 						end
-						-- Optik IMMER aktualisieren - vorher passierte das nur, wenn der Toggle einen
-						-- Callback hatte. Toggles ohne Callback sahen nach dem Config-Laden (oder per
-						-- Keybind) deshalb unverändert aus, obwohl der Wert umgestellt war.
+
 						do
 							local bgFactor = (newStatus and 1.5) or nil
 							local imgFactor = (newStatus and 2.5) or nil
@@ -5540,7 +4930,7 @@ function library:CreateWindow(options, ...)
 					keybindPositioner.BackgroundColor3 = Color3.new(1, 1, 1)
 					keybindPositioner.BackgroundTransparency = 1
 					keybindPositioner.Position = UDim2.new(0, 2, 0, 0)
-					keybindPositioner.Size = UDim2.new(1, -4, 0, 19) -- relativ statt fest 214px, sonst ragt der Keybind-Button in schmalen (2-spaltigen) Groupboxen raus
+					keybindPositioner.Size = UDim2.new(1, -4, 0, 19)
 					keybindPositioner.ZIndex = 1 + toggleButton.ZIndex
 					keybindList.Name = generateRandomName()
 					keybindList.Parent = keybindPositioner
@@ -6007,7 +5397,7 @@ function library:CreateWindow(options, ...)
 						return condition
 					end
 				}
-				-- Disabled = grau/unklickbar machen (Alias auf das bestehende Locked-System)
+
 				objectdata.SetDisabled = objectdata.SetLocked
 				objectdata.Disable = objectdata.Lock
 				objectdata.Enable = objectdata.Unlock
@@ -6116,7 +5506,7 @@ function library:CreateWindow(options, ...)
 					realButton.Parent = button
 					offset = offset + textsize + 6
 					sectionFunctions:Update()
-					-- Linoria-Feature-Port: Tooltip (Tooltip / DisabledTooltip)
+
 					local Tooltip = nil
 					if typeof(options.Tooltip) == "string" or typeof(options.DisabledTooltip) == "string" then
 						Tooltip = library:AddToolTip(options.Tooltip, options.DisabledTooltip, button)
@@ -6321,7 +5711,7 @@ function library:CreateWindow(options, ...)
 							return call
 						end
 					}
-					-- Disabled = grau/unklickbar machen (Alias auf das bestehende Locked-System)
+
 					objectdata.SetDisabled = objectdata.SetLocked
 					objectdata.Disable = objectdata.Lock
 					objectdata.Enable = objectdata.Unlock
@@ -6412,7 +5802,7 @@ function library:CreateWindow(options, ...)
 				end
 				textbox.Position = UDim2.fromScale(0.031, 0.48)
 				textbox.Selectable = true
-				textbox.Size = UDim2.new(0.938, 0, 0, 18) -- relativ statt fest 206px, sonst ragt es in schmalen Groupboxen raus
+				textbox.Size = UDim2.new(0.938, 0, 0, 18)
 				textbox.Image = "rbxassetid://2454009026"
 				addCorner(textbox, 4)
 				textbox.ImageColor3 = library.colors.bottomGradient
@@ -6500,7 +5890,7 @@ function library:CreateWindow(options, ...)
 				colored[1 + #colored] = {textboxHeadline, "TextColor3", "elementText"}
 				textboxHeadline.TextSize = 14
 				textboxHeadline.TextXAlignment = Enum.TextXAlignment.Left
-				-- Linoria-Feature-Port: Tooltip (Tooltip / DisabledTooltip)
+
 				if typeof(options.Tooltip) == "string" or typeof(options.DisabledTooltip) == "string" then
 					library:AddToolTip(options.Tooltip, options.DisabledTooltip, newTextbox)
 				end
@@ -6699,7 +6089,7 @@ function library:CreateWindow(options, ...)
 				colored[1 + #colored] = {keybindHeadline, "TextColor3", "elementText"}
 				keybindHeadline.TextSize = 14
 				keybindHeadline.TextXAlignment = Enum.TextXAlignment.Left
-				-- Linoria-Feature-Port: Tooltip (Tooltip / DisabledTooltip)
+
 				if typeof(options.Tooltip) == "string" or typeof(options.DisabledTooltip) == "string" then
 					library:AddToolTip(options.Tooltip, options.DisabledTooltip, newKeybind)
 				end
@@ -6708,7 +6098,7 @@ function library:CreateWindow(options, ...)
 				keybindPositioner.BackgroundColor3 = Color3.new(1, 1, 1)
 				keybindPositioner.BackgroundTransparency = 1
 				keybindPositioner.Position = UDim2.new(0, 2, 0, 0)
-				keybindPositioner.Size = UDim2.new(1, -4, 0, 19) -- relativ statt fest 214px, sonst ragt der Keybind-Button in schmalen (2-spaltigen) Groupboxen raus
+				keybindPositioner.Size = UDim2.new(1, -4, 0, 19)
 				keybindList.Name = generateRandomName()
 				keybindList.Parent = keybindPositioner
 				keybindList.FillDirection = Enum.FillDirection.Horizontal
@@ -6979,7 +6369,7 @@ function library:CreateWindow(options, ...)
 				labelHeadline.BackgroundColor3 = Color3.new(1, 1, 1)
 				labelHeadline.BackgroundTransparency = 1
 				labelHeadline.Position = UDim2.new(0.031, 0, 0.165842161, 0)
-				labelHeadline.Size = UDim2.new(0.969, -8, 0, 12) -- relativ statt fest 215px, sonst ragt die Laufschrift bei langen Labels über den Groupbox-Rand (wie bei Toggles/Dropdowns)
+				labelHeadline.Size = UDim2.new(0.969, -8, 0, 12)
 				labelHeadline.Font = Enum.Font.Code
 				labelHeadline.Text = (labelName and tostring(labelName)) or "Empty Text"
 				local labelHeadlineRefresh = makeMarquee(labelHeadline)
@@ -6987,7 +6377,7 @@ function library:CreateWindow(options, ...)
 				colored[1 + #colored] = {labelHeadline, "TextColor3", "elementText"}
 				labelHeadline.TextSize = 14
 				labelHeadline.TextXAlignment = Enum.TextXAlignment.Left
-				-- Linoria-Feature-Port: Tooltip (Tooltip / DisabledTooltip)
+
 				if typeof(options.Tooltip) == "string" or typeof(options.DisabledTooltip) == "string" then
 					library:AddToolTip(options.Tooltip, options.DisabledTooltip, newLabel)
 				end
@@ -7113,7 +6503,7 @@ function library:CreateWindow(options, ...)
 				end
 				slider.Position = UDim2.fromScale(0.031, 0.48)
 				slider.Selectable = true
-				slider.Size = (usetextbox and UDim2.new(0.969, -60, 0, 18)) or UDim2.new(0.938, 0, 0, 18) -- relativ statt fest 156/206px, sonst ragt es in schmalen Groupboxen raus
+				slider.Size = (usetextbox and UDim2.new(0.969, -60, 0, 18)) or UDim2.new(0.938, 0, 0, 18)
 				slider.Image = "rbxassetid://2454009026"
 				addCorner(slider, 4)
 				slider.ImageColor3 = library.colors.bottomGradient
@@ -7171,7 +6561,7 @@ function library:CreateWindow(options, ...)
 				colored[1 + #colored] = {sliderHeadline, "TextColor3", "elementText"}
 				sliderHeadline.TextSize = 14
 				sliderHeadline.TextXAlignment = Enum.TextXAlignment.Left
-				-- Linoria-Feature-Port: Tooltip (Tooltip / DisabledTooltip)
+
 				if typeof(options.Tooltip) == "string" or typeof(options.DisabledTooltip) == "string" then
 					library:AddToolTip(options.Tooltip, options.DisabledTooltip, newSlider)
 				end
@@ -7570,7 +6960,7 @@ function library:CreateWindow(options, ...)
 				end
 				dropdown.Position = UDim2.fromScale(0.027, 0.45)
 				dropdown.Selectable = true
-				dropdown.Size = UDim2.new(0.946, 0, 0, 18) -- relativ statt fest 206px, sonst ragt es in schmalen Groupboxen raus
+				dropdown.Size = UDim2.new(0.946, 0, 0, 18)
 				dropdown.Image = "rbxassetid://2454009026"
 				addCorner(dropdown, 4)
 				dropdown.ImageColor3 = library.colors.bottomGradient
@@ -7960,8 +7350,7 @@ function library:CreateWindow(options, ...)
 				end
 				local update = nil
 				local showing = false
-				-- Öffnen/Schließen-Optik, Ebenen, Pfeiltasten-Scrollen, "nur eins offen" und
-				-- "Klick außerhalb schließt" kommen jetzt aus dem gemeinsamen Dropdown-Kern
+
 				local dropdownCore = createDropdownCore({
 					dropdown = dropdown,
 					dropdownToggle = dropdownToggle,
@@ -8283,9 +7672,7 @@ function library:CreateWindow(options, ...)
 						end
 					end)
 					local common_string = nil
-					-- Ordnerpfad IMMER frisch aus dem aktuellen Workspace-Namen bauen.
-					-- Vorher wurde er nur beim Öffnen der Liste aktualisiert -> änderte man den
-					-- Workspace-Namen und drückte direkt Save, landete die Config im ALTEN Ordner.
+
 					local function refreshWorkspacePath()
 						custom_workspace = options.Workspace or library.WorkspaceName
 						local folderName = sanitizeConfigName(tostring(custom_workspace or ""))
@@ -8334,10 +7721,10 @@ function library:CreateWindow(options, ...)
 						end
 						return names
 					end
-					-- ===== Hilfsfunktionen für Autoload, Umbenennen und die Info-Zeile =====
+
 					local suffixname = (suffix and tostring(suffix)) or "Profile"
-					local lastExistingName = nil -- zuletzt ausgewählte/gespeicherte/geladene, real existierende Datei
-					local refreshPersistenceInfo = nil -- wird weiter unten gesetzt, sobald die Info-Zeile existiert
+					local lastExistingName = nil
+					local refreshPersistenceInfo = nil
 					local function configPath(name)
 						return string.format("%s/%s.txt", common_string, name)
 					end
@@ -8444,7 +7831,7 @@ function library:CreateWindow(options, ...)
 					end
 					dropdown.Position = UDim2.fromScale(0.027, 0.45)
 					dropdown.Selectable = true
-					dropdown.Size = UDim2.new(0.946, 0, 0, 18) -- relativ statt fest 206px, sonst ragt es in schmalen Groupboxen raus
+					dropdown.Size = UDim2.new(0.946, 0, 0, 18)
 					dropdown.Image = "rbxassetid://2454009026"
 					addCorner(dropdown, 4)
 					dropdown.ImageColor3 = library.colors.bottomGradient
@@ -8745,8 +8132,7 @@ function library:CreateWindow(options, ...)
 					end
 					local update = nil
 					local showing = false
-					-- Öffnen/Schließen-Optik, Ebenen, Pfeiltasten-Scrollen, "nur eins offen" und
-					-- "Klick außerhalb schließt" kommen jetzt aus dem gemeinsamen Dropdown-Kern
+
 					local dropdownCore = createDropdownCore({
 						dropdown = dropdown,
 						dropdownToggle = dropdownToggle,
@@ -8823,9 +8209,7 @@ function library:CreateWindow(options, ...)
 						end
 						showing = false
 						display(false)
-						-- Vorher zählte der getippte Name nur mit Enter. Klickte man direkt auf "Save Config",
-						-- setzte das Feld sich ~0,05s vorher auf den ALTEN Namen zurück -> die alte Config wurde
-						-- überschrieben statt eine neue angelegt. Jetzt zählt jeder nicht-leere getippte Name.
+
 						local typed = sanitizeConfigName(dropdownSelection.Text)
 						if b or (#typed > 0 and dropdownSelection.Text ~= tostring(library_flags[flagName])) then
 							Set(dropdownSelection.Text)
@@ -8836,7 +8220,7 @@ function library:CreateWindow(options, ...)
 						end
 						end)
 						AddOptions(list)
-					-- Sammelt alle Elemente, die in diese Config/dieses Theme gehören
+
 					local function collectPersistedElements()
 						local working_with = {}
 						if persistiveflags == 1 or persistiveflags == true or persistiveflags == "*" then
@@ -8867,8 +8251,7 @@ function library:CreateWindow(options, ...)
 									end
 								end
 							else
-								-- Dictionary-Form {["Flag"] = true}: vorher wurden hier fälschlich ALLE
-								-- Elemente gespeichert statt nur die angegebenen
+
 								for cflag, persists in next, persistiveflags do
 									if persists and cflag ~= "Inverted" then
 										local data = elements[cflag]
@@ -8909,8 +8292,7 @@ function library:CreateWindow(options, ...)
 								saving[cflag] = sv
 							end
 						end
-						-- Zeitpunkt der Speicherung (wird in der Info-Zeile angezeigt; beim Laden ignoriert,
-						-- weil "__meta" kein Element-Flag ist)
+
 						saving.__meta = {
 							savedAt = os.time(),
 							version = 1
@@ -8945,7 +8327,7 @@ function library:CreateWindow(options, ...)
 							return ret
 						end
 						if savedok and displayname and dropdownSelection.Text ~= displayname then
-							-- Feld zeigt danach exakt den Namen, unter dem wirklich gespeichert wurde
+
 							Set(displayname)
 						end
 						if savedok and displayname then
@@ -9005,8 +8387,7 @@ function library:CreateWindow(options, ...)
 										if data and data.Type ~= "Persistence" and not configIgnoredFlags[cflag] then
 											local converted, usable = deserializeFlagValue(val, data)
 											if usable and converted ~= nil then
-												-- Jeder Wert einzeln abgesichert: ein kaputter Wert bricht nicht mehr
-												-- den kompletten Ladevorgang ab
+
 												local ok, err = pcall(function()
 													if silent and data.RawSet then
 														data:RawSet(converted)
@@ -9052,7 +8433,7 @@ function library:CreateWindow(options, ...)
 						end
 						return loadedok, reason, displayname
 					end
-					-- Löschen mit Bestätigung: erster Klick fragt nach, zweiter Klick (innerhalb 4s) löscht
+
 					local pendingDelete, pendingDeleteTime = nil, 0
 					local function deletestuff(s)
 						refreshWorkspacePath()
@@ -9089,7 +8470,7 @@ function library:CreateWindow(options, ...)
 						end
 						return true, nil, name
 						end
-						-- Umbenennen: zuletzt ausgewählte Config -> neuer Name aus dem Textfeld
+
 						local function renamestuff()
 							refreshWorkspacePath()
 							local source = lastExistingName
@@ -9103,8 +8484,7 @@ function library:CreateWindow(options, ...)
 							if target == source then
 								return false, "type the new name into the box first", source
 							end
-							-- Nur Groß-/Kleinschreibung anders: auf Windows wäre das dieselbe Datei und
-							-- das anschließende Löschen würde die Config komplett vernichten
+
 							if string.lower(target) == string.lower(source) then
 								return false, "name only differs in upper/lower case", source
 							end
@@ -9130,7 +8510,7 @@ function library:CreateWindow(options, ...)
 							end
 							return true, nil, target, string.format('%s "%s" renamed to "%s"', suffixname, source, target)
 						end
-						-- Autoload an/aus: aktueller Name wird beim nächsten Start automatisch geladen
+
 						local function autoloadstuff()
 							refreshWorkspacePath()
 							local name = sanitizeConfigName(dropdownSelection.Text or "")
@@ -9166,7 +8546,7 @@ function library:CreateWindow(options, ...)
 							Callback = loadstuff,
 							Action = "load"
 						}}
-						-- Delete/Rename nur anbieten, wenn der Executor delfile kann
+
 						if typeof(delfile) == "function" then
 							persistenceButtons[1 + #persistenceButtons] = {
 								Name = "Delete",
@@ -9280,7 +8660,7 @@ function library:CreateWindow(options, ...)
 									presses = 1 + presses
 									busy = true
 									task.spawn(function()
-										-- Komplett abgesichert: auch bei unerwarteten Fehlern kommt eine Meldung
+
 										local okCall, ok, reason, fname, customText = pcall(callback, presses)
 										busy = false
 										if not okCall then
@@ -9339,7 +8719,7 @@ function library:CreateWindow(options, ...)
 							end)
 						end
 					end
-					-- Info-Zeile unter den Buttons: wann die ausgewählte Datei gespeichert wurde + aktuelles Autoload
+
 					local infoLabel = nil
 					local autoloadJob = nil
 					if options.ShowInfo ~= false then
@@ -9398,7 +8778,7 @@ function library:CreateWindow(options, ...)
 								newDropdown.Parent = nil
 								relod = true
 							end
-							-- ALLE Button-Reihen entfernen (bei 5 Buttons sind es mehrere), nicht nur die letzte
+
 							for _, row in ipairs(persistenceRows) do
 								if row.Parent then
 									row.Parent = nil
@@ -9408,7 +8788,7 @@ function library:CreateWindow(options, ...)
 							if infoLabel and infoLabel.Remove then
 								pcall(infoLabel.Remove)
 							end
-							-- entferntes Profil (z.B. Theme bei LockTheme) soll nicht mehr automatisch laden
+
 							if autoloadJob then
 								autoloadJob.Removed = true
 							end
@@ -9504,15 +8884,11 @@ function library:CreateWindow(options, ...)
 						end
 						}
 						tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagName] = objectdata, objectdata, objectdata
-						-- Die Info-Zeile soll von "Reset GUI"/"Reset Designer" nicht auf ihren Starttext zurückgesetzt werden
+
 						if infoLabel then
 							infoLabel.Default = nil
 						end
-						-- ===== AUTOLOAD BEIM START =====
-						-- Alle Profile (Config, Theme, eigene) melden sich hier an. Ein gemeinsamer Ablauf
-						-- wartet, bis das Script keine neuen Elemente mehr erstellt (damit auch später
-						-- gebaute Tabs mitgeladen werden), und lädt dann: erst Configs, danach Themes
-						-- (damit ein Autoload-Theme die Farben aus einer Config überschreibt).
+
 						if options.Autoload ~= false then
 							library.__AutoloadJobs = library.__AutoloadJobs or {}
 							autoloadJob = {
@@ -9536,8 +8912,7 @@ function library:CreateWindow(options, ...)
 										}
 										library.__AutoloadJobs[1 + #library.__AutoloadJobs] = autoloadJob
 										if library.__AutoloadDone then
-											-- Profil wurde erst erstellt, nachdem der Autoload-Durchlauf schon fertig war
-											-- (z.B. Config-Tab erst nach einer Wartezeit gebaut) -> einzeln nachholen
+
 											local lateJob = autoloadJob
 											task.delay(1, function()
 												if library.IsGuiValid() then
@@ -9576,7 +8951,7 @@ function library:CreateWindow(options, ...)
 										return
 									end
 									local jobs = library.__AutoloadJobs or {}
-									-- ab hier laufen neu angemeldete Profile sofort einzeln (siehe oben)
+
 									library.__AutoloadDone = true
 									table.sort(jobs, function(a, b)
 										return a.Priority < b.Priority
@@ -9634,7 +9009,7 @@ function library:CreateWindow(options, ...)
 				local clrcallback = options.ItemsCleared or options.ClearedCallback
 				local modcallback = options.ItemChanged or options.ChangedCallback
 				local blankstring = not multiselect and (options.BlankValue or options.NoValueString or options.Nothing)
-								-- Linoria-Feature-Port: SpecialType (Player/Team) ueberschreibt die Liste mit einer Live-Funktion
+
 				if options.SpecialType == "Player" then
 					local excludeLocalPlayer = options.ExcludeLocalPlayer and true or false
 					listt = function()
@@ -9658,12 +9033,12 @@ function library:CreateWindow(options, ...)
 						return names
 					end
 				end
-				-- Linoria-Feature-Port: DisabledValues (gesperrte, aber sichtbare Optionen)
+
 				local disabledValues = (type(options.DisabledValues) == "table" and options.DisabledValues) or {}
 				local function isValueDisabled(v)
 					return table.find(disabledValues, tostring(v)) ~= nil
 				end
-				-- Linoria-Feature-Port: FormatDisplayValue (eigener Anzeigetext statt Rohwert)
+
 				local function formatValue(v)
 					if v ~= nil and type(options.FormatDisplayValue) == "function" then
 						local ok, res = pcall(options.FormatDisplayValue, v)
@@ -9673,7 +9048,7 @@ function library:CreateWindow(options, ...)
 					end
 					return tostring(v)
 				end
-				-- Linoria-Feature-Port: MaxVisibleDropdownItems (Hoehe der geoeffneten Liste begrenzen)
+
 				local userMaxVisibleItems = (type(options.MaxVisibleDropdownItems) == "number" and math.clamp(options.MaxVisibleDropdownItems, 4, 16)) or nil
 local resolvelist = getresolver(listt, options.Filter, options.Method)
 				local list = resolvelist()
@@ -9720,7 +9095,7 @@ local resolvelist = getresolver(listt, options.Filter, options.Method)
 				end
 				dropdown.Position = UDim2.fromScale(0.027, 0.45)
 				dropdown.Selectable = true
-				dropdown.Size = UDim2.new(0.946, 0, 0, 18) -- relativ statt fest 206px, sonst ragt es in schmalen Groupboxen raus
+				dropdown.Size = UDim2.new(0.946, 0, 0, 18)
 				dropdown.Image = "rbxassetid://2454009026"
 				addCorner(dropdown, 4)
 				dropdown.ImageColor3 = library.colors.bottomGradient
@@ -9812,7 +9187,7 @@ local resolvelist = getresolver(listt, options.Filter, options.Method)
 				colored[1 + #colored] = {dropdownHeadline, "TextColor3", "elementText"}
 				dropdownHeadline.TextSize = 14
 				dropdownHeadline.TextXAlignment = Enum.TextXAlignment.Left
-				-- Linoria-Feature-Port: Tooltip (Tooltip / DisabledTooltip)
+
 				if typeof(options.Tooltip) == "string" or typeof(options.DisabledTooltip) == "string" then
 					library:AddToolTip(options.Tooltip, options.DisabledTooltip, newDropdown)
 				end
@@ -9885,7 +9260,7 @@ local resolvelist = getresolver(listt, options.Filter, options.Method)
 					if optionCount >= 6 then
 						realDropdownHolder.CanvasSize = UDim2:fromOffset(realDropdownHolderList.AbsoluteContentSize.Y + 2)
 						if userMaxVisibleItems then
-							-- Linoria-Feature-Port: MaxVisibleDropdownItems begrenzt die sichtbare Hoehe, der Rest scrollt
+
 							dropdownHolderFrame.Size = UDim2.new(0.95, 0, 0, math.min(optionCount, userMaxVisibleItems) * 18 + 4)
 						end
 					elseif optionCount <= 5 then
@@ -10217,8 +9592,7 @@ local function AddOptions(optionsTable)
 					end
 				end
 				local update = nil
-				-- Öffnen/Schließen-Optik, Ebenen, Pfeiltasten-Scrollen, "nur eins offen" und
-				-- "Klick außerhalb schließt" kommen jetzt aus dem gemeinsamen Dropdown-Kern
+
 				local dropdownCore = createDropdownCore({
 					dropdown = dropdown,
 					dropdownToggle = dropdownToggle,
@@ -10461,7 +9835,7 @@ local function AddOptions(optionsTable)
 					end
 					return disabledValues
 				end
-				-- Linoria-Feature-Port: SpecialType Live-Update bei Spieler-/Team-Aenderungen
+
 				if options.SpecialType == "Player" or options.SpecialType == "Team" then
 					local function RefreshSpecialList()
 						list = resolvelist()
@@ -10605,7 +9979,7 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 				colored[1 + #colored] = {colorPickerHeadline, "TextColor3", "elementText"}
 				colorPickerHeadline.TextSize = 14
 				colorPickerHeadline.TextXAlignment = Enum.TextXAlignment.Left
-				-- Linoria-Feature-Port: Tooltip (Tooltip / DisabledTooltip)
+
 				if typeof(options.Tooltip) == "string" or typeof(options.DisabledTooltip) == "string" then
 					library:AddToolTip(options.Tooltip, options.DisabledTooltip, newColorPicker)
 				end
@@ -10670,9 +10044,7 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 					newColorPicker.ZIndex = 0
 					newSection.ZIndex = newSection.ZIndex - 100
 					colorPickerButton.BorderSizePixel = 0
-					-- Hier wurde früher bei JEDEM Schließen ein neuer UIStroke-Rahmen erzeugt und nie
-					-- entfernt -> nach vielen Öffnen/Schließen stapelten sich dutzende Rahmen übereinander.
-					-- Der eine Rahmen, der beim Erstellen des Colorpickers angelegt wird, reicht völlig.
+
 					colored_colorPickerButton_BorderColor3[3] = "elementBorder"
 				end
 				library.signals[1 + #library.signals] = colorPickerButton.MouseButton1Click:Connect(function()
@@ -11102,7 +10474,7 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 					elseif type(clr) == "string" then
 						clr = Color3FromHex(clr)
 					end
-					-- Ungültiger Wert (kaputter Hex-String o.ä.) -> aktuelle Farbe behalten statt Fehler
+
 					if typeof(clr) ~= "Color3" then
 						return library_flags[flagName]
 					end
@@ -11227,16 +10599,7 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 				end
 			end
 		end
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
+
 		return tabFunctions
 	end
 	windowFunctions.AddTab = windowFunctions.CreateTab
@@ -11432,9 +10795,7 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 		}}, {"AddLabel", "__Designer.Label.Version", settingssection, {
 			Name = "Library Version: " .. tostring(library.Version or "?")
 		}}}
-		-- "Copy Theme"-Button an die Settings-Button-Gruppe hängen. Vorher per festem
-		-- Index daaata[8] - durch neu hinzugekommene Toggles zeigte der aber längst auf
-		-- einen ganz anderen Eintrag, der Button tauchte deshalb nie auf.
+
 		local terminateEntry = nil
 		for _, entry in ipairs(daaata) do
 			if entry[2] == "__Designer.Button.TerminateGUI" then
