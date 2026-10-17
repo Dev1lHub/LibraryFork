@@ -1,27 +1,27 @@
 D3v1lHub - Dokumentation (Library v0.66)
 
 DATEIEN
-   D3v1lLoader.lua   Einstiegspunkt. Erkennt das Gerät (PC oder Handy/Tablet), zeigt Yes/No + "Detected device" + HWID + Ladebalken
-                     und lädt NUR die passende Library. Gibt die geladene Library zurück.
-   PCGUILib.lua      Volles Menü für PC / Laptop.
-   MobileGUILib.lua  Schlankes Touch-Menü für Handy / Tablet (deutlich weniger GUI-Objekte, baut sich schrittweise auf).
-   ExamplePC.lua     Vollständiges Beispiel-Script.
-   ExampleMobile.lua Beispiel-Script nur für Handy/Tablet (Mobile-Menü).
+   D3v1lLoader.lua   Entry point. Detects the device (PC or phone/tablet), shows Yes/No + "Detected device" + HWID + loading bar
+                     and loads ONLY the matching library. Returns the loaded library.
+   PCGUILib.lua      Full menu for PC / laptop.
+   MobileGUILib.lua  Slim touch menu for phone / tablet (far fewer GUI objects, builds itself step by step).
+   ExamplePC.lua     Complete example script.
+   ExampleMobile.lua Example script for phone/tablet only (Mobile menu).
 
 START
    local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Dev1lHub/LibraryFork/refs/heads/main/D3v1lLoader.lua"))()
    library:ShowLoadingScreen({
-       OnAccept = function() ... end,    -- nach "Yes": hier das Menü aufbauen (CreateWindow, CreateTab, ...)
-       OnDecline = function() ... end    -- nach "No": es wurde nichts erstellt
+       OnAccept = function() ... end,    -- after "Yes": build the menu here (CreateWindow, CreateTab, ...)
+       OnDecline = function() ... end    -- after "No": nothing was created
    })
 
-GERÄT ERZWINGEN (vor dem Loader setzen)
-   getgenv().D3v1lHubMobileMode = true    -- immer Mobile
-   getgenv().D3v1lHubMobileMode = false   -- immer PC
+FORCE DEVICE (set before the loader)
+   getgenv().D3v1lHubMobileMode = true    -- always Mobile
+   getgenv().D3v1lHubMobileMode = false   -- always PC
 
-LOADER-OPTIONEN (getgenv().D3v1lLoaderOptions = {...} oder direkt in ShowLoadingScreen({...}))
+LOADER OPTIONS (getgenv().D3v1lLoaderOptions = {...} or directly in ShowLoadingScreen({...}))
    (string | nil) TitlePart1 = "D3v1l"
-   (string | nil) TitlePart2 = "Hub | Spielername"
+   (string | nil) TitlePart2 = "Hub | PlayerName"
    (string | nil) ConfirmText = "Do you want to execute this script?"
    (string | nil) LoadingTitle / LoadingSubText / WelcomeSubText
    (boolean | nil) ShowHWID = true or false
@@ -29,22 +29,24 @@ LOADER-OPTIONEN (getgenv().D3v1lLoaderOptions = {...} oder direkt in ShowLoading
    (number | nil) BackgroundTransparency = 0.5
    (string | nil) OpenSound / CloseSound, (number | nil) SoundVolume = 0.5
    (function) OnAccept / (function | nil) OnDecline
+   (boolean | nil) MobileWarning = true or false // default: true on mobile. After "Yes" a warning (Continue / Cancel) is shown
+   (string | nil) MobileWarningText // custom warning text
 
-NUR MOBILE (vor CreateWindow setzen)
-   library.MobileBuildBatch = 2      -- Elemente pro Pause beim schrittweisen Aufbau
-   library.MobileBuildDelay = 0.06   -- Pause in Sekunden; 0 = alles auf einmal
-   Das Menü erscheint zuerst und füllt sich dann nach und nach ("lädt..." in der Titelleiste).
-   Debug-Log (nur Mobile): "D3v1lHub Lib/debug_log.txt", das vorherige Log liegt in "debug_log_prev.txt".
-   library.DebugLog = false schaltet es aus, = true schaltet es auch am PC ein.
-   Tooltips, Watermark, Keybind-Liste, Keystrokes und Cursor gibt es nur am PC.
+MOBILE ONLY (set before CreateWindow)
+   library.MobileBuildBatch = 2      -- elements per pause during the step-by-step build
+   library.MobileBuildDelay = 0.06   -- pause in seconds; 0 = everything at once
+   The menu appears first and then fills up step by step ("loading..." in the title bar).
+   Debug log (Mobile only): "D3v1lHub Lib/debug_log.txt", the previous log is in "debug_log_prev.txt".
+   library.DebugLog = false turns it off, = true turns it on for PC as well.
+   Tooltips, watermark, keybind list, keystrokes and cursor exist on PC only. Mobile ignores all keybinds.
 
 GEMEINSAME ELEMENT-OPTIONEN (Toggle, Slider, Button, Label, Textbox, Dropdown, Colorpicker, ...)
    (string | nil) Tooltip = "Hilfetext beim Hovern"            -- nur PC
    (string | nil) DisabledTooltip = "Text, wenn gesperrt"        -- nur PC
    (boolean | nil) Disabled/Locked = true or false
    (string | table | function | nil) DependsOn = "FlagName" | {"FlagName", Wert} | {{"FlagA", true}, {"FlagB", false}} | function(flags) return bool end
-       -- Element ist nur sichtbar, solange die Bedingung stimmt (Dependency Box). Auch ein Element-Objekt statt Flag-Name ist erlaubt.
-   Elemente mit SetLocked/Lock/Unlock haben zusätzlich SetDisabled/Disable/Enable (gleiche Funktion).
+       -- Element is only visible while the condition holds (Dependency Box). An element object instead of a flag name is also allowed.
+   Elements with SetLocked/Lock/Unlock additionally have SetDisabled/Disable/Enable (same function).
 
 Library v0.66 [
    CreateWindow: Function (
@@ -301,12 +303,12 @@ SetCallback: Function (NewCallback) -> NewCallback
 (number | nil) ScrollButtonRate / ScrollRate = 5 // How fast the scroller goes by pressing the scroll buttons
 (bool | nil) DisablePrecisionScrolling = true or false // Dissallows use of keys to control pan
 (boolean | nil) AllowDuplicateCalls = true or false // Allow the callback to be fired with same value set()
-                       (boolean | nil) Searchable = true or false // Suchfeld in der geöffneten Liste
-                       (table | nil) DisabledValues = {"Wert", ...} // sichtbar, aber nicht auswählbar
-                       (function | nil) FormatDisplayValue = Function (Value) -> DisplayText // nur die Anzeige ändert sich, der Wert bleibt roh
-                       (number | nil) MaxVisibleDropdownItems = 12 // geöffnete Liste scrollt ab dieser Anzahl
-                       (string | nil) SpecialType = "Player" or "Team" // füllt die Liste automatisch (Spieler im Server / Teams)
-                       (boolean | nil) ExcludeLocalPlayer = true or false // nur mit SpecialType = "Player"
+                       (boolean | nil) Searchable = true or false // search box in the opened list
+                       (table | nil) DisabledValues = {"Value", ...} // visible but not selectable
+                       (function | nil) FormatDisplayValue = Function (Value) -> DisplayText // only the display changes, the value stays raw
+                       (number | nil) MaxVisibleDropdownItems = 12 // the opened list scrolls from this count
+                       (string | nil) SpecialType = "Player" or "Team" // fills the list automatically (players in the server / teams)
+                       (boolean | nil) ExcludeLocalPlayer = true or false // only with SpecialType = "Player"
                    ]
                ) -> Dropdown [
                    Options: Table
@@ -493,8 +495,8 @@ GetJSON: Function (Func) // Gets the json, and passes it as the first argument o
    Notify: Function (
        (table) Options [
            (string) Text/Message/String/Value = "Nachricht"
-           (number | nil) Time = 6 // Sekunden
-           (string | nil) Type = "success" or "error" // färbt den Rahmen
+           (number | nil) Time = 6 // seconds
+           (string | nil) Type = "success" or "error" // colors the border
        ]
    ) -> Notification [ Text, Active, SetText: Function (NewText), Destroy: Function ]
    Prompt: Function (
@@ -502,12 +504,12 @@ GetJSON: Function (Func) // Gets the json, and passes it as the first argument o
            (string | nil) Name = "Titel"
            (string | nil) Description/Text/Message = "Beschreibung"
            (table) Options/Buttons/Choices = { Ja = Function, Nein = Function } | { {Name = "OK", Callback = Function} } | {"OK"}
-           (number | nil) Timeout = Sekunden bis zum automatischen Schließen
+           (number | nil) Timeout = seconds until it closes automatically
            (boolean | nil) KeepOpen = true or false // Fenster bleibt nach einem Klick offen
        ]
    ) -> Prompt [ Active, Close: Function, OnSelect: Event ]
    ShowLoadingScreen: Function ({OnAccept = Function, OnDecline = Function | nil}) // Beim Loader bereits angezeigt: ruft direkt OnAccept auf
-   IsMobile: boolean // true, wenn die Mobile-Library geladen wurde
+   IsMobile: boolean // true if the Mobile library was loaded
    LoadedVersion: "PC" or "Mobile"
 ResetAll: Function // Resets all elements to their default value
 SaveFile: Function (FileName) // Only if designer is present; this would save all non-deisgner elements

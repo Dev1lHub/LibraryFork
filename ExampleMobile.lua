@@ -1,20 +1,20 @@
 getgenv().D3v1lHubMobileMode = true
 local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Dev1lHub/LibraryFork/refs/heads/main/D3v1lLoader.lua"))()
 
--- D3v1lHub Beispiel-Script für MOBILE (Handy / Tablet)
+-- D3v1lHub example script for MOBILE (phone / tablet)
 --
--- Was im Mobile-Menü anders ist:
---   * Es wird nur MobileGUILib.lua geladen (schlankes Touch-Menü).
---   * Das Menü baut sich schrittweise auf (kein Einfrieren beim Start).
---   * Keybinds werden ignoriert (AddKeybind/Keybind-Option sind nur Platzhalter).
---   * Notify ist aktiv (kompakte Meldungen, max. 4 gleichzeitig).
---   * Der Settings-Tab (nur Config: Name, Configs, Save/Load/Delete/Autoload) kommt durch "Themeable".
+-- What is different in the Mobile menu:
+--   * Only MobileGUILib.lua is loaded (slim touch menu).
+--   * The menu builds itself step by step (no freezing on start).
+--   * Keybinds are ignored (AddKeybind / Keybind option are only placeholders).
+--   * Notify is active (compact messages, max. 4 at once).
+--   * The Settings tab (config only: name, configs, Save/Load/Delete/Autoload) is added by "Themeable".
 --
--- Aufbau langsamer/schneller machen (VOR CreateWindow):
---   library.MobileBuildBatch = 2      -- Elemente pro Pause
---   library.MobileBuildDelay = 0.06   -- Pause in Sekunden, 0 = alles auf einmal
+-- Make the build slower/faster (BEFORE CreateWindow):
+--   library.MobileBuildBatch = 2      -- elements per pause
+--   library.MobileBuildDelay = 0.06   -- pause in seconds, 0 = everything at once
 --
--- Tipp: Halte das Menü klein (wenige Elemente pro Tab), das ist auf dem Handy stabiler.
+-- Tip: keep the menu small (few elements per tab), it is more stable on phones.
 
 library:ShowLoadingScreen({
     OnAccept = function()
@@ -52,9 +52,9 @@ library:ShowLoadingScreen({
         })
 
         FarmingSection:AddDropdown({
-            Name = "Modus",
+            Name = "Mode",
             Flag = "Farming_Mode",
-            List = { "Leicht", "Mittel", "Schwer" },
+            List = { "Easy", "Medium", "Hard" },
             Callback = print
         })
 
@@ -76,18 +76,18 @@ library:ShowLoadingScreen({
         })
 
         MiscSection:AddTextbox({
-            Name = "Spielername",
+            Name = "Player name",
             Flag = "Misc_PlayerName",
-            Placeholder = "Name eingeben...",
+            Placeholder = "Enter name...",
             Callback = print
         })
 
         MiscSection:AddLabel({
-            Name = "Labels zeigen einfach Text an."
+            Name = "Labels simply display text."
         })
 
         MiscSection:AddColorpicker({
-            Name = "Beispiel-Farbe",
+            Name = "Example color",
             Flag = "Misc_ExampleColor",
             Value = Color3.fromRGB(168, 85, 247),
             Callback = print
@@ -98,13 +98,13 @@ library:ShowLoadingScreen({
         })
 
         ESPSection:AddToggle({
-            Name = "Spieler-ESP",
+            Name = "Player ESP",
             Flag = "ESP_Players",
             Callback = print
         })
 
         ESPSection:AddColorpicker({
-            Name = "ESP-Farbe",
+            Name = "ESP color",
             Flag = "ESP_Color",
             Value = Color3.fromRGB(255, 255, 255),
             Callback = print
@@ -112,6 +112,6 @@ library:ShowLoadingScreen({
     end,
 
     OnDecline = function()
-        print("[D3v1lHub] Laden abgebrochen - es wurde nichts erstellt.")
+        print("[D3v1lHub] Loading cancelled - nothing was created.")
     end
 })

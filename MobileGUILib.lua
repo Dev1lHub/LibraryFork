@@ -220,7 +220,7 @@ function evaluateDependency(dep, depth)
 		if not ok then
 			if not warnedDependencyFns[dep] then
 				warnedDependencyFns[dep] = true
-				warn("[DependsOn] Fehler in der Bedingung:", res)
+				warn("[DependsOn] Error in condition:", res)
 			end
 			return true
 		end
@@ -267,7 +267,7 @@ task.spawn(function()
 		local ok, err = pcall(scanDependencies)
 		if not ok and not warnedLoopError then
 			warnedLoopError = true
-			warn("[DependsOn] Fehler beim Prüfen der Abhängigkeiten:", err)
+			warn("[DependsOn] Error while checking dependencies:", err)
 		end
 	end
 end)
@@ -698,12 +698,12 @@ function DebugLog:Start()
 	local dateText = "?"
 	pcall(function() dateText = os.date("%Y-%m-%d %H:%M:%S") end)
 	self.Lines = {}
-	self.Lines[1] = string.format("D3v1lHub Debug-Log | %s | Executor: %s | Plattform: %s | Mobile: %s | Viewport: %s", dateText, executorName, platformName, tostring(debugLogMobileCache), viewport)
+	self.Lines[1] = string.format("D3v1lHub Debug Log | %s | Executor: %s | Platform: %s | Mobile: %s | Viewport: %s", dateText, executorName, platformName, tostring(debugLogMobileCache), viewport)
 	pcall(function()
 		local logService = game:GetService("LogService")
 		library.signals[1 + #library.signals] = logService.MessageOut:Connect(function(message, messageType)
 			if messageType ~= Enum.MessageType.MessageError and messageType ~= Enum.MessageType.MessageWarning then return end
-			local kind = (messageType == Enum.MessageType.MessageError) and "FEHLER" or "WARNUNG"
+			local kind = (messageType == Enum.MessageType.MessageError) and "ERROR" or "WARNING"
 			local text = kind .. ": " .. string.sub(tostring(message), 1, 300)
 			if text == self.LastError then
 				self.LastErrorCount = self.LastErrorCount + 1
@@ -736,7 +736,7 @@ function DebugLog:Start()
 			pcall(function() if library.MainScreenGui then objects = tostring(#library.MainScreenGui:GetDescendants()) end end)
 			pcall(function() signals = tostring(#library.signals) end)
 			self.LastError = nil
-			self:Add(string.format("Status: Speicher %s | Lua %s | FPS %s | GUI-Objekte %s | Verbindungen %s", mem, lua, fps, objects, signals))
+			self:Add(string.format("Status: Memory %s | Lua %s | FPS %s | GUI objects %s | Connections %s", mem, lua, fps, objects, signals))
 			self:Flush()
 		end
 	end)
@@ -751,7 +751,7 @@ end
 library.DebugMark = function(text) pcall(DebugLog.Mark, DebugLog, text) end
 function library:ShowLoadingScreen(options)
 	options = options or {}
-	pcall(DebugLog.Mark, DebugLog, "Loader: Yes/No-Fenster wird angezeigt")
+	pcall(DebugLog.Mark, DebugLog, "Loader: showing Yes/No window")
 	local onAccept = options.OnAccept or options.Callback
 	local onDecline = options.OnDecline
 	local soundService = game:GetService("SoundService")
@@ -1217,7 +1217,7 @@ function library:ShowLoadingScreen(options)
 			closeLoad.Completed:Wait()
 			LoadGui:Destroy()
 
-			pcall(DebugLog.Mark, DebugLog, "Loader fertig -> OnAccept (Menü wird aufgebaut)")
+			pcall(DebugLog.Mark, DebugLog, "Loader finished -> OnAccept (building menu)")
 			if onAccept then
 				task.spawn(onAccept)
 			end
@@ -1230,7 +1230,7 @@ function library:ShowLoadingScreen(options)
 			return
 		end
 		promptDecided = true
-		pcall(DebugLog.Mark, DebugLog, "Loader: Yes gedrückt")
+		pcall(DebugLog.Mark, DebugLog, "Loader: Yes pressed")
 		startLoadingSequence()
 	end)
 
@@ -1239,7 +1239,7 @@ function library:ShowLoadingScreen(options)
 			return
 		end
 		promptDecided = true
-		pcall(DebugLog.Mark, DebugLog, "Loader: No gedrückt")
+		pcall(DebugLog.Mark, DebugLog, "Loader: No pressed")
 		playSound(closeSoundId)
 		local closeTween = tweenService:Create(Outer, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)})
 		closeTween:Play()
@@ -1397,7 +1397,7 @@ local function deserializeFlagValue(val, data)
 			if ok and en then
 				val = en
 			else
-				warn("[Config] Konnte '" .. val .. "' nicht in ein EnumItem umwandeln - wird übersprungen")
+				warn("[Config] Could not convert '" .. val .. "' to an EnumItem - skipped")
 				return nil, false
 			end
 		end
@@ -1457,7 +1457,7 @@ do
 		slot.frame.Position = slot.hidden
 		local i = table.find(alive, obj)
 		if i then table.remove(alive, i) end
-		pcall(DebugLog.Mark, DebugLog, "Notify wird ausgeblendet")
+		pcall(DebugLog.Mark, DebugLog, "Notify hidden")
 	end
 	function library.Notify(self, data, ...)
 		if not rawequal(self, library) then data, self = self, library end
@@ -1657,7 +1657,7 @@ do
 		Pace.built = Pace.built + 1
 		Pace.count = Pace.count + (weight or 1)
 		if Pace.label then
-			Pace.label.Text = "lädt… " .. Pace.built
+			Pace.label.Text = "loading… " .. Pace.built
 			Pace.label.Visible = true
 			Pace.token = Pace.token + 1
 			local mine = Pace.token
@@ -3097,15 +3097,15 @@ do
 			if themeable then
 				local themeInfo = (type(themeable) == "table") and themeable or nil
 				local ok, err = pcall(windowFunctions.CreateDesigner, windowFunctions, themeInfo)
-				if not ok then warn("[Mobile] Settings-Tab konnte nicht erstellt werden:", err) end
+				if not ok then warn("[Mobile] Could not create Settings tab:", err) end
 			end
 			local autoName = readAutoload()
 			if autoName then
 				pcall(DebugLog.Mark, DebugLog, "Mobile-Autoload: " .. autoName)
 				local ok, info = loadConfig(autoName)
-				if ok then notify("Autoload: " .. autoName, "success") else warn("[Mobile] Autoload fehlgeschlagen:", info) end
+				if ok then notify("Autoload: " .. autoName, "success") else warn("[Mobile] Autoload failed:", info) end
 			end
-			pcall(DebugLog.Mark, DebugLog, "Mobile-GUI vollständig (" .. tostring(countElements()) .. " Elemente)")
+			pcall(DebugLog.Mark, DebugLog, "Mobile GUI complete (" .. tostring(countElements()) .. " elements)")
 		end)
 		pcall(DebugLog.Mark, DebugLog, "Mobile-GUI: CreateWindow fertig")
 		pace(99)
@@ -3120,5 +3120,5 @@ library.NewWindow = library.CreateWindow
 library.AddWindow = library.CreateWindow
 library.Window = library.CreateWindow
 library.W = library.CreateWindow
-pcall(DebugLog.Mark, DebugLog, "Library geladen")
+pcall(DebugLog.Mark, DebugLog, "Library loaded")
 return library, library_flags, library.subs

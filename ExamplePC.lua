@@ -1,24 +1,24 @@
 local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Dev1lHub/LibraryFork/refs/heads/main/D3v1lLoader.lua"))()
 local Wait = library.subs.Wait
 
--- D3v1lHub Beispiel-Script
+-- D3v1lHub example script
 --
--- Ablauf:
---   1. D3v1lLoader.lua erkennt das Gerät und lädt NUR die passende Library:
---        PC / Laptop    -> PCGUILib.lua     (volles Menü)
---        Handy / Tablet -> MobileGUILib.lua (schlankes Touch-Menü, baut sich schrittweise auf)
---   2. Der Loader zeigt Yes/No, "Detected device", HWID und den Ladebalken.
---   3. Bei "Yes" läuft OnAccept: hier wird das Menü aufgebaut. Bei "No" wird nichts erstellt (OnDecline).
+-- Flow:
+--   1. D3v1lLoader.lua detects the device and loads ONLY the matching library:
+--        PC / Laptop    -> PCGUILib.lua     (full menu)
+--        Handy / Tablet -> MobileGUILib.lua (slim touch menu, builds itself step by step)
+--   2. The loader shows Yes/No, "Detected device", HWID and the loading bar. On mobile, "Yes" first shows a warning (Continue / Cancel).
+--   3. On "Yes" OnAccept runs: build the menu here. On "No" nothing is created (OnDecline).
 --
--- Gerät erzwingen (VOR dem Laden des Loaders setzen):
---   getgenv().D3v1lHubMobileMode = true   -- immer Mobile
---   getgenv().D3v1lHubMobileMode = false  -- immer PC
+-- Force the device (set BEFORE loading the loader):
+--   getgenv().D3v1lHubMobileMode = true   -- always Mobile
+--   getgenv().D3v1lHubMobileMode = false  -- always PC
 --
--- Nur Mobile: Aufbau schneller/langsamer machen (VOR CreateWindow):
---   library.MobileBuildBatch = 2      -- Elemente pro Pause
---   library.MobileBuildDelay = 0.06   -- Pause in Sekunden, 0 = alles auf einmal
+-- Mobile only: make the build faster/slower (BEFORE CreateWindow):
+--   library.MobileBuildBatch = 2      -- elements per pause
+--   library.MobileBuildDelay = 0.06   -- pause in seconds, 0 = everything at once
 --
--- Loader-Texte anpassen (VOR dem Laden des Loaders):
+-- Customize loader texts (BEFORE loading the loader):
 --   getgenv().D3v1lLoaderOptions = { TitlePart1 = "D3v1l", ConfirmText = "Execute?", ShowHWID = false }
 
 library:ShowLoadingScreen({
@@ -30,9 +30,9 @@ library:ShowLoadingScreen({
             }
         })
 
-        -- Notify: Text, Time (Sekunden), Type = "success" / "error" (optional, färbt den Rahmen)
+        -- Notify: Text, Time (seconds), Type = "success" / "error" (optional, colors the border)
         library:Notify({
-            Text = "D3v1lHub wurde geladen!",
+            Text = "D3v1lHub loaded!",
             Time = 5,
             Type = "success"
         })
@@ -49,7 +49,7 @@ library:ShowLoadingScreen({
             Name = "World"
         })
 
-        -- Der Settings-Tab (Configs, Menü-Einstellungen) kommt automatisch durch "Themeable" oben und ist immer der letzte Tab.
+        -- The Settings tab (configs, menu settings) is added automatically by "Themeable" above and is always the last tab.
 
         local FarmingSection = MainTab:CreateSection({
             Name = "Farming"
@@ -58,8 +58,8 @@ library:ShowLoadingScreen({
         local EXPGrinderToggle = FarmingSection:AddToggle({
             Name = "EXP Grinder",
             Flag = "FarmingSection_EXPGrinder",
-            Tooltip = "Grindet automatisch EXP, solange aktiviert.",
-            DisabledTooltip = "Aktuell gesperrt."
+            Tooltip = "Grinds EXP automatically while enabled.",
+            DisabledTooltip = "Currently locked."
         })
 
         FarmingSection:AddToggle({
@@ -76,7 +76,7 @@ library:ShowLoadingScreen({
             Precise = 2,
             Min = 0,
             Max = 1,
-            Tooltip = "Wie oft automatisch Tricks ausgeführt werden."
+            Tooltip = "How often tricks are performed automatically."
         })
 
         FarmingSection:AddToggle({
@@ -169,12 +169,12 @@ library:ShowLoadingScreen({
 
         MiscSection:AddButton({
             Name = "Repair Board",
-            Tooltip = "Repariert das Board sofort.",
+            Tooltip = "Repairs the board immediately.",
             Callback = function()
                 print("Fixed")
                 library:Notify({
                     Title = "Repair",
-                    Text = "Board wurde repariert!",
+                    Text = "Board repaired!",
                     Time = 4
                 })
             end
@@ -182,33 +182,33 @@ library:ShowLoadingScreen({
 
         MiscSection:AddKeybind({
             Name = "Test Key",
-            Tooltip = "Beispiel-Keybind zum Testen.",
+            Tooltip = "Example keybind for testing.",
             Callback = print
         })
 
-        -- Beispiel für dauerhaft deaktivierte (ausgegraute) Elemente via "Disabled"
+        -- Example of permanently disabled (greyed out) elements via "Disabled"
         MiscSection:AddToggle({
-            Name = "Premium-Feature (bald verfügbar)",
+            Name = "Premium feature (coming soon)",
             Flag = "MiscSection_PremiumFeature",
             Disabled = true,
-            Tooltip = "Automatisiert Premium-Funktionen.",
-            DisabledTooltip = "Noch nicht freigeschaltet - kommt in einem späteren Update."
+            Tooltip = "Automates premium functions.",
+            DisabledTooltip = "Not unlocked yet - coming in a later update."
         })
 
         MiscSection:AddButton({
-            Name = "Premium kaufen",
+            Name = "Buy premium",
             Disabled = true,
-            Tooltip = "Öffnet den Premium-Shop.",
-            DisabledTooltip = "Aktuell deaktiviert, solange kein Premium-Zugang besteht.",
+            Tooltip = "Opens the premium shop.",
+            DisabledTooltip = "Currently disabled while there is no premium access.",
             Callback = function()
-                print("Premium-Shop geöffnet")
+                print("Premium shop opened")
             end
         })
 
-        -- Beispiel für SetDisabled: dieser Button sperrt/entsperrt den "EXP Grinder"-Toggle oben
+        -- Example of SetDisabled: this button locks/unlocks the "EXP Grinder" toggle above
         MiscSection:AddButton({
-            Name = "EXP Grinder sperren/entsperren",
-            Tooltip = "Schaltet die Sperre des EXP Grinders (siehe Farming-Sektion) um.",
+            Name = "Lock/unlock EXP Grinder",
+            Tooltip = "Toggles the lock of the EXP Grinder (see Farming section).",
             Callback = function()
                 EXPGrinderToggle:SetDisabled()
             end
@@ -223,38 +223,38 @@ library:ShowLoadingScreen({
         })
 
         MiscSection:AddTextbox({
-            Name = "Spielername",
+            Name = "Player name",
             Flag = "MiscSection_PlayerName",
-            Placeholder = "Name eingeben...",
+            Placeholder = "Enter name...",
             Callback = print
         })
 
         MiscSection:AddLabel({
-            Name = "Labels zeigen einfach Text an."
+            Name = "Labels simply display text."
         })
 
-        -- Prompt: kleines Auswahl-Fenster mit Knöpfen (Options: Name = Funktion)
+        -- Prompt: small choice window with buttons (Options: Name = function)
         MiscSection:AddButton({
-            Name = "Prompt öffnen",
+            Name = "Open prompt",
             Callback = function()
                 library:Prompt({
-                    Name = "Bist du sicher?",
-                    Description = "Das ist ein Beispiel für library:Prompt.",
+                    Name = "Are you sure?",
+                    Description = "This is an example of library:Prompt.",
                     Options = {
                         Ja = function()
-                            library:Notify({Text = "Du hast Ja gewählt.", Time = 3, Type = "success"})
+                            library:Notify({Text = "You chose Yes.", Time = 3, Type = "success"})
                         end,
                         Nein = function()
-                            library:Notify({Text = "Du hast Nein gewählt.", Time = 3, Type = "error"})
+                            library:Notify({Text = "You chose No.", Time = 3, Type = "error"})
                         end
                     }
                 })
             end
         })
 
-        -- Colorpicker stehen immer GANZ UNTEN in der Gruppe
+        -- Color pickers always go at the very BOTTOM of the group
         MiscSection:AddColorpicker({
-            Name = "Beispiel-Farbe",
+            Name = "Example color",
             Flag = "MiscSection_ExampleColor",
             Value = Color3.fromRGB(168, 85, 247),
             Callback = print
@@ -307,60 +307,60 @@ library:ShowLoadingScreen({
             Side = "Right"
         })
 
-        -- Beispiel für ein ganz normales Dropdown
+        -- Example of a normal dropdown
         DropdownSection:AddDropdown({
-            Name = "Einfaches Dropdown",
+            Name = "Simple dropdown",
             Flag = "DropdownSection_Simple",
-            List = { "Erster Wert", "Zweiter Wert", "Dritter Wert" },
-            Tooltip = "Wähle einen der drei Werte aus.",
+            List = { "First value", "Second value", "Third value" },
+            Tooltip = "Select one of the three values.",
             Callback = print
         })
 
-        -- Beispiel für ein durchsuchbares Dropdown (Searchable) - praktisch bei langen Listen
+        -- Example of a searchable dropdown (Searchable) - handy for long lists
         DropdownSection:AddDropdown({
-            Name = "Durchsuchbares Dropdown",
+            Name = "Searchable dropdown",
             Flag = "DropdownSection_Searchable",
-            List = { "Apfel", "Banane", "Kirsche", "Dattel", "Erdbeere", "Feige", "Guave" },
+            List = { "Apple", "Banana", "Cherry", "Date", "Strawberry", "Fig", "Guava" },
             Searchable = true,
             Callback = print
         })
 
-        -- Beispiel für FormatDisplayValue - der gespeicherte Wert bleibt roh, nur die Anzeige ändert sich
+        -- Example of FormatDisplayValue - the stored value stays raw, only the display changes
         DropdownSection:AddDropdown({
-            Name = "Formatiertes Dropdown",
+            Name = "Formatted dropdown",
             Flag = "DropdownSection_Formatted",
             List = { "ez", "med", "hard" },
             FormatDisplayValue = function(Value)
                 if Value == "ez" then
-                    return "Einfach"
+                    return "Easy"
                 elseif Value == "med" then
-                    return "Mittel"
+                    return "Medium"
                 elseif Value == "hard" then
-                    return "Schwer"
+                    return "Hard"
                 end
                 return Value
             end,
             Callback = print
         })
 
-        -- Beispiel für DisabledValues - einzelne Optionen sind sichtbar, aber nicht anklickbar
+        -- Example of DisabledValues - some options are visible but not clickable
         DropdownSection:AddDropdown({
-            Name = "Dropdown mit gesperrten Werten",
+            Name = "Dropdown with disabled values",
             Flag = "DropdownSection_DisabledValues",
-            List = { "Verfügbar 1", "Gesperrt", "Verfügbar 2", "Ebenfalls Gesperrt" },
-            DisabledValues = { "Gesperrt", "Ebenfalls Gesperrt" },
+            List = { "Available 1", "Disabled", "Available 2", "Also disabled" },
+            DisabledValues = { "Disabled", "Also disabled" },
             Callback = print
         })
 
-        -- Beispiel für MaxVisibleDropdownItems - viele Werte, die geöffnete Liste scrollt statt endlos zu wachsen
+        -- Example of MaxVisibleDropdownItems - many values, the opened list scrolls instead of growing endlessly
         do
             local ManyValues = {}
             for i = 1, 30 do
-                ManyValues[i] = "Eintrag " .. tostring(i)
+                ManyValues[i] = "Entry " .. tostring(i)
             end
 
             DropdownSection:AddDropdown({
-                Name = "Dropdown mit vielen Einträgen",
+                Name = "Dropdown with many entries",
                 Flag = "DropdownSection_ManyItems",
                 List = ManyValues,
                 MaxVisibleDropdownItems = 12,
@@ -368,9 +368,9 @@ library:ShowLoadingScreen({
             })
         end
 
-        -- Beispiel für SpecialType "Player" - füllt sich automatisch mit den Spielern im Server
+        -- Example of SpecialType "Player" - fills automatically with the players in the server
         DropdownSection:AddDropdown({
-            Name = "Spieler-Dropdown",
+            Name = "Player dropdown",
             Flag = "DropdownSection_Players",
             List = {},
             SpecialType = "Player",
@@ -378,9 +378,9 @@ library:ShowLoadingScreen({
             Callback = print
         })
 
-        -- Beispiel für SpecialType "Team" - füllt sich automatisch mit den Teams des Spiels
+        -- Example of SpecialType "Team" - fills automatically with the game's teams
         DropdownSection:AddDropdown({
-            Name = "Team-Dropdown",
+            Name = "Team dropdown",
             Flag = "DropdownSection_Teams",
             List = {},
             SpecialType = "Team",
@@ -392,7 +392,7 @@ library:ShowLoadingScreen({
         })
 
         ESPSection:AddLabel({
-            Name = "Kommt bald..."
+            Name = "Coming soon..."
         })
 
         local WorldSection = WorldTab:CreateSection({
@@ -400,14 +400,14 @@ library:ShowLoadingScreen({
         })
 
         WorldSection:AddLabel({
-            Name = "Kommt bald..."
+            Name = "Coming soon..."
         })
     end,
 
-    -- Bei "No" läuft OnAccept nie: es wird kein Window, Tab oder Element erstellt.
+    -- On "No" OnAccept never runs: no window, tab or element is created.
     OnDecline = function()
-        print("[D3v1lHub] Laden abgebrochen - es wurde nichts erstellt.")
-        -- Optional, falls gewünscht: das ganze Script danach hart beenden
+        print("[D3v1lHub] Loading cancelled - nothing was created.")
+        -- Optional: hard-stop the whole script afterwards
         -- script:Destroy()
     end
 })

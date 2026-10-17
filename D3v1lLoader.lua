@@ -319,7 +319,8 @@ function library:ShowLoadingScreen(options)
 		addTextStroke(DeviceLabel)
 	end
 
-	local function createButton(text, posX)
+	local function createButton(text, posX, parent, zb)
+		zb = zb or 303
 		local btnOuter = Instance.new("TextButton")
 		btnOuter.Name = generateRandomName()
 		btnOuter.AutoButtonColor = false
@@ -331,8 +332,8 @@ function library:ShowLoadingScreen(options)
 		btnOuter.Size = UDim2.new(0, 153, 0, 34)
 		btnOuter.Text = ""
 		btnOuter.ClipsDescendants = true
-		btnOuter.ZIndex = 303
-		btnOuter.Parent = InnerFrame
+		btnOuter.ZIndex = zb
+		btnOuter.Parent = parent or InnerFrame
 
 		local btnInner = Instance.new("Frame")
 		btnInner.Name = generateRandomName()
@@ -340,7 +341,7 @@ function library:ShowLoadingScreen(options)
 		btnInner.BorderSizePixel = 0
 		btnInner.Position = UDim2.new(0, 1, 0, 1)
 		btnInner.Size = UDim2.new(1, -2, 1, -2)
-		btnInner.ZIndex = 304
+		btnInner.ZIndex = zb + 1
 		btnInner.Parent = btnOuter
 
 		local btnGrad = Instance.new("UIGradient")
@@ -359,7 +360,7 @@ function library:ShowLoadingScreen(options)
 		btnText.TextColor3 = Color3.fromRGB(200, 190, 220)
 		btnText.TextSize = 14
 		btnText.Text = text
-		btnText.ZIndex = 305
+		btnText.ZIndex = zb + 2
 		btnText.Parent = btnInner
 		addTextStroke(btnText)
 
@@ -605,19 +606,92 @@ function library:ShowLoadingScreen(options)
 	end
 
 	local promptDecided = false
-	YesBtn.MouseButton1Click:Connect(function()
-		if promptDecided then
-			return
-		end
-		promptDecided = true
+	local function acceptNow()
 		if options.OnYes then
 			task.spawn(options.OnYes)
 		end
 		startLoadingSequence()
+	end
+	local warningShown = false
+	local function showMobileWarning()
+		warningShown = true
+		local Overlay = Instance.new("Frame")
+		Overlay.Name = generateRandomName()
+		Overlay.BackgroundColor3 = Color3.fromRGB(14, 11, 20)
+		Overlay.BorderSizePixel = 0
+		Overlay.Size = UDim2.new(1, 0, 1, 0)
+		Overlay.Active = true
+		Overlay.ZIndex = 310
+		Overlay.Parent = InnerFrame
+
+		local WarnTitle = Instance.new("TextLabel")
+		WarnTitle.Name = generateRandomName()
+		WarnTitle.BackgroundTransparency = 1
+		WarnTitle.Position = UDim2.new(0, 20, 0, 40)
+		WarnTitle.Size = UDim2.new(1, -40, 0, 26)
+		WarnTitle.Font = Enum.Font.Code
+		WarnTitle.TextColor3 = Color3.fromRGB(255, 190, 70)
+		WarnTitle.TextSize = 18
+		WarnTitle.Text = "Warning"
+		WarnTitle.ZIndex = 311
+		WarnTitle.Parent = Overlay
+		addTextStroke(WarnTitle)
+
+		local WarnBody = Instance.new("TextLabel")
+		WarnBody.Name = generateRandomName()
+		WarnBody.BackgroundTransparency = 1
+		WarnBody.Position = UDim2.new(0, 20, 0, 80)
+		WarnBody.Size = UDim2.new(1, -40, 0, 170)
+		WarnBody.Font = Enum.Font.Code
+		WarnBody.TextColor3 = Color3.fromRGB(200, 190, 220)
+		WarnBody.TextSize = 14
+		WarnBody.TextWrapped = true
+		WarnBody.TextXAlignment = Enum.TextXAlignment.Left
+		WarnBody.TextYAlignment = Enum.TextYAlignment.Top
+		WarnBody.ZIndex = 311
+		WarnBody.Text = options.MobileWarningText or "Mobile device detected.\n\nThis script was not really made for mobile. It needs heavy functions that can make the game crash on phones and tablets.\n\nDo you want to continue anyway?"
+		WarnBody.Parent = Overlay
+		addTextStroke(WarnBody)
+
+		local ContinueBtn = createButton("Continue", 20, Overlay, 312)
+		local CancelBtn = createButton("Cancel", 187, Overlay, 312)
+		ContinueBtn.MouseButton1Click:Connect(function()
+			if promptDecided then
+				return
+			end
+			promptDecided = true
+			acceptNow()
+		end)
+		CancelBtn.MouseButton1Click:Connect(function()
+			if promptDecided then
+				return
+			end
+			promptDecided = true
+			playSound(closeSoundId)
+			local closeTween = tweenService:Create(Outer, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)})
+			closeTween:Play()
+			closeTween.Completed:Wait()
+			ScreenGui:Destroy()
+			if onDecline then
+				task.spawn(onDecline)
+			end
+		end)
+	end
+
+	YesBtn.MouseButton1Click:Connect(function()
+		if promptDecided or warningShown then
+			return
+		end
+		if options.MobileWarning then
+			showMobileWarning()
+			return
+		end
+		promptDecided = true
+		acceptNow()
 	end)
 
 	NoBtn.MouseButton1Click:Connect(function()
-		if promptDecided then
+		if promptDecided or warningShown then
 			return
 		end
 		promptDecided = true
@@ -674,13 +748,13 @@ local function runLibrary()
 	else
 		local chunk, compileError = loadstring(source)
 		if not chunk then
-			loadError = "Datei fehlerhaft: " .. tostring(compileError)
+			loadError = "Invalid file: " .. tostring(compileError)
 		else
 			local okRun, lib, flags, subs = pcall(chunk)
 			if not okRun then
-				loadError = "Fehler beim Starten: " .. tostring(lib)
+				loadError = "Failed to start: " .. tostring(lib)
 			elseif type(lib) ~= "table" then
-				loadError = "Datei hat keine Library zurückgegeben"
+				loadError = "File did not return a library"
 			else
 				loadedLibrary, loadedFlags, loadedSubs = lib, flags, subs
 			end
@@ -698,6 +772,9 @@ if type(genv.D3v1lLoaderOptions) == "table" then
 	end
 end
 loaderOptions.DeviceText = isMobile and "Mobile" or "PC"
+if loaderOptions.MobileWarning == nil then
+	loaderOptions.MobileWarning = isMobile
+end
 loaderOptions.OnYes = function()
 	task.spawn(runLibrary)
 end
@@ -748,7 +825,7 @@ if decision == false then
 end
 
 if not loadedLibrary then
-	error("[D3v1lHub Loader] Library konnte nicht geladen werden: " .. tostring(loadError), 0)
+	error("[D3v1lHub Loader] Could not load library: " .. tostring(loadError), 0)
 end
 
 local function passThroughLoadingScreen(self, options)

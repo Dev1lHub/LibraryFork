@@ -1515,7 +1515,7 @@ function evaluateDependency(dep, depth)
 
 			if not warnedDependencyFns[dep] then
 				warnedDependencyFns[dep] = true
-				warn("[DependsOn] Fehler in der Bedingung:", res)
+				warn("[DependsOn] Error in condition:", res)
 			end
 			return true
 		end
@@ -1576,7 +1576,7 @@ task.spawn(function()
 		local ok, err = pcall(scanDependencies)
 		if not ok and not warnedLoopError then
 			warnedLoopError = true
-			warn("[DependsOn] Fehler beim Prüfen der Abhängigkeiten:", err)
+			warn("[DependsOn] Error while checking dependencies:", err)
 		end
 	end
 end)
@@ -2823,7 +2823,7 @@ local function deserializeFlagValue(val, data)
 			if ok and en then
 				val = en
 			else
-				warn("[Config] Konnte '" .. val .. "' nicht in ein EnumItem umwandeln - wird übersprungen")
+				warn("[Config] Could not convert '" .. val .. "' to an EnumItem - skipped")
 				return nil, false
 			end
 		end
@@ -8308,14 +8308,14 @@ function library:CreateWindow(options, ...)
 									savedok = true
 								else
 									reason = "write error"
-									warn("[Config] Speichern fehlgeschlagen:", errw)
+									warn("[Config] Saving failed:", errw)
 								end
 							else
 								ret = content
 							end
 						else
 							reason = "encode error"
-							warn("[Config] Konnte Config nicht in JSON umwandeln:", content)
+							warn("[Config] Could not convert config to JSON:", content)
 						end
 						if postsave then
 							local x, e = pcall(postsave, rawfile, library_flags[flagName])
@@ -8401,7 +8401,7 @@ function library:CreateWindow(options, ...)
 													applied = applied + 1
 												else
 													skipped = skipped + 1
-													warn("[Config] Wert für '" .. tostring(cflag) .. "' konnte nicht geladen werden:", err)
+													warn("[Config] Could not load value for '" .. tostring(cflag) .. "':", err)
 												end
 											else
 												skipped = skipped + 1
@@ -8410,7 +8410,7 @@ function library:CreateWindow(options, ...)
 									end
 									loadedok = true
 									if skipped > 0 then
-										warn(string.format("[Config] %d Werte geladen, %d übersprungen (ungültig oder nicht mehr vorhanden)", applied, skipped))
+										warn(string.format("[Config] %d values loaded, %d skipped (invalid or no longer present)", applied, skipped))
 									end
 								else
 									reason = "corrupted file"
@@ -8459,7 +8459,7 @@ function library:CreateWindow(options, ...)
 						pendingDelete = nil
 						local okd, errd = pcall(delfile, path)
 						if not okd then
-							warn("[Config] Löschen fehlgeschlagen:", errd)
+							warn("[Config] Deleting failed:", errd)
 							return false, "delete error", name
 						end
 						if readAutoloadName() == name then
@@ -8664,7 +8664,7 @@ function library:CreateWindow(options, ...)
 										local okCall, ok, reason, fname, customText = pcall(callback, presses)
 										busy = false
 										if not okCall then
-											warn("[Config] Unerwarteter Fehler:", ok)
+											warn("[Config] Unexpected error:", ok)
 											ok, reason, customText = false, "unexpected error", nil
 										end
 										queueInfoRefresh()
@@ -8918,7 +8918,7 @@ function library:CreateWindow(options, ...)
 												if library.IsGuiValid() then
 													local okJob, errJob = pcall(lateJob.Run)
 													if not okJob then
-														warn("[Config] Autoload-Fehler:", errJob)
+														warn("[Config] Autoload error:", errJob)
 													end
 												end
 											end)
@@ -8959,7 +8959,7 @@ function library:CreateWindow(options, ...)
 									for _, job in ipairs(jobs) do
 										local okJob, errJob = pcall(job.Run)
 										if not okJob then
-											warn("[Config] Autoload-Fehler:", errJob)
+											warn("[Config] Autoload error:", errJob)
 										end
 									end
 									end)
