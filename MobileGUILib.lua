@@ -1466,7 +1466,9 @@ do
 		text = (text == nil and "No text given") or tostring(text)
 		pcall(DebugLog.Mark, DebugLog, "Notify: " .. string.sub(text, 1, 60))
 		local obj = {Text = text, Active = true, Arguments = data}
-		if typeof(getgenv) == "function" and getgenv().D3v1lHubNoNotify then obj.Active = false return obj end
+		obj.Active = false
+		obj.SetText, obj.Destroy = function() end, function() end
+		if true then return obj end
 		local parent = getHolder()
 		if not parent then return obj end
 		local slot
