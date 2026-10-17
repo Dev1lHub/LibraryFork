@@ -5,8 +5,8 @@ DATEIEN
                      and loads ONLY the matching library. Returns the loaded library.
    PCGUILib.lua      Full menu for PC / laptop.
    MobileGUILib.lua  Slim touch menu for phone / tablet (far fewer GUI objects, builds itself step by step).
-   ExamplePC.lua     Complete example script.
-   ExampleMobile.lua Example script for phone/tablet only (Mobile menu).
+   Examples/ExamplePC.lua      Complete example script.
+   Examples/ExampleMobile.lua Example script for phone/tablet only (Mobile menu).
 
 START
    local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Dev1lHub/LibraryFork/refs/heads/main/D3v1lLoader.lua"))()
