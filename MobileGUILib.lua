@@ -1466,9 +1466,6 @@ do
 		text = (text == nil and "No text given") or tostring(text)
 		pcall(DebugLog.Mark, DebugLog, "Notify: " .. string.sub(text, 1, 60))
 		local obj = {Text = text, Active = true, Arguments = data}
-		obj.Active = false
-		obj.SetText, obj.Destroy = function() end, function() end
-		if true then return obj end
 		local parent = getHolder()
 		if not parent then return obj end
 		local slot
@@ -2980,38 +2977,43 @@ do
 					o = (o and type(o) == "string" and resolvevararg("Tab", o, ...)) or o or {}
 					local flag = o.Flag or unnamed("unnamedpersistence", "Persistence")
 					local nameBox = sectionFunctions:AddTextbox({Name = "Config Name", Flag = "__Mobile.ConfigName." .. flag, Placeholder = "name"})
+					local configList = sectionFunctions:AddDropdown({Name = "Configs", Flag = "__Mobile.ConfigList." .. flag, List = function()
+						return listConfigs()
+					end, Nothing = "None", Callback = function(v) if v and v ~= "None" then nameBox:RawSet(v) end end})
 					local infoLabel = nil
 					local function currentName()
 						local n = library_flags["__Mobile.ConfigName." .. flag]
-						if type(n) ~= "string" or #sanitizeConfigName(n) == 0 then return nil end
+						if type(n) ~= "string" or #sanitizeConfigName(n) == 0 then n = library_flags["__Mobile.ConfigList." .. flag] end
+						if n == "None" then return nil end
 						return n
 					end
 					local function refreshInfo()
-						if infoLabel then infoLabel:Set("Autoload: " .. tostring(readAutoload() or "none") .. "\nConfigs: " .. (table.concat(listConfigs(), ", ") ~= "" and table.concat(listConfigs(), ", ") or "none")) end
+						if infoLabel then infoLabel:Set("Autoload: " .. tostring(readAutoload() or "none")) end
+						configList:UpdateList()
 					end
 					sectionFunctions:AddButton({{Name = "Save", Callback = function()
 						local ok, info = saveConfig(currentName())
-						notify(ok and ("Saved: " .. tostring(info)) or ("Save failed: " .. tostring(info)), ok and "success" or "error")
+						notify(ok and ("Config saved: " .. tostring(info)) or ("Save failed: " .. tostring(info)), ok and "success" or "error")
 						refreshInfo()
 					end}, {Name = "Load", Callback = function()
 						local ok, info = loadConfig(currentName())
-						notify(ok and "Loaded" or ("Load failed: " .. tostring(info)), ok and "success" or "error")
-					end}, {Name = "Delete", Callback = function()
+						notify(ok and "Config loaded" or ("Load failed: " .. tostring(info)), ok and "success" or "error")
+					end}})
+					sectionFunctions:AddButton({{Name = "Delete", Callback = function()
 						local ok = deleteConfig(currentName())
-						notify(ok and "Deleted" or "Delete failed", ok and "success" or "error")
+						notify(ok and "Config deleted" or "Delete failed", ok and "success" or "error")
 						refreshInfo()
-					end}, {Name = "Autoload", Callback = function()
+					end}, {Name = "Set Autoload", Callback = function()
 						local n = sanitizeConfigName(currentName() or "")
 						if #n == 0 then
-							notify("Enter a config name first", "error")
+							notify("Enter or select a config first", "error")
 							return
 						end
 						local ok = writeAutoload(n)
-						notify(ok and ("Autoload: " .. n) or "Autoload failed", ok and "success" or "error")
+						notify(ok and ("Autoload: " .. n) or "Could not save autoload", ok and "success" or "error")
 						refreshInfo()
 					end}})
 					infoLabel = sectionFunctions:AddLabel({Text = "Autoload: " .. tostring(readAutoload() or "none")})
-					task.defer(refreshInfo)
 					local element
 					element = {
 						Options = o,
@@ -3052,7 +3054,23 @@ do
 		windowFunctions.NewTab = windowFunctions.CreateTab
 		windowFunctions.Tab = windowFunctions.CreateTab
 		windowFunctions.T = windowFunctions.CreateTab
-		function windowFunctions:CreateDesigner() return nil end
+		function windowFunctions:CreateDesigner(designerOptions)
+			designerOptions = (type(designerOptions) == "table" and designerOptions) or {}
+			if library.MobileDesigner then return library.MobileDesigner end
+			local settingsTab = windowFunctions:CreateTab({Name = designerOptions.Name or "Settings", LastTab = true})
+			library.MobileDesigner = settingsTab
+			local function mark(t) pcall(DebugLog.Mark, DebugLog, "Settings: " .. t) task.wait(0.2) end
+			mark("Config-Section")
+			local configSection = settingsTab:CreateSection({Name = "Config"})
+			if hasFiles then
+				mark("Persistence")
+				configSection:AddPersistence({Flag = "__Mobile.Config"})
+			else
+				configSection:AddLabel({Text = "Your executor cannot save files."})
+			end
+			mark("fertig")
+			return settingsTab
+		end
 		windowFunctions.AddDesigner = windowFunctions.CreateDesigner
 		windowFunctions.NewDesigner = windowFunctions.CreateDesigner
 		windowFunctions.Designer = windowFunctions.CreateDesigner

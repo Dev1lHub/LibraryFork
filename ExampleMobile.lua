@@ -7,8 +7,8 @@ local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Dev1l
 --   * Es wird nur MobileGUILib.lua geladen (schlankes Touch-Menü).
 --   * Das Menü baut sich schrittweise auf (kein Einfrieren beim Start).
 --   * Keybinds werden ignoriert (AddKeybind/Keybind-Option sind nur Platzhalter).
---   * library:Notify wird ignoriert (zeigt nichts an).
---   * Es gibt keinen Settings-Tab.
+--   * Notify ist aktiv (kompakte Meldungen, max. 4 gleichzeitig).
+--   * Der Settings-Tab (nur Config: Name, Configs, Save/Load/Delete/Autoload) kommt durch "Themeable".
 --
 -- Aufbau langsamer/schneller machen (VOR CreateWindow):
 --   library.MobileBuildBatch = 2      -- Elemente pro Pause
@@ -19,7 +19,8 @@ local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Dev1l
 library:ShowLoadingScreen({
     OnAccept = function()
         local Window = library:CreateWindow({
-            Name = "D3v1lHub"
+            Name = "D3v1lHub",
+            Themeable = {}
         })
 
         local MainTab = Window:CreateTab({
