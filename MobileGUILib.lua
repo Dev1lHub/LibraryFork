@@ -1445,21 +1445,16 @@ do
 		holder.Position = UDim2.new(1, -8, 0, 8)
 		holder.Size = UDim2.new(0, 230, 1, -16)
 		holder.ZIndex = 50
-		local list = Instance_new("UIListLayout")
-		list.Padding = UDim.new(0, 5)
-		list.HorizontalAlignment = Enum.HorizontalAlignment.Right
-		list.SortOrder = Enum.SortOrder.LayoutOrder
-		list.Parent = holder
 		holder.Parent = MainScreenGui
 		library.NotificationsFrame = holder
-		library.NotifyLayout = list
+		library.NotifyLayout = holder
 		return holder
 	end
 	local pool, counter = {}, 0
 	local function release(slot, obj)
 		if slot.obj ~= obj or not obj.Active then return end
 		obj.Active, slot.obj = false, nil
-		slot.frame.Visible = false
+		slot.frame.Position = slot.hidden
 		local i = table.find(alive, obj)
 		if i then table.remove(alive, i) end
 		pcall(DebugLog.Mark, DebugLog, "Notify wird ausgeblendet")
@@ -1471,6 +1466,7 @@ do
 		text = (text == nil and "No text given") or tostring(text)
 		pcall(DebugLog.Mark, DebugLog, "Notify: " .. string.sub(text, 1, 60))
 		local obj = {Text = text, Active = true, Arguments = data}
+		if typeof(getgenv) == "function" and getgenv().D3v1lHubNoNotify then obj.Active = false return obj end
 		local parent = getHolder()
 		if not parent then return obj end
 		local slot
@@ -1480,7 +1476,9 @@ do
 			slot.frame = Instance_new("Frame")
 			slot.frame.Name = generateRandomName()
 			slot.frame.BackgroundColor3 = library.colors.background
-			slot.frame.BorderSizePixel, slot.frame.Visible = 0, false
+			slot.frame.BorderSizePixel = 0
+			slot.shown, slot.hidden = UDim2.fromOffset(0, #pool * 45), UDim2.fromOffset(600, #pool * 45)
+			slot.frame.Position = slot.hidden
 			slot.frame.Size = UDim2.new(1, 0, 0, 40)
 			addCorner(slot.frame, 6)
 			slot.bar = Instance_new("Frame")
@@ -1509,9 +1507,8 @@ do
 		local kind = data.Type
 		slot.bar.BackgroundColor3 = (kind == "success" and Color3.fromRGB(80, 200, 120)) or (kind == "error" and Color3.fromRGB(220, 80, 80)) or library.colors.main
 		slot.lbl.Text = text
-		slot.frame.LayoutOrder = counter
 		slot.stamp, slot.obj = counter, obj
-		slot.frame.Visible = true
+		slot.frame.Position = slot.shown
 		alive[1 + #alive] = obj
 		obj.Object, obj.TextLabel = slot.frame, slot.lbl
 		function obj.SetText(a, b)
