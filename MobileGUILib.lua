@@ -1455,6 +1455,15 @@ do
 		library.NotifyLayout = list
 		return holder
 	end
+	local pool, counter = {}, 0
+	local function release(slot, obj)
+		if slot.obj ~= obj or not obj.Active then return end
+		obj.Active, slot.obj = false, nil
+		slot.frame.Visible = false
+		local i = table.find(alive, obj)
+		if i then table.remove(alive, i) end
+		pcall(DebugLog.Mark, DebugLog, "Notify wird ausgeblendet")
+	end
 	function library.Notify(self, data, ...)
 		if not rawequal(self, library) then data, self = self, library end
 		if type(data) ~= "table" then data = {Text = data} end
@@ -1464,61 +1473,55 @@ do
 		local obj = {Text = text, Active = true, Arguments = data}
 		local parent = getHolder()
 		if not parent then return obj end
-		while #alive >= 4 and alive[1] do alive[1].Destroy() end
+		local slot
+		for _, s in ipairs(pool) do if not s.obj then slot = s break end end
+		if not slot and #pool < 4 then
+			slot = {}
+			slot.frame = Instance_new("Frame")
+			slot.frame.Name = generateRandomName()
+			slot.frame.BackgroundColor3 = library.colors.background
+			slot.frame.BorderSizePixel, slot.frame.Visible = 0, false
+			slot.frame.Size = UDim2.new(1, 0, 0, 40)
+			addCorner(slot.frame, 6)
+			slot.bar = Instance_new("Frame")
+			slot.bar.Name = generateRandomName()
+			slot.bar.BorderSizePixel = 0
+			slot.bar.Size, slot.bar.Position = UDim2.new(0, 3, 1, -10), UDim2.new(0, 4, 0, 5)
+			slot.bar.Parent = slot.frame
+			slot.lbl = Instance_new("TextLabel")
+			slot.lbl.Name = generateRandomName()
+			slot.lbl.BackgroundTransparency = 1
+			slot.lbl.Position, slot.lbl.Size = UDim2.new(0, 14, 0, 0), UDim2.new(1, -20, 1, 0)
+			slot.lbl.Font = Enum.Font.GothamMedium
+			slot.lbl.TextSize, slot.lbl.TextWrapped = 12, true
+			slot.lbl.TextXAlignment = Enum.TextXAlignment.Left
+			slot.lbl.TextColor3 = library.colors.elementText
+			slot.lbl.Parent = slot.frame
+			slot.frame.Parent = parent
+			pool[1 + #pool] = slot
+		end
+		if not slot then
+			slot = pool[1]
+			for _, s in ipairs(pool) do if s.stamp < slot.stamp then slot = s end end
+			release(slot, slot.obj)
+		end
+		counter = counter + 1
 		local kind = data.Type
-		local accent = (kind == "success" and Color3.fromRGB(80, 200, 120)) or (kind == "error" and Color3.fromRGB(220, 80, 80)) or library.colors.main
-		local frame = Instance_new("Frame")
-		frame.Name = generateRandomName()
-		frame.BackgroundColor3 = library.colors.background
-		frame.BorderSizePixel = 0
-		frame.Size = UDim2.new(1, 0, 0, 0)
-		frame.AutomaticSize = Enum.AutomaticSize.Y
-		frame.Parent = parent
-		addCorner(frame, 6)
-		local stroke = Instance_new("UIStroke")
-		stroke.Color = accent
-		stroke.Thickness = 1
-		stroke.Parent = frame
-		local pad = Instance_new("UIPadding")
-		pad.PaddingTop, pad.PaddingBottom = UDim.new(0, 7), UDim.new(0, 7)
-		pad.PaddingLeft, pad.PaddingRight = UDim.new(0, 9), UDim.new(0, 9)
-		pad.Parent = frame
-		local lbl = Instance_new("TextLabel")
-		lbl.Name = generateRandomName()
-		lbl.BackgroundTransparency = 1
-		lbl.Size = UDim2.new(1, 0, 0, 0)
-		lbl.AutomaticSize = Enum.AutomaticSize.Y
-		lbl.Font = Enum.Font.GothamMedium
-		lbl.TextSize = 13
-		lbl.TextWrapped = true
-		lbl.TextXAlignment = Enum.TextXAlignment.Left
-		lbl.TextColor3 = library.colors.elementText
-		lbl.Text = text
-		lbl.Parent = frame
-		obj.Object, obj.TextLabel = frame, lbl
+		slot.bar.BackgroundColor3 = (kind == "success" and Color3.fromRGB(80, 200, 120)) or (kind == "error" and Color3.fromRGB(220, 80, 80)) or library.colors.main
+		slot.lbl.Text = text
+		slot.frame.LayoutOrder = counter
+		slot.stamp, slot.obj = counter, obj
+		slot.frame.Visible = true
+		alive[1 + #alive] = obj
+		obj.Object, obj.TextLabel = slot.frame, slot.lbl
 		function obj.SetText(a, b)
 			if b == nil then b = a end
 			obj.Text = tostring(b)
-			lbl.Text = obj.Text
+			if slot.obj == obj then slot.lbl.Text = obj.Text end
 		end
-		function obj.Destroy()
-			if not obj.Active then return end
-			obj.Active = false
-			local i = table.find(alive, obj)
-			if i then table.remove(alive, i) end
-			pcall(function()
-				tweenService:Create(frame, TweenInfo.new(0.25), {BackgroundTransparency = 1}):Play()
-				tweenService:Create(lbl, TweenInfo.new(0.25), {TextTransparency = 1}):Play()
-				tweenService:Create(stroke, TweenInfo.new(0.25), {Transparency = 1}):Play()
-			end)
-			task.delay(0.3, function()
-				pcall(function() frame:Destroy() end)
-			end)
-			pcall(DebugLog.Mark, DebugLog, "Notify wird entfernt")
-		end
-		alive[1 + #alive] = obj
+		function obj.Destroy() release(slot, obj) end
 		task.delay(tonumber(data.Time) or 4, obj.Destroy)
-		return obj, frame, lbl
+		return obj, slot.frame, slot.lbl
 	end
 	function library.Prompt(self, data, ...)
 		if not rawequal(self, library) then data, self = self, library end
@@ -1564,7 +1567,7 @@ do
 		local function close(method)
 			if obj.Active then
 				obj.Active = false
-				pcall(function() frame:Destroy() end)
+				frame.Visible = false
 				event:Fire("Close", method == "timeout_")
 			end
 		end
