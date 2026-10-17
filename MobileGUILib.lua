@@ -3063,18 +3063,23 @@ do
 			if library.MobileDesigner then return library.MobileDesigner end
 			local settingsTab = windowFunctions:CreateTab({Name = designerOptions.Name or "Settings", LastTab = true})
 			library.MobileDesigner = settingsTab
+			local function mark(t) pcall(DebugLog.Mark, DebugLog, "Settings: " .. t) task.wait(0.2) end
+			mark("Config-Section")
 			local configSection = settingsTab:CreateSection({Name = "Config"})
-			if hasFiles then configSection:AddPersistence({Flag = "__Mobile.Config"}) else configSection:AddLabel({Text = "Your executor cannot save files."}) end
+			if hasFiles then
+				mark("Persistence")
+				configSection:AddPersistence({Flag = "__Mobile.Config"})
+			else
+				configSection:AddLabel({Text = "Your executor cannot save files."})
+			end
+			mark("Menu-Section")
 			local menuSection = settingsTab:CreateSection({Name = "Menu"})
 			menuSection:AddButton({{Name = "Unload GUI", Callback = function() terminateGui() end}})
-			if designerOptions.Credit ~= false then menuSection:AddLabel({Text = "Library by d3v1lhub2222"}) end
 			local info = designerOptions.Info or options.Info
-			if type(info) == "string" then
-				menuSection:AddLabel({Text = info})
-			elseif type(info) == "table" then
-				for _, line in ipairs(info) do menuSection:AddLabel({Text = tostring(line)}) end
-			end
-			menuSection:AddLabel({Text = "Library Version: " .. tostring(library.Version or "?") .. " (Mobile)"})
+			local text = ((designerOptions.Credit ~= false) and "Library by d3v1lhub2222\n" or "") .. "Version " .. tostring(library.Version or "?") .. " (Mobile)"
+			if type(info) == "string" then text = info .. "\n" .. text elseif type(info) == "table" then text = table.concat(info, "\n") .. "\n" .. text end
+			menuSection:AddLabel({Text = text})
+			mark("fertig")
 			return settingsTab
 		end
 		windowFunctions.AddDesigner = windowFunctions.CreateDesigner
