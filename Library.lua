@@ -2644,6 +2644,9 @@ local function DetectMobile()
 	return touchEnabled and not mouseEnabled
 end
 library.DetectMobile = DetectMobile
+-- Mobile-GUI (wird weiter unten vor CreateWindow gebaut; hier nur vorab bekannt gemacht,
+-- damit ShowLoadingScreen es schon benutzen kann)
+local MobileUI = nil
 -- ============================================================
 -- DIAGNOSE-LOG (standardmäßig nur auf Handys aktiv)
 -- Schreibt mit, wie weit die Library gekommen ist, Fehler/Warnungen aus der Konsole und
@@ -3002,6 +3005,10 @@ library.subs.AddToolTip = library.AddToolTip
 -- ============================================================
 function library:ShowLoadingScreen(options)
 	options = options or {}
+	-- Handy/Tablet -> eigener, leichter Mobile-Loader (PC-Loader unten bleibt unverändert)
+	if MobileUI and MobileUI.ShouldUse(nil) then
+		return MobileUI.ShowLoadingScreen(options)
+	end
 	pcall(DebugLog.Mark, DebugLog, "Loader: Yes/No-Fenster wird angezeigt")
 	local onAccept = options.OnAccept or options.Callback
 	local onDecline = options.OnDecline
@@ -4719,8 +4726,2325 @@ do
 		end
 	end
 end
+-- ============================================================
+-- MOBILE-GUI (eigenes, leichtes GUI nur für Handys/Tablets)
+-- Auf Handys wird NICHT das PC-Menü gebaut, sondern dieses hier: gleiche Funktionen
+-- (CreateWindow/CreateTab/CreateSection/AddToggle/AddSlider/...), gleiche Flags,
+-- gleiche Configs - aber nur ein Bruchteil der Objekte (keine Verläufe, keine
+-- Hintergrundbilder, keine Rahmen pro Element, keine Tooltips/Watermark/Keystrokes).
+-- Das PC-Menü und der PC-Loader bleiben komplett unverändert.
+-- Erzwingen: library.MobileMode = true/false oder CreateWindow({ Mobile = true/false }).
+-- ============================================================
+MobileUI = {}
+library.MobileUI = MobileUI
+do
+	local FONT_MEDIUM = Enum.Font.GothamMedium
+	local FONT_BOLD = Enum.Font.GothamBold
+	local ROW_H = 34
+
+	local function C(name)
+		return library.colors[name]
+	end
+	local function colorHex(c)
+		return string.format("#%02X%02X%02X", math.clamp(math.floor(c.R * 255 + 0.5), 0, 255), math.clamp(math.floor(c.G * 255 + 0.5), 0, 255), math.clamp(math.floor(c.B * 255 + 0.5), 0, 255))
+	end
+	-- Erstellt ein Objekt (über Instance_new -> wird beim Unload automatisch zerstört)
+	local function new(className, props, parent)
+		local obj = Instance_new(className)
+		obj.Name = generateRandomName()
+		if props then
+			for k, v in next, props do
+				obj[k] = v
+			end
+		end
+		if parent then
+			obj.Parent = parent
+		end
+		return obj
+	end
+	local function corner(parent, radius)
+		return new("UICorner", {CornerRadius = (radius == "full" and UDim.new(1, 0)) or UDim.new(0, radius or 6)}, parent)
+	end
+	local function label(parent, props)
+		props = props or {}
+		props.BackgroundTransparency = 1
+		props.BorderSizePixel = 0
+		props.Font = props.Font or FONT_MEDIUM
+		props.TextSize = props.TextSize or 13
+		props.TextColor3 = props.TextColor3 or C("elementText")
+		props.TextXAlignment = props.TextXAlignment or Enum.TextXAlignment.Left
+		if props.TextTruncate == nil and not props.TextWrapped then
+			props.TextTruncate = Enum.TextTruncate.AtEnd
+		end
+		return new("TextLabel", props, parent)
+	end
+	local function button(parent, props)
+		props = props or {}
+		props.AutoButtonColor = false
+		props.BorderSizePixel = 0
+		props.Font = props.Font or FONT_MEDIUM
+		props.TextSize = props.TextSize or 13
+		props.TextColor3 = props.TextColor3 or C("elementText")
+		if props.Text == nil then
+			props.Text = ""
+		end
+		return new("TextButton", props, parent)
+	end
+	-- obj:Set(v) und obj.Set(v) beide erlauben (wie im PC-Menü)
+	local function pickArg(obj, a, b)
+		if b == nil and a ~= obj then
+			return a
+		end
+		return b
+	end
+	local function isPress(input)
+		return input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch
+	end
+	local function unnamed(counterKey, prefix)
+		library[counterKey] = 1 + (library[counterKey] or 0)
+		return prefix .. tostring(library[counterKey])
+	end
+	local function warnReused(flag)
+		if elements[flag] ~= nil then
+			warn(debug.traceback("Warning! Re-used flag '" .. tostring(flag) .. "'", 3))
+		end
+	end
+	local function fireCallback(fn, ...)
+		if type(fn) == "function" then
+			task.spawn(fn, ...)
+		end
+	end
+
+	-- Ziehen auf einem Balken (Slider, Farbregler): Maus und Finger. Bei Touch erst nach
+	-- eindeutiger waagerechter Bewegung schieben (senkrecht = Scrollen), Antippen setzt den Wert.
+	local function attachBarDrag(hitArea, onPosition)
+		local active, startPos, decided, isTouch = nil, nil, false, false
+		local function finish(input)
+			if not active then
+				return
+			end
+			local wasTouch, wasDecided, cur = isTouch, decided, active
+			active, startPos, decided, isTouch = nil, nil, false, false
+			if wasTouch and not wasDecided and input == cur then
+				onPosition(input.Position.X)
+			end
+		end
+		library.signals[1 + #library.signals] = hitArea.InputBegan:Connect(function(input)
+			if not isPress(input) then
+				return
+			end
+			if active then
+				local st = active.UserInputState
+				if st ~= Enum.UserInputState.End and st ~= Enum.UserInputState.Cancel then
+					return
+				end
+			end
+			active = input
+			isTouch = input.UserInputType == Enum.UserInputType.Touch
+			startPos = Vector2.new(input.Position.X, input.Position.Y)
+			decided = false
+			if not isTouch then
+				decided = true
+				onPosition(input.Position.X)
+			end
+		end)
+		library.signals[1 + #library.signals] = userInputService.InputChanged:Connect(function(input)
+			if not active then
+				return
+			end
+			if isTouch then
+				if input ~= active then
+					return
+				end
+				if not decided then
+					local dx = math.abs(input.Position.X - startPos.X)
+					local dy = math.abs(input.Position.Y - startPos.Y)
+					if dx >= 6 and dx >= dy then
+						decided = true
+					elseif dy >= 10 then
+						-- senkrecht gewischt -> war ein Scroll-Versuch, nichts ändern
+						active, startPos, decided, isTouch = nil, nil, false, false
+						return
+					else
+						return
+					end
+				end
+				onPosition(input.Position.X)
+			elseif input.UserInputType == Enum.UserInputType.MouseMovement then
+				onPosition(input.Position.X)
+			end
+		end)
+		library.signals[1 + #library.signals] = userInputService.InputEnded:Connect(function(input)
+			if active and (input == active or (not isTouch and input.UserInputType == Enum.UserInputType.MouseButton1)) then
+				finish(input)
+			end
+		end)
+	end
+	local function ratioOnBar(bar, x)
+		local w = bar.AbsoluteSize.X
+		if not (w > 0) then
+			return nil
+		end
+		local r = (x - bar.AbsolutePosition.X) / w
+		if r ~= r then
+			return nil
+		end
+		return math.clamp(r, 0, 1)
+	end
+
+	-- ---------------- Config-Dateien (gleiches Format/gleicher Ordner wie am PC) ----------------
+	local hasFiles = (type(writefile) == "function") and (type(readfile) == "function")
+	local function workspaceFolder()
+		local folderName = sanitizeConfigName(tostring(library.WorkspaceName or ""))
+		if #folderName == 0 then
+			folderName = "Unnamed Workspace"
+		end
+		return "D3v1lHub Lib/" .. folderName
+	end
+	local function ensureFolder()
+		pcall(function()
+			if isfolder and makefolder then
+				if not isfolder("D3v1lHub Lib") then
+					makefolder("D3v1lHub Lib")
+				end
+				local folder = workspaceFolder()
+				if not isfolder(folder) then
+					makefolder(folder)
+				end
+			end
+		end)
+	end
+	local function listConfigs()
+		local names, seen = {}, {}
+		if not (hasFiles and type(listfiles) == "function") then
+			return names
+		end
+		local folder = workspaceFolder()
+		if isfolder then
+			local okf, exists = pcall(isfolder, folder)
+			if not (okf and exists) then
+				return names
+			end
+		end
+		local okl, files = pcall(listfiles, folder)
+		if okl and type(files) == "table" then
+			for _, f in next, files do
+				local n = extractConfigName(f)
+				if n and #n > 0 and not seen[n] then
+					seen[n] = true
+					names[1 + #names] = n
+				end
+			end
+		end
+		table.sort(names, function(a, b)
+			return string.lower(a) < string.lower(b)
+		end)
+		return names
+	end
+	local function persistable(cflag, data)
+		return data and type(cflag) == "string" and data.Type ~= "Persistence" and data.Type ~= "Button" and data.Type ~= "Label" and not configIgnoredFlags[cflag] and string.sub(cflag, 1, 11) ~= "__Designer." and string.sub(cflag, 1, 9) ~= "__Mobile."
+	end
+	local function saveConfig(name)
+		name = sanitizeConfigName(name or "")
+		if #name == 0 then
+			return false, "Invalid name"
+		end
+		if not hasFiles then
+			return false, "Executor cannot save files"
+		end
+		local saving = {}
+		for cflag, data in next, elements do
+			if persistable(cflag, data) then
+				local ok, sv = serializeFlagValue(cflag, library_flags[cflag], data.Type)
+				if ok and sv ~= nil then
+					saving[cflag] = sv
+				end
+			end
+		end
+		saving.__meta = {savedAt = os.time(), version = 1}
+		local good, content = JSONEncode(saving)
+		if not (good and content) then
+			return false, "Encode error"
+		end
+		ensureFolder()
+		local okw = pcall(writefile, workspaceFolder() .. "/" .. name .. ".txt", content)
+		return okw, (okw and name) or "Write error"
+	end
+	local function loadConfig(name)
+		name = sanitizeConfigName(name or "")
+		if #name == 0 or not hasFiles then
+			return false, "Invalid name"
+		end
+		local path = workspaceFolder() .. "/" .. name .. ".txt"
+		if isfile then
+			local okf, exists = pcall(isfile, path)
+			if not (okf and exists) then
+				return false, "Not found"
+			end
+		end
+		local okr, content = pcall(readfile, path)
+		if not okr or type(content) ~= "string" or #content < 2 then
+			return false, "Not found"
+		end
+		local good, data = JSONDecode(content)
+		if not (good and type(data) == "table") then
+			return false, "Broken file"
+		end
+		local applied = 0
+		for cflag, val in next, data do
+			local element = (type(cflag) == "string") and elements[cflag]
+			if element and persistable(cflag, element) then
+				local converted, usable = deserializeFlagValue(val, element)
+				if usable and converted ~= nil then
+					local ok = pcall(function()
+						if element.Set then
+							element:Set(converted)
+						else
+							library_flags[cflag] = converted
+						end
+					end)
+					if ok then
+						applied = applied + 1
+					end
+				end
+			end
+		end
+		return true, applied
+	end
+	local function deleteConfig(name)
+		name = sanitizeConfigName(name or "")
+		if #name == 0 or type(delfile) ~= "function" then
+			return false
+		end
+		return (pcall(delfile, workspaceFolder() .. "/" .. name .. ".txt"))
+	end
+	local function readAutoload()
+		if not hasFiles then
+			return nil
+		end
+		local path = workspaceFolder() .. "/__autoload.json"
+		if isfile then
+			local okf, exists = pcall(isfile, path)
+			if not (okf and exists) then
+				return nil
+			end
+		end
+		local okr, content = pcall(readfile, path)
+		if not okr or type(content) ~= "string" then
+			return nil
+		end
+		local good, data = JSONDecode(content)
+		if good and type(data) == "table" and type(data.name) == "string" then
+			local n = sanitizeConfigName(data.name)
+			if #n > 0 then
+				return n
+			end
+		end
+		return nil
+	end
+	local function writeAutoload(name)
+		if not hasFiles then
+			return false
+		end
+		ensureFolder()
+		local good, content = JSONEncode({name = name})
+		if not (good and content) then
+			return false
+		end
+		return (pcall(writefile, workspaceFolder() .. "/__autoload.json", content))
+	end
+	MobileUI.SaveConfig, MobileUI.LoadConfig, MobileUI.DeleteConfig, MobileUI.ListConfigs = saveConfig, loadConfig, deleteConfig, listConfigs
+
+	-- Soll das Mobile-GUI benutzt werden? options.Mobile (CreateWindow) > library.MobileMode > Erkennung
+	function MobileUI.ShouldUse(opts)
+		if type(opts) == "table" and opts.Mobile ~= nil then
+			return opts.Mobile == true
+		end
+		local ok, res = pcall(DetectMobile)
+		return (ok and res == true) and true or false
+	end
+
+	local function notify(text, kind)
+		pcall(function()
+			library:Notify({Text = text, Time = 3, Type = kind})
+		end)
+	end
+
+	-- ============================================================
+	-- MOBILE-LOADER (eigener, leichter Yes/No-Loader)
+	-- ============================================================
+	function MobileUI.ShowLoadingScreen(options)
+		options = options or {}
+		local onAccept = options.OnAccept or options.Callback
+		local onDecline = options.OnDecline
+		local playerName = (LP and LP.Name) or "Player"
+		local titlePart1 = options.TitlePart1 or "D3v1l"
+		local titlePart2 = options.TitlePart2 or ("Hub | " .. playerName)
+		local confirmText = options.ConfirmText or "Do you want to execute this script?"
+		local loadingText = options.LoadingSubText or "Loading scripts and assets..."
+		local welcomeText = options.WelcomeSubText or "D3v1lHub successfully loaded."
+		local mainColor = C("main")
+		local soundVolume = options.SoundVolume or 0.5
+		local function playSound(soundId)
+			pcall(function()
+				soundId = tostring(soundId)
+				local sound = Instance.new("Sound")
+				sound.SoundId = (string.find(soundId, "rbxassetid://", 1, true) and soundId) or ("rbxassetid://" .. soundId)
+				sound.Volume = soundVolume
+				sound.Parent = game:GetService("SoundService")
+				sound:Play()
+				sound.Ended:Connect(function()
+					sound:Destroy()
+				end)
+			end)
+		end
+		pcall(DebugLog.Mark, DebugLog, "Mobile-Loader angezeigt")
+
+		local gui = Instance.new("ScreenGui")
+		gui.Name = generateRandomName()
+		gui.IgnoreGuiInset = true
+		gui.ResetOnSpawn = false
+		gui.DisplayOrder = 50
+		gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+		if not protectAndParentGui(gui, library.gui_parent) then
+			pcall(function()
+				gui.Parent = library.gui_parent
+			end)
+		end
+		new("Frame", {BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.45, BorderSizePixel = 0, Size = UDim2.fromScale(1, 1)}, gui)
+		local card = new("Frame", {AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(300, 200), BackgroundColor3 = C("background"), BorderSizePixel = 0}, gui)
+		corner(card, 10)
+		new("UIStroke", {Color = mainColor, Thickness = 1.5, ApplyStrokeMode = Enum.ApplyStrokeMode.Border}, card)
+		-- auf sehr kleinen Displays die Karte verkleinern
+		pcall(function()
+			local vp = workspace.CurrentCamera.ViewportSize
+			local s = math.min(1, (vp.X - 20) / 300, (vp.Y - 20) / 200)
+			if s < 1 and s > 0.3 then
+				new("UIScale", {Scale = s}, card)
+			end
+		end)
+		label(card, {Position = UDim2.fromOffset(16, 14), Size = UDim2.new(1, -32, 0, 24), Font = FONT_BOLD, TextSize = 18, RichText = true, TextXAlignment = Enum.TextXAlignment.Center, Text = tostring(titlePart1) .. '<font color="' .. colorHex(mainColor) .. '">' .. tostring(titlePart2) .. "</font>"})
+		local infoLabel = label(card, {Position = UDim2.fromOffset(16, 46), Size = UDim2.new(1, -32, 0, 40), TextWrapped = true, TextTruncate = Enum.TextTruncate.None, TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = C("otherElementText"), Text = confirmText})
+		label(card, {Position = UDim2.fromOffset(16, 90), Size = UDim2.new(1, -32, 0, 18), TextSize = 12, RichText = true, TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = C("otherElementText"), Text = 'Device: <font color="' .. colorHex(mainColor) .. '">Mobile</font> Detected'})
+		local yesButton = button(card, {Position = UDim2.new(0, 16, 1, -60), Size = UDim2.new(0.5, -22, 0, 44), BackgroundColor3 = mainColor, Text = "Yes", Font = FONT_BOLD, TextSize = 15, TextColor3 = Color3.new(1, 1, 1)})
+		corner(yesButton, 8)
+		local noButton = button(card, {Position = UDim2.new(0.5, 6, 1, -60), Size = UDim2.new(0.5, -22, 0, 44), BackgroundColor3 = C("topGradient"), Text = "No", Font = FONT_BOLD, TextSize = 15})
+		corner(noButton, 8)
+		playSound(options.OpenSound or "91896029011112")
+
+		-- nur EINE Entscheidung zählt (Doppeltipp startet nichts doppelt)
+		local decided = false
+		yesButton.Activated:Connect(function()
+			if decided then
+				return
+			end
+			decided = true
+			pcall(DebugLog.Mark, DebugLog, "Mobile-Loader: Yes")
+			yesButton.Visible, noButton.Visible = false, false
+			infoLabel.Text = loadingText
+			local barBack = new("Frame", {Position = UDim2.new(0, 24, 1, -44), Size = UDim2.new(1, -48, 0, 8), BackgroundColor3 = C("topGradient"), BorderSizePixel = 0}, card)
+			corner(barBack, "full")
+			local barFill = new("Frame", {Size = UDim2.fromScale(0, 1), BackgroundColor3 = mainColor, BorderSizePixel = 0}, barBack)
+			corner(barFill, "full")
+			task.spawn(function()
+				local tween = tweenService:Create(barFill, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Size = UDim2.fromScale(1, 1)})
+				tween:Play()
+				tween.Completed:Wait()
+				infoLabel.Text = "Welcome, " .. playerName .. "!\n" .. welcomeText
+				task.wait(0.9)
+				playSound(options.CloseSound or "6698737249")
+				pcall(function()
+					gui:Destroy()
+				end)
+				pcall(DebugLog.Mark, DebugLog, "Mobile-Loader fertig -> OnAccept (Mobile-GUI wird aufgebaut)")
+				if onAccept then
+					task.spawn(onAccept)
+				end
+			end)
+		end)
+		noButton.Activated:Connect(function()
+			if decided then
+				return
+			end
+			decided = true
+			pcall(DebugLog.Mark, DebugLog, "Mobile-Loader: No")
+			playSound(options.CloseSound or "6698737249")
+			pcall(function()
+				gui:Destroy()
+			end)
+			if onDecline then
+				task.spawn(onDecline)
+			end
+		end)
+		return gui
+	end
+
+	-- ============================================================
+	-- MOBILE-FENSTER
+	-- ============================================================
+	function MobileUI.CreateWindow(options)
+		options = options or {}
+		local windowName = options.Name or "Unnamed Window"
+		options.Name = windowName
+		pcall(DebugLog.Mark, DebugLog, "Mobile-GUI: CreateWindow startet")
+		if windowName and #windowName > 0 and library.WorkspaceName == "D3v1lHub Lib" then
+			library.WorkspaceName = convertfilename(windowName, "D3v1lHub Lib")
+		end
+		-- Anti-Double-Loading (wie am PC): alte Instanz sauber entfernen
+		if typeof(getgenv) == "function" then
+			local genv = getgenv()
+			if genv.D3v1lHub_ActiveTerminate then
+				pcall(genv.D3v1lHub_ActiveTerminate)
+				genv.D3v1lHub_ActiveTerminate = nil
+			end
+		end
+		library.IsMobile = true
+		CursorModule.Disabled = true
+		pcall(CursorModule.Disable, CursorModule)
+
+		local gui = Instance_new("ScreenGui")
+		gui.Name = generateRandomName()
+		gui.ResetOnSpawn = false
+		gui.DisplayOrder = 10
+		gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+		if not protectAndParentGui(gui, library.gui_parent) then
+			pcall(function()
+				gui.Parent = library.gui_parent
+			end)
+		end
+		-- Notify & Co. benutzen dieses GUI
+		library.MainScreenGui, MainScreenGui = gui, gui
+
+		local main = new("Frame", {AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(480, 300), BackgroundColor3 = C("background"), BorderSizePixel = 0, Active = true}, gui)
+		corner(main, 10)
+		new("UIStroke", {Color = C("main"), Thickness = 1, Transparency = 0.25, ApplyStrokeMode = Enum.ApplyStrokeMode.Border}, main)
+		library.MobileMain = main
+
+		-- Titelleiste (zum Verschieben) mit Ausblenden-Knopf
+		local topBar = new("Frame", {Size = UDim2.new(1, 0, 0, 36), BackgroundColor3 = C("sectionBackground"), BorderSizePixel = 0, Active = true}, main)
+		corner(topBar, 10)
+		new("Frame", {Position = UDim2.new(0, 0, 1, -10), Size = UDim2.new(1, 0, 0, 10), BackgroundColor3 = C("sectionBackground"), BorderSizePixel = 0}, topBar)
+		local titleText = tostring(windowName)
+		if string.sub(titleText, -3) == "Hub" and #titleText > 3 then
+			titleText = string.sub(titleText, 1, -4) .. '<font color="' .. colorHex(C("main")) .. '">Hub</font>'
+		end
+		label(topBar, {Position = UDim2.fromOffset(14, 0), Size = UDim2.new(1, -60, 1, 0), Font = FONT_BOLD, TextSize = 15, RichText = true, Text = titleText})
+		local hideButton = button(topBar, {AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -6, 0.5, 0), Size = UDim2.fromOffset(30, 26), BackgroundColor3 = C("topGradient"), Text = "–", Font = FONT_BOLD, TextSize = 16})
+		corner(hideButton, 6)
+
+		-- Inhalt: links Tabs, rechts die Seite des gewählten Tabs
+		local body = new("Frame", {Position = UDim2.fromOffset(0, 36), Size = UDim2.new(1, 0, 1, -36), BackgroundTransparency = 1}, main)
+		local tabList = new("ScrollingFrame", {Position = UDim2.fromOffset(6, 6), Size = UDim2.new(0, 104, 1, -12), BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 0, CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, ScrollingDirection = Enum.ScrollingDirection.Y}, body)
+		new("UIListLayout", {Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder}, tabList)
+		new("Frame", {Position = UDim2.fromOffset(115, 8), Size = UDim2.new(0, 1, 1, -16), BackgroundColor3 = C("innerBorder"), BorderSizePixel = 0}, body)
+		local pages = new("Frame", {Position = UDim2.fromOffset(122, 6), Size = UDim2.new(1, -128, 1, -12), BackgroundTransparency = 1, ClipsDescendants = true}, body)
+
+		-- Overlay für Dropdown-Listen und Farbwahl (EINS für alles, Inhalt nur solange offen)
+		local overlay = button(main, {Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.35, Visible = false, ZIndex = 50})
+		corner(overlay, 10)
+		local overlayPanel = new("Frame", {AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.new(1, -40, 1, -30), BackgroundColor3 = C("sectionBackground"), BorderSizePixel = 0, Active = true, ZIndex = 51}, overlay)
+		corner(overlayPanel, 8)
+		new("UIStroke", {Color = C("main"), Thickness = 1, Transparency = 0.3, ApplyStrokeMode = Enum.ApplyStrokeMode.Border}, overlayPanel)
+		local overlayContent = nil
+		local overlayOnClose = nil
+		local function closeOverlay()
+			local cb = overlayOnClose
+			overlayOnClose = nil
+			if overlayContent then
+				pcall(function()
+					overlayContent:Destroy()
+				end)
+				overlayContent = nil
+			end
+			overlay.Visible = false
+			if cb then
+				pcall(cb)
+			end
+		end
+		local function openOverlay(onClose)
+			closeOverlay()
+			overlayContent = new("Frame", {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ZIndex = 52}, overlayPanel)
+			overlayOnClose = onClose
+			overlay.Visible = true
+			return overlayContent
+		end
+		-- Tipp neben das Panel schließt es
+		overlay.Activated:Connect(closeOverlay)
+		library.signals[1 + #library.signals] = main:GetPropertyChangedSignal("Visible"):Connect(function()
+			if not main.Visible then
+				closeOverlay()
+			end
+		end)
+
+		-- Fenster an das Display anpassen
+		local function fitToScreen()
+			local cam = workspace.CurrentCamera
+			local vp = cam and cam.ViewportSize
+			if not vp or vp.X < 50 or vp.Y < 50 then
+				return
+			end
+			local inset = Vector2.new(0, 0)
+			pcall(function()
+				inset = game:GetService("GuiService"):GetGuiInset()
+			end)
+			local availW = vp.X - 24
+			local availH = vp.Y - inset.Y - 24
+			local w = math.min(math.clamp(math.floor(vp.X * 0.62), 340, 640), availW)
+			local h = math.min(math.clamp(math.floor(availH * 0.9), 200, 420), availH)
+			main.Size = UDim2.fromOffset(math.max(w, 200), math.max(h, 150))
+			main.Position = UDim2.fromScale(0.5, 0.5)
+		end
+		fitToScreen()
+		do
+			local lastViewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize
+			local queued = false
+			local function queueFit()
+				if queued then
+					return
+				end
+				queued = true
+				task.delay(0.25, function()
+					queued = false
+					local cam = workspace.CurrentCamera
+					local vp = cam and cam.ViewportSize
+					if not vp or not main.Parent then
+						return
+					end
+					if lastViewport and math.abs(vp.X - lastViewport.X) < 4 and math.abs(vp.Y - lastViewport.Y) < 4 then
+						return
+					end
+					lastViewport = vp
+					pcall(fitToScreen)
+				end)
+			end
+			local viewportConnection = nil
+			local function hookCamera()
+				if viewportConnection then
+					viewportConnection:Disconnect()
+					viewportConnection = nil
+				end
+				local cam = workspace.CurrentCamera
+				if cam then
+					viewportConnection = cam:GetPropertyChangedSignal("ViewportSize"):Connect(queueFit)
+					library.signals[1 + #library.signals] = viewportConnection
+				end
+			end
+			pcall(hookCamera)
+			pcall(function()
+				library.signals[1 + #library.signals] = workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+					pcall(hookCamera)
+					queueFit()
+				end)
+			end)
+		end
+
+		-- Fenster an der Titelleiste verschieben (Finger oder Maus)
+		do
+			local dragInput, dragStart, startPos = nil, nil, nil
+			library.signals[1 + #library.signals] = topBar.InputBegan:Connect(function(input)
+				if isPress(input) and not dragInput then
+					dragInput, dragStart, startPos = input, input.Position, main.Position
+				end
+			end)
+			library.signals[1 + #library.signals] = userInputService.InputChanged:Connect(function(input)
+				if not dragInput then
+					return
+				end
+				local same = (input == dragInput) or (dragInput.UserInputType == Enum.UserInputType.MouseButton1 and input.UserInputType == Enum.UserInputType.MouseMovement)
+				if same then
+					local delta = input.Position - dragStart
+					main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+				end
+			end)
+			library.signals[1 + #library.signals] = userInputService.InputEnded:Connect(function(input)
+				if dragInput and (input == dragInput or (dragInput.UserInputType == Enum.UserInputType.MouseButton1 and input.UserInputType == Enum.UserInputType.MouseButton1)) then
+					dragInput = nil
+				end
+			end)
+		end
+
+		-- Runder, verschiebbarer Knopf mit Decal: Tippen = Menü ein/aus
+		local toggleGui = Instance_new("ScreenGui")
+		toggleGui.Name = generateRandomName()
+		toggleGui.ResetOnSpawn = false
+		toggleGui.DisplayOrder = 11
+		toggleGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+		if not protectAndParentGui(toggleGui, library.gui_parent) then
+			pcall(function()
+				toggleGui.Parent = library.gui_parent
+			end)
+		end
+		library.__MobileToggleGui = toggleGui
+		do
+			local buttonImage = options.MobileButtonImage or options.MobileButtonDecal or "rbxassetid://133158046147209"
+			if type(buttonImage) == "number" then
+				buttonImage = "rbxassetid://" .. tostring(buttonImage)
+			end
+			local buttonSize = tonumber(options.MobileButtonSize) or 54
+			local toggleButton = new("ImageButton", {AutoButtonColor = false, BackgroundColor3 = C("background"), BorderSizePixel = 0, Image = buttonImage, ScaleType = Enum.ScaleType.Crop, Size = UDim2.fromOffset(buttonSize, buttonSize), Position = UDim2.new(0, 16, 0.3, 0), ZIndex = 10}, toggleGui)
+			corner(toggleButton, "full")
+			new("UIStroke", {ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Thickness = 2, Color = C("main")}, toggleButton)
+			library.MobileToggleButton = toggleButton
+			local dragInput, dragStart, buttonStart, moved = nil, nil, nil, false
+			library.signals[1 + #library.signals] = toggleButton.InputBegan:Connect(function(input)
+				if dragInput then
+					local st = dragInput.UserInputState
+					if st ~= Enum.UserInputState.End and st ~= Enum.UserInputState.Cancel then
+						return
+					end
+					dragInput = nil
+				end
+				if isPress(input) then
+					dragInput, dragStart, buttonStart, moved = input, input.Position, toggleButton.AbsolutePosition, false
+					toggleButton.ImageTransparency = 0.25
+				end
+			end)
+			library.signals[1 + #library.signals] = userInputService.InputChanged:Connect(function(input)
+				if not dragInput then
+					return
+				end
+				local same = (input == dragInput) or (dragInput.UserInputType == Enum.UserInputType.MouseButton1 and input.UserInputType == Enum.UserInputType.MouseMovement)
+				if not same then
+					return
+				end
+				local delta = input.Position - dragStart
+				if not moved and (math.abs(delta.X) > 8 or math.abs(delta.Y) > 8) then
+					moved = true
+				end
+				if moved then
+					local area = toggleGui.AbsoluteSize
+					local size = toggleButton.AbsoluteSize
+					local x = math.clamp(buttonStart.X + delta.X - toggleGui.AbsolutePosition.X, 0, math.max(0, area.X - size.X))
+					local y = math.clamp(buttonStart.Y + delta.Y - toggleGui.AbsolutePosition.Y, 0, math.max(0, area.Y - size.Y))
+					toggleButton.Position = UDim2.fromOffset(x, y)
+				end
+			end)
+			library.signals[1 + #library.signals] = userInputService.InputEnded:Connect(function(input)
+				if not dragInput then
+					return
+				end
+				local same = (input == dragInput) or (dragInput.UserInputType == Enum.UserInputType.MouseButton1 and input.UserInputType == Enum.UserInputType.MouseButton1)
+				if not same then
+					return
+				end
+				dragInput = nil
+				toggleButton.ImageTransparency = 0
+				if not moved then
+					main.Visible = not main.Visible
+				end
+			end)
+		end
+		hideButton.Activated:Connect(function()
+			main.Visible = false
+		end)
+
+		-- Unload (wird auch vom erneuten Ausführen des Scripts benutzt)
+		local terminated = false
+		local function terminateGui()
+			if terminated then
+				return
+			end
+			terminated = true
+			pcall(closeOverlay)
+			pcall(function()
+				toggleGui:Destroy()
+			end)
+			library.__MobileToggleGui = nil
+			pcall(function()
+				gui:Destroy()
+			end)
+			library.MainScreenGui, MainScreenGui = nil, nil
+			pcall(library.unload)
+		end
+		if typeof(getgenv) == "function" then
+			getgenv().D3v1lHub_ActiveTerminate = terminateGui
+		end
+
+		local windowFunctions = {
+			tabCount = 0,
+			selected = {},
+			Flags = elements,
+			IsMobile = true,
+			Mobile = true
+		}
+		windowFunctions.Terminate = terminateGui
+		windowFunctions.Unload = terminateGui
+		function windowFunctions:Show(x)
+			main.Visible = (x == nil) or (x == true) or (x == 1)
+			return main.Visible
+		end
+		function windowFunctions:Hide(x)
+			main.Visible = (x == false) or (x == 0)
+			return main.Visible
+		end
+		function windowFunctions:Visibility(x)
+			if x == nil then
+				main.Visible = not main.Visible
+			else
+				main.Visible = x and true
+			end
+			return main.Visible
+		end
+		-- Größe richtet sich auf Handys immer nach dem Display
+		function windowFunctions:SetSize()
+			fitToScreen()
+			return main.Size.X.Offset, main.Size.Y.Offset
+		end
+		function windowFunctions:GetSize()
+			return main.Size.X.Offset, main.Size.Y.Offset
+		end
+		function windowFunctions:ResetSize()
+			fitToScreen()
+		end
+		function windowFunctions:MoveTabSlider()
+		end
+		function windowFunctions:UpdateAll()
+			for _, element in next, elements do
+				if type(element) == "table" and element.Update then
+					pcall(element.Update)
+				end
+			end
+		end
+		library.UpdateAll = windowFunctions.UpdateAll
+
+		local tabs = {}
+		local selectedTab = nil
+		local function selectTab(tab)
+			if selectedTab == tab then
+				return
+			end
+			closeOverlay()
+			for _, t in ipairs(tabs) do
+				local active = (t == tab)
+				t.Page.Visible = active
+				t.Button.BackgroundColor3 = active and darkenColor(C("main"), 2.2) or C("topGradient")
+				t.Button.TextColor3 = active and C("elementText") or C("tabText")
+				t.Accent.Visible = active
+			end
+			selectedTab = tab
+			windowFunctions.LastTab = tab.Functions
+		end
+
+		function windowFunctions:CreateTab(tabOptions, ...)
+			tabOptions = (tabOptions and type(tabOptions) == "string" and resolvevararg("Tab", tabOptions, ...)) or tabOptions or {Name = "Tab"}
+			local tabName = tabOptions.Name or "Unnamed Tab"
+			tabOptions.Name = tabName
+			pcall(DebugLog.Mark, DebugLog, "Mobile-Tab: " .. tostring(tabName))
+			windowFunctions.tabCount = windowFunctions.tabCount + 1
+			local order = tabOptions.LastTab and 100000 or windowFunctions.tabCount
+			local tabButton = button(tabList, {Size = UDim2.new(1, 0, 0, 32), BackgroundColor3 = C("topGradient"), Text = tostring(tabName), TextColor3 = C("tabText"), TextTruncate = Enum.TextTruncate.AtEnd, LayoutOrder = order})
+			corner(tabButton, 6)
+			local accent = new("Frame", {Position = UDim2.fromOffset(0, 7), Size = UDim2.new(0, 3, 1, -14), BackgroundColor3 = C("main"), BorderSizePixel = 0, Visible = false}, tabButton)
+			corner(accent, "full")
+			local page = new("ScrollingFrame", {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, BorderSizePixel = 0, Visible = false, ScrollBarThickness = 4, ScrollBarImageColor3 = C("main"), CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, ScrollingDirection = Enum.ScrollingDirection.Y}, pages)
+			new("UIListLayout", {Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder}, page)
+			new("UIPadding", {PaddingRight = UDim.new(0, 8), PaddingBottom = UDim.new(0, 8)}, page)
+
+			local sectionCount = 0
+			local tabFunctions = {Flags = {}, Name = tabName}
+			local tabEntry = {Button = tabButton, Accent = accent, Page = page, Functions = tabFunctions}
+			tabs[1 + #tabs] = tabEntry
+			tabButton.Activated:Connect(function()
+				selectTab(tabEntry)
+			end)
+			function tabFunctions:Select()
+				selectTab(tabEntry)
+			end
+			tabFunctions.Remove = function()
+				tabButton.Parent = nil
+				page.Parent = nil
+			end
+			if not selectedTab then
+				selectTab(tabEntry)
+			end
+
+			function tabFunctions:CreateSection(sectionOptions, ...)
+				sectionOptions = (sectionOptions and type(sectionOptions) == "string" and resolvevararg("Tab", sectionOptions, ...)) or sectionOptions or {}
+				local sectionName = sectionOptions.Name or "Unnamed Section"
+				sectionOptions.Name = sectionName
+				pcall(DebugLog.Mark, DebugLog, "Mobile-Section: " .. tostring(sectionName))
+				sectionCount = sectionCount + 1
+				local sectionFrame = new("Frame", {Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = C("sectionBackground"), BorderSizePixel = 0, LayoutOrder = sectionCount}, page)
+				corner(sectionFrame, 8)
+				new("UIPadding", {PaddingTop = UDim.new(0, 8), PaddingBottom = UDim.new(0, 8), PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8)}, sectionFrame)
+				new("UIListLayout", {Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder}, sectionFrame)
+				label(sectionFrame, {Size = UDim2.new(1, 0, 0, 18), Font = FONT_BOLD, TextSize = 14, TextColor3 = C("section"), Text = tostring(sectionName), LayoutOrder = 0})
+				-- Elemente liegen in einem eigenen Halter (ohne Überschrift) -> Suche/DependsOn
+				-- können leere Sections korrekt ausblenden
+				local holder = new("Frame", {Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = 1}, sectionFrame)
+				new("UIListLayout", {Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder}, holder)
+				local elementCount = 0
+				local function nextOrder()
+					elementCount = elementCount + 1
+					return elementCount
+				end
+				local sectionFunctions = {Flags = {}, Name = sectionName}
+				function sectionFunctions:Update()
+					if not sectionFrame.Visible then
+						sectionFrame.Visible = true
+					end
+				end
+				function sectionFunctions:UpdateAll()
+					for _, element in next, sectionFunctions.Flags do
+						if type(element) == "table" and element.Update then
+							pcall(element.Update)
+						end
+					end
+				end
+				sectionFunctions.Remove = function()
+					sectionFrame.Parent = nil
+				end
+				library.__AllSections = library.__AllSections or {}
+				library.__AllSections[1 + #library.__AllSections] = {Frame = sectionFrame, Holder = holder, Functions = sectionFunctions}
+
+				local function register(flag, element)
+					tabFunctions.Flags[flag], sectionFunctions.Flags[flag], elements[flag] = element, element, element
+				end
+				local function makeRow(height)
+					local row = new("Frame", {Size = UDim2.new(1, 0, 0, height or ROW_H), BackgroundColor3 = C("topGradient"), BorderSizePixel = 0, LayoutOrder = nextOrder()}, holder)
+					corner(row, 6)
+					return row
+				end
+				local function removeRow(row)
+					return function()
+						if row then
+							row.Parent = nil
+						end
+					end
+				end
+				-- Gemeinsames Sperren/Entsperren (Disabled/Locked)
+				local function addLocking(element, getLocked, setLocked)
+					element.SetLocked = function(t, state)
+						if type(t) ~= "table" then
+							state = t
+						end
+						if state == nil then
+							setLocked(not getLocked())
+						else
+							setLocked(state and true or false)
+						end
+						return getLocked()
+					end
+					element.Lock = function()
+						setLocked(true)
+						return true
+					end
+					element.Unlock = function()
+						setLocked(false)
+						return false
+					end
+					element.SetDisabled = element.SetLocked
+					element.Disable = element.Lock
+					element.Enable = element.Unlock
+				end
+
+				-- ---------------- Toggle ----------------
+				function sectionFunctions:AddToggle(o, ...)
+					o = (o and type(o) == "string" and resolvevararg("Tab", o, ...)) or o
+					local name = assert(o.Name, "Missing Name for new toggle.")
+					local flag = o.Flag or unnamed("unnamedtoggles", "Toggle")
+					warnReused(flag)
+					local locked = (o.Locked or o.Disabled) and true or false
+					local row = makeRow()
+					local hit = button(row, {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ZIndex = 2})
+					local nameLabel = label(row, {Position = UDim2.fromOffset(10, 0), Size = UDim2.new(1, -66, 1, 0), Text = tostring(name)})
+					local track = new("Frame", {AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -10, 0.5, 0), Size = UDim2.fromOffset(40, 20), BackgroundColor3 = C("innerBorder"), BorderSizePixel = 0}, row)
+					corner(track, "full")
+					local knob = new("Frame", {AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 2, 0.5, 0), Size = UDim2.fromOffset(16, 16), BackgroundColor3 = C("elementText"), BorderSizePixel = 0}, track)
+					corner(knob, "full")
+					local element
+					local function render(animate)
+						local on = library_flags[flag] and true or false
+						local info = TweenInfo.new(animate and 0.15 or 0, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+						tweenService:Create(knob, info, {Position = on and UDim2.new(1, -18, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)}):Play()
+						track.BackgroundColor3 = on and C("main") or C("innerBorder")
+						nameLabel.Text = tostring(o.Name or name)
+						nameLabel.TextTransparency = locked and 0.55 or 0
+						track.BackgroundTransparency = locked and 0.5 or 0
+					end
+					local function apply(value, fire)
+						local last = library_flags[flag]
+						value = value and true or false
+						library_flags[flag] = value
+						if o.Location then
+							o.Location[o.LocationFlag or flag] = value
+						end
+						render(true)
+						if fire and o.Callback and (last ~= value or o.AllowDuplicateCalls) then
+							fireCallback(o.Callback, value)
+						end
+						return value
+					end
+					local function Set(a, b)
+						return apply(pickArg(element, a, b), true)
+					end
+					hit.Activated:Connect(function()
+						if locked then
+							return
+						end
+						local newValue = not library_flags[flag]
+						if type(o.Condition) == "function" then
+							local ok, allowed = pcall(o.Condition, newValue, not newValue)
+							if ok and not allowed then
+								return
+							end
+						end
+						apply(newValue, true)
+					end)
+					-- Taste aus Keybind-Option (nur wenn eine Tastatur angeschlossen ist)
+					if o.Keybind and typeof(o.Keybind) ~= "boolean" then
+						local kb = o.Keybind
+						local key = (typeof(kb) == "EnumItem" and kb) or (type(kb) == "table" and (kb.Value or kb.Key)) or nil
+						if typeof(key) == "EnumItem" then
+							library.signals[1 + #library.signals] = userInputService.InputBegan:Connect(function(input, processed)
+								if processed or locked or userInputService:GetFocusedTextBox() then
+									return
+								end
+								if input.KeyCode == key or input.UserInputType == key then
+									apply(not library_flags[flag], true)
+								end
+							end)
+						end
+					end
+					local initial = o.Value
+					if initial == nil then
+						initial = o.Enabled
+					end
+					element = {
+						Options = o,
+						Name = flag,
+						Flag = flag,
+						Type = "Toggle",
+						Parent = sectionFunctions,
+						Instance = nameLabel,
+						Container = row,
+						DisplayName = name,
+						Get = function()
+							return library_flags[flag]
+						end,
+						Set = Set,
+						RawSet = function(a, b)
+							return apply(pickArg(element, a, b), false)
+						end,
+						Update = function()
+							render(false)
+							return library_flags[flag]
+						end,
+						Remove = removeRow(row),
+						SetCondition = function(t, condition)
+							if type(t) ~= "table" and condition == nil then
+								condition = t
+							end
+							o.Condition = condition
+							return condition
+						end
+					}
+					addLocking(element, function()
+						return locked
+					end, function(v)
+						locked = v
+						render(false)
+					end)
+					if initial ~= nil then
+						apply(initial, true)
+					else
+						library_flags[flag] = false
+						render(false)
+					end
+					element.Default = library_flags[flag] and true or false
+					element.Reset = function()
+						return Set(nil, element.Default)
+					end
+					register(flag, element)
+					return element
+				end
+
+				-- ---------------- Slider ----------------
+				function sectionFunctions:AddSlider(o, ...)
+					o = (o and type(o) == "string" and resolvevararg("Slider", o, ...)) or o
+					local name = assert(o.Name, "Missing Name for new slider.")
+					assert(o.Max, "Missing Max for new slider.")
+					assert(o.Min, "Missing Min for new slider.")
+					local flag = o.Flag or unnamed("unnamedsliders", "Slider")
+					warnReused(flag)
+					local decimals = tonumber(o.Decimals or o.Precision or o.Precise)
+					if not decimals and (o.Max - o.Min) <= 1 then
+						decimals = 1
+					end
+					if decimals then
+						decimals = math.clamp(decimals, 0, 99)
+						if decimals <= 0 then
+							decimals = nil
+						end
+					end
+					local function display(val, was)
+						local str = (decimals and string.format("%0." .. tostring(decimals) .. "f", val)) or tostring(val)
+						local formatType = o.Format and type(o.Format)
+						if formatType == "string" then
+							local ok, res = pcall(string.format, o.Format, val)
+							return ok and res or str
+						elseif formatType == "function" then
+							local ok, res = pcall(o.Format, val, was)
+							if ok and res ~= nil then
+								return tostring(res)
+							end
+							return "Format Function Errored"
+						end
+						return tostring(o.Name or name) .. ": " .. str
+					end
+					local useTextbox = o.Textbox or o.InputBox or o.CustomInput
+					local row = makeRow(50)
+					local valueLabel = label(row, {Position = UDim2.fromOffset(10, 5), Size = UDim2.new(1, useTextbox and -76 or -20, 0, 18)})
+					local box = nil
+					if useTextbox then
+						box = new("TextBox", {AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -8, 0, 4), Size = UDim2.fromOffset(60, 20), BackgroundColor3 = C("bottomGradient"), BorderSizePixel = 0, ClearTextOnFocus = false, Font = FONT_MEDIUM, TextSize = 12, TextColor3 = C("elementText"), Text = ""}, row)
+						corner(box, 5)
+					end
+					local bar = new("Frame", {Position = UDim2.new(0, 10, 1, -17), Size = UDim2.new(1, -20, 0, 8), BackgroundColor3 = C("innerBorder"), BorderSizePixel = 0}, row)
+					corner(bar, "full")
+					local fill = new("Frame", {Size = UDim2.fromScale(0, 1), BackgroundColor3 = C("main"), BorderSizePixel = 0}, bar)
+					corner(fill, "full")
+					local hit = button(row, {Position = UDim2.new(0, 0, 1, -30), Size = UDim2.new(1, 0, 0, 30), BackgroundTransparency = 1, ZIndex = 2})
+					local element
+					local function render(was)
+						local v = library_flags[flag]
+						fill.Size = UDim2.fromScale(safeFillRatio(v, o.Min, o.Max), 1)
+						valueLabel.Text = display(v, was)
+						if box and not box:IsFocused() then
+							box.Text = tostring(v)
+						end
+					end
+					local function normalize(v)
+						v = tonumber(v)
+						if not v or v ~= v then
+							return nil
+						end
+						if not o.IllegalInput then
+							v = math.clamp(v, math.min(o.Min, o.Max), math.max(o.Min, o.Max))
+						end
+						if decimals then
+							v = tonumber(string.format("%0." .. tostring(decimals) .. "f", v)) or v
+						end
+						return v
+					end
+					local function apply(value, fire)
+						value = normalize(value)
+						if value == nil then
+							return library_flags[flag]
+						end
+						local last = library_flags[flag]
+						library_flags[flag] = value
+						if o.Location then
+							o.Location[o.LocationFlag or flag] = value
+						end
+						render(last)
+						if fire and o.Callback and (last ~= value or o.AllowDuplicateCalls) then
+							fireCallback(o.Callback, value, last)
+						end
+						return value
+					end
+					attachBarDrag(hit, function(x)
+						local r = ratioOnBar(bar, x)
+						if r == nil then
+							return
+						end
+						local raw = o.Min + r * (o.Max - o.Min)
+						if not decimals then
+							raw = math.floor(raw + 0.5)
+						end
+						apply(raw, true)
+					end)
+					if box then
+						box.FocusLost:Connect(function()
+							local n = tonumber(box.Text)
+							if n then
+								apply(n, true)
+							else
+								render()
+							end
+						end)
+					end
+					element = {
+						Options = o,
+						Name = flag,
+						Flag = flag,
+						Type = "Slider",
+						Parent = sectionFunctions,
+						Instance = valueLabel,
+						Container = row,
+						DisplayName = name,
+						Get = function()
+							return library_flags[flag]
+						end,
+						Set = function(a, b)
+							return apply(pickArg(element, a, b), true)
+						end,
+						RawSet = function(a, b)
+							return apply(pickArg(element, a, b), false)
+						end,
+						Update = function()
+							render()
+							return library_flags[flag]
+						end,
+						Remove = removeRow(row),
+						SetMin = function(a, b)
+							o.Min = tonumber(pickArg(element, a, b)) or o.Min
+							apply(library_flags[flag], false)
+						end,
+						SetMax = function(a, b)
+							o.Max = tonumber(pickArg(element, a, b)) or o.Max
+							apply(library_flags[flag], false)
+						end,
+						SetConstraints = function(t, minV, maxV)
+							if type(t) ~= "table" then
+								t, minV, maxV = nil, t, minV
+							end
+							o.Min = tonumber(minV) or o.Min
+							o.Max = tonumber(maxV) or o.Max
+							apply(library_flags[flag], false)
+						end
+					}
+					if o.Value ~= nil and normalize(o.Value) ~= nil then
+						apply(o.Value, true)
+					else
+						library_flags[flag] = o.Min
+						if o.Location then
+							o.Location[o.LocationFlag or flag] = o.Min
+						end
+						render()
+					end
+					element.Default = library_flags[flag]
+					element.Reset = function()
+						return element.Set(element.Default)
+					end
+					register(flag, element)
+					return element
+				end
+
+				-- ---------------- Button(s) ----------------
+				function sectionFunctions:AddButton(...)
+					local args
+					if ... and not select(2, ...) and type(...) == "table" and #... > 0 and type((...)[1]) == "table" and (...)[1].Name then
+						args = ...
+					else
+						args = {...}
+					end
+					local list = {}
+					for _, bo in ipairs(args) do
+						bo = (bo and bo[1] and type(bo[1]) == "string" and resolvevararg("Button", unpack(bo))) or bo
+						if type(bo) == "table" then
+							list[1 + #list] = bo
+						end
+					end
+					local container = new("Frame", {Size = UDim2.new(1, 0, 0, ROW_H), BackgroundTransparency = 1, LayoutOrder = nextOrder()}, holder)
+					new("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder}, container)
+					local count = math.max(#list, 1)
+					local buttons = {}
+					for index, bo in ipairs(list) do
+						local name = assert(bo.Name, "Missing Name for new button.")
+						local callback = bo.Callback or function()
+						end
+						local locked = (bo.Locked or bo.Disabled) and true or false
+						local btn = button(container, {Size = UDim2.new(1 / count, -((count - 1) * 6) / count, 1, 0), BackgroundColor3 = C("topGradient"), Text = tostring(name), TextTruncate = Enum.TextTruncate.AtEnd, LayoutOrder = index})
+						corner(btn, 6)
+						local stroke = new("UIStroke", {Color = C("main"), Thickness = 1, Transparency = 0.6, ApplyStrokeMode = Enum.ApplyStrokeMode.Border}, btn)
+						local element
+						local function render()
+							btn.Text = tostring(bo.Name or name)
+							btn.TextTransparency = locked and 0.55 or 0
+							stroke.Transparency = locked and 0.85 or 0.6
+						end
+						local function press()
+							if type(bo.Condition) == "function" then
+								local ok, allowed = pcall(bo.Condition)
+								if ok and not allowed then
+									return
+								end
+							end
+							fireCallback(callback)
+						end
+						btn.Activated:Connect(function()
+							if locked then
+								return
+							end
+							tweenService:Create(btn, TweenInfo.new(0.08), {BackgroundColor3 = darkenColor(C("main"), 2)}):Play()
+							task.delay(0.12, function()
+								tweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = C("topGradient")}):Play()
+							end)
+							press()
+						end)
+						element = {
+							Options = bo,
+							Name = name,
+							Flag = name,
+							Type = "Button",
+							Parent = sectionFunctions,
+							Instance = btn,
+							Container = container,
+							ButtonFrame = btn,
+							Frame = container,
+							DisplayName = name,
+							Get = function()
+								return nil
+							end,
+							Press = function()
+								if not locked then
+									press()
+								end
+							end,
+							RawPress = press,
+							SetText = function(a, b)
+								bo.Name = tostring(pickArg(element, a, b))
+								render()
+								return bo.Name
+							end,
+							SetCallback = function(a, b)
+								local fn = pickArg(element, a, b)
+								if type(fn) == "function" then
+									callback = fn
+								end
+								return callback
+							end,
+							SetCondition = function(t, condition)
+								if type(t) ~= "table" and condition == nil then
+									condition = t
+								end
+								bo.Condition = condition
+								return condition
+							end,
+							Update = function()
+								render()
+							end,
+							Remove = function()
+								btn.Parent = nil
+							end
+						}
+						addLocking(element, function()
+							return locked
+						end, function(v)
+							locked = v
+							render()
+						end)
+						render()
+						register(name, element)
+						buttons[1 + #buttons] = element
+					end
+					function buttons.PressAll()
+						for _, b in ipairs(buttons) do
+							b.Press()
+						end
+					end
+					function buttons.UpdateAll()
+						for _, b in ipairs(buttons) do
+							b.Update()
+						end
+					end
+					buttons.Update = buttons.UpdateAll
+					function buttons.RemoveAll()
+						container.Parent = nil
+					end
+					buttons.Remove = buttons.RemoveAll
+					if #buttons == 1 then
+						for k, v in next, buttons[1] do
+							if buttons[k] == nil then
+								buttons[k] = v
+							end
+						end
+					end
+					return buttons
+				end
+
+				-- ---------------- Label ----------------
+				function sectionFunctions:AddLabel(o, ...)
+					o = (o and type(o) == "string" and resolvevararg("Label", o, ...)) or o
+					local text = o.Text or o.Value or o.Name
+					local flag = o.Flag or unnamed("unnamedlabels", "Label")
+					warnReused(flag)
+					local lbl = label(holder, {Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, TextWrapped = true, TextTruncate = Enum.TextTruncate.None, TextColor3 = C("otherElementText"), Text = tostring(text or ""), LayoutOrder = nextOrder()})
+					new("UIPadding", {PaddingLeft = UDim.new(0, 4), PaddingTop = UDim.new(0, 2), PaddingBottom = UDim.new(0, 2)}, lbl)
+					local element
+					local function set(a, b)
+						local v = pickArg(element, a, b)
+						lbl.Text = tostring(v == nil and "" or v)
+						return lbl.Text
+					end
+					element = {
+						Options = o,
+						Name = flag,
+						Flag = flag,
+						Type = "Label",
+						Default = lbl.Text,
+						Parent = sectionFunctions,
+						Instance = lbl,
+						Container = lbl,
+						DisplayName = text,
+						Get = function()
+							return lbl.Text, lbl
+						end,
+						Set = set,
+						SetText = set,
+						RawSet = set,
+						Update = function()
+							return lbl.Text
+						end,
+						Remove = function()
+							lbl.Parent = nil
+						end
+					}
+					element.Reset = function()
+						return set(nil, element.Default)
+					end
+					register(flag, element)
+					return element
+				end
+
+				-- ---------------- Textbox ----------------
+				function sectionFunctions:AddTextbox(o, ...)
+					o = (o and type(o) == "string" and resolvevararg("Textbox", o, ...)) or o
+					local name = assert(o.Name, "Missing Name for new textbox.")
+					local flag = o.Flag or unnamed("unnamedtextboxes", "Textbox")
+					warnReused(flag)
+					local row = makeRow()
+					local nameLabel = label(row, {Position = UDim2.fromOffset(10, 0), Size = UDim2.new(0.42, -10, 1, 0), Text = tostring(name)})
+					local box = new("TextBox", {AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -6, 0.5, 0), Size = UDim2.new(0.58, -6, 0, 24), BackgroundColor3 = C("bottomGradient"), BorderSizePixel = 0, ClearTextOnFocus = false, Font = FONT_MEDIUM, TextSize = 12, TextColor3 = C("elementText"), PlaceholderColor3 = C("otherElementText"), PlaceholderText = tostring(o.Placeholder or o.Value or ""), Text = "", TextTruncate = Enum.TextTruncate.AtEnd}, row)
+					corner(box, 5)
+					new("UIPadding", {PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6)}, box)
+					local element
+					local function apply(value, fire)
+						local last = library_flags[flag]
+						value = (value == nil and "") or tostring(value)
+						library_flags[flag] = value
+						if o.Location then
+							o.Location[o.LocationFlag or flag] = value
+						end
+						if box.Text ~= value then
+							box.Text = value
+						end
+						if fire and o.Callback and (last ~= value or o.AllowDuplicateCalls) then
+							fireCallback(o.Callback, value, last, box)
+						end
+						return value
+					end
+					box.FocusLost:Connect(function()
+						apply(box.Text, true)
+					end)
+					element = {
+						Options = o,
+						Name = flag,
+						Flag = flag,
+						Type = "Textbox",
+						Parent = sectionFunctions,
+						Instance = box,
+						Container = row,
+						DisplayName = name,
+						Get = function()
+							return library_flags[flag]
+						end,
+						Set = function(a, b)
+							return apply(pickArg(element, a, b), true)
+						end,
+						RawSet = function(a, b)
+							return apply(pickArg(element, a, b), false)
+						end,
+						Update = function()
+							nameLabel.Text = tostring(o.Name or name)
+							return library_flags[flag]
+						end,
+						Remove = removeRow(row)
+					}
+					if o.Value ~= nil then
+						apply(o.Value, true)
+					else
+						library_flags[flag] = nil
+					end
+					element.Default = library_flags[flag]
+					element.Reset = function()
+						return element.Set(element.Default)
+					end
+					register(flag, element)
+					return element
+				end
+
+				-- ---------------- Keybind ----------------
+				-- Ohne Tastatur: Antippen löst die "Pressed"-Funktion aus. Mit Tastatur: Antippen
+				-- und dann eine Taste drücken legt die Taste fest (Esc/Backspace = NONE).
+				function sectionFunctions:AddKeybind(o, ...)
+					o = (o and type(o) == "string" and resolvevararg("Keybind", o, ...)) or o
+					local name = assert(o.Name, "Missing Name for new keybind.")
+					local flag = o.Flag or unnamed("unnamedkeybinds", "Keybind")
+					warnReused(flag)
+					local row = makeRow()
+					local hit = button(row, {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ZIndex = 2})
+					local nameLabel = label(row, {Position = UDim2.fromOffset(10, 0), Size = UDim2.new(1, -96, 1, 0), Text = tostring(name)})
+					local keyLabel = label(row, {AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 0), Size = UDim2.new(0, 80, 1, 0), TextXAlignment = Enum.TextXAlignment.Right, TextColor3 = C("otherElementText")})
+					local element
+					local binding = false
+					local function keyName(key)
+						if key == nil then
+							return "NONE"
+						end
+						if typeof(key) == "EnumItem" then
+							return key.Name
+						end
+						return tostring(key)
+					end
+					local function render()
+						nameLabel.Text = tostring(o.Name or name)
+						keyLabel.Text = binding and "[...]" or ("[" .. keyName(library_flags[flag]) .. "]")
+					end
+					local function apply(key, fire)
+						if key == "nil" or key == "NONE" or key == "none" then
+							key = nil
+						end
+						local last = library_flags[flag]
+						library_flags[flag] = key
+						if o.Location then
+							o.Location[o.LocationFlag or flag] = key
+						end
+						render()
+						if fire and o.Callback and (last ~= key or o.AllowDuplicateCalls) then
+							fireCallback(o.Callback, key, last)
+						end
+						return key
+					end
+					hit.Activated:Connect(function()
+						local hasKeyboard = false
+						pcall(function()
+							hasKeyboard = userInputService.KeyboardEnabled
+						end)
+						if not hasKeyboard then
+							if type(o.Pressed) == "function" then
+								fireCallback(o.Pressed)
+							end
+							return
+						end
+						if binding then
+							return
+						end
+						binding = true
+						render()
+						local connection
+						connection = userInputService.InputBegan:Connect(function(input)
+							if input.UserInputType == Enum.UserInputType.Keyboard then
+								connection:Disconnect()
+								binding = false
+								if input.KeyCode == Enum.KeyCode.Escape or input.KeyCode == Enum.KeyCode.Backspace then
+									apply(nil, true)
+								else
+									apply(input.KeyCode, true)
+								end
+							elseif input.UserInputType == Enum.UserInputType.Touch then
+								connection:Disconnect()
+								binding = false
+								render()
+							end
+						end)
+						library.signals[1 + #library.signals] = connection
+					end)
+					library.signals[1 + #library.signals] = userInputService.InputBegan:Connect(function(input, processed)
+						if processed or binding or userInputService:GetFocusedTextBox() then
+							return
+						end
+						local key = library_flags[flag]
+						if key ~= nil and (input.KeyCode == key or input.UserInputType == key) and type(o.Pressed) == "function" then
+							fireCallback(o.Pressed, input)
+						end
+					end)
+					element = {
+						Options = o,
+						Name = flag,
+						Flag = flag,
+						Type = "Keybind",
+						Parent = sectionFunctions,
+						Instance = keyLabel,
+						Container = row,
+						DisplayName = name,
+						Get = function()
+							return library_flags[flag]
+						end,
+						Set = function(a, b)
+							return apply(pickArg(element, a, b), true)
+						end,
+						RawSet = function(a, b)
+							return apply(pickArg(element, a, b), false)
+						end,
+						Update = function()
+							render()
+							return library_flags[flag]
+						end,
+						Remove = removeRow(row)
+					}
+					local preset = o.Value
+					if typeof(preset) ~= "EnumItem" then
+						preset = nil
+					end
+					library_flags[flag] = preset
+					render()
+					element.Default = preset
+					element.Reset = function()
+						return element.Set(element.Default)
+					end
+					register(flag, element)
+					return element
+				end
+
+				-- ---------------- Dropdown / SearchBox ----------------
+				local function makeDropdown(o, elementType)
+					local name = assert(o.Name, "Missing Name for new dropdown.")
+					local listSource = assert(o.List, "Missing List for new dropdown.")
+					local flag = o.Flag or unnamed((elementType == "SearchBox") and "unnamedsearchbox" or "unnameddropdown", elementType)
+					warnReused(flag)
+					local multi = o.MultiSelect or o.Multi or o.Multiple
+					local blank = (not multi) and (o.BlankValue or o.NoValueString or o.Nothing) or nil
+					if o.SpecialType == "Player" then
+						local exclude = o.ExcludeLocalPlayer and true or false
+						listSource = function()
+							local names = {}
+							for _, plr in ipairs(playersservice:GetPlayers()) do
+								if not (exclude and plr == playersservice.LocalPlayer) then
+									names[1 + #names] = plr.Name
+								end
+							end
+							table.sort(names, function(a, b)
+								return a:lower() < b:lower()
+							end)
+							return names
+						end
+					elseif o.SpecialType == "Team" then
+						listSource = function()
+							local names = {}
+							for _, team in ipairs(game:GetService("Teams"):GetTeams()) do
+								names[1 + #names] = team.Name
+							end
+							table.sort(names, function(a, b)
+								return a:lower() < b:lower()
+							end)
+							return names
+						end
+					end
+					local resolve = getresolver(listSource, o.Filter, o.Method)
+					local list = {}
+					local function refreshList()
+						local ok, res = pcall(resolve)
+						list = (ok and type(res) == "table") and res or {}
+						if not next(list) and o.EmptyValue ~= nil then
+							table.insert(list, 1, o.EmptyValue)
+						end
+						return list
+					end
+					refreshList()
+					local disabledValues = (type(o.DisabledValues) == "table" and o.DisabledValues) or {}
+					local function isDisabled(v)
+						return table.find(disabledValues, tostring(v)) ~= nil
+					end
+					local function formatValue(v)
+						if v ~= nil and type(o.FormatDisplayValue) == "function" then
+							local ok, res = pcall(o.FormatDisplayValue, v)
+							if ok and res ~= nil then
+								return tostring(res)
+							end
+						end
+						return tostring(v)
+					end
+					local row = makeRow(52)
+					local hit = button(row, {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ZIndex = 2})
+					local nameLabel = label(row, {Position = UDim2.fromOffset(10, 4), Size = UDim2.new(1, -20, 0, 18), Text = tostring(name)})
+					local valueBox = new("Frame", {Position = UDim2.new(0, 8, 0, 25), Size = UDim2.new(1, -16, 0, 21), BackgroundColor3 = C("bottomGradient"), BorderSizePixel = 0}, row)
+					corner(valueBox, 5)
+					local valueLabel = label(valueBox, {Position = UDim2.fromOffset(8, 0), Size = UDim2.new(1, -30, 1, 0), TextSize = 12, TextColor3 = C("otherElementText")})
+					label(valueBox, {AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -8, 0, 0), Size = UDim2.new(0, 14, 1, 0), TextXAlignment = Enum.TextXAlignment.Right, TextSize = 11, TextColor3 = C("main"), Text = "▼"})
+					local element
+					local overlayRebuild = nil -- gesetzt, solange die Liste dieses Dropdowns offen ist
+					local function displayText()
+						local v = library_flags[flag]
+						if multi then
+							if type(v) == "table" and #v > 0 then
+								local parts = {}
+								for i, item in ipairs(v) do
+									parts[i] = formatValue(item)
+								end
+								return table.concat(parts, ", ")
+							end
+							return (type(multi) == "string" and multi) or tostring(blank or "Select Item(s)")
+						end
+						if v == nil then
+							return tostring(blank or "None")
+						end
+						return formatValue(v)
+					end
+					local function render()
+						nameLabel.Text = tostring(o.Name or name)
+						valueLabel.Text = displayText()
+					end
+					local function applySingle(value, fire)
+						local last = library_flags[flag]
+						library_flags[flag] = value
+						if o.Location then
+							o.Location[o.LocationFlag or flag] = value
+						end
+						render()
+						if fire and o.Callback and (last ~= value or o.AllowDuplicateCalls) then
+							fireCallback(o.Callback, value, last)
+						end
+						return value
+					end
+					-- Mehrfachauswahl: die Tabelle bleibt dieselbe (wie am PC), Inhalt wird ersetzt
+					local function applyMulti(values, fire)
+						local current = library_flags[flag]
+						if type(current) ~= "table" then
+							current = {}
+							library_flags[flag] = current
+						end
+						local before = {unpack(current)}
+						table.clear(current)
+						if type(values) == "table" then
+							for _, v in ipairs(values) do
+								if v ~= nil and not table.find(current, v) then
+									current[1 + #current] = v
+								end
+							end
+						elseif values ~= nil then
+							current[1] = values
+						end
+						if o.Location then
+							o.Location[o.LocationFlag or flag] = current
+						end
+						render()
+						local changed = #before ~= #current
+						if not changed then
+							for i, v in ipairs(current) do
+								if before[i] ~= v then
+									changed = true
+									break
+								end
+							end
+						end
+						if fire and o.Callback and (changed or o.AllowDuplicateCalls) then
+							fireCallback(o.Callback, current, before)
+						end
+						return current
+					end
+					local function apply(value, fire)
+						if multi then
+							return applyMulti(value, fire)
+						end
+						if type(value) == "table" then
+							value = value[1]
+						end
+						return applySingle(value, fire)
+					end
+					-- Liste im Overlay
+					local function openList()
+						refreshList()
+						local content = openOverlay(function()
+							overlayRebuild = nil
+						end)
+						label(content, {Position = UDim2.fromOffset(12, 8), Size = UDim2.new(1, -24, 0, 20), Font = FONT_BOLD, TextSize = 14, Text = tostring(o.Name or name), ZIndex = 53})
+						local top = 32
+						local searchBox = nil
+						if o.Searchable or elementType == "SearchBox" then
+							searchBox = new("TextBox", {Position = UDim2.fromOffset(10, top), Size = UDim2.new(1, -20, 0, 28), BackgroundColor3 = C("bottomGradient"), BorderSizePixel = 0, ClearTextOnFocus = false, Font = FONT_MEDIUM, TextSize = 13, TextColor3 = C("elementText"), PlaceholderColor3 = C("otherElementText"), PlaceholderText = "Search...", Text = "", TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 53}, content)
+							corner(searchBox, 5)
+							new("UIPadding", {PaddingLeft = UDim.new(0, 8)}, searchBox)
+							top = top + 34
+						end
+						local bottomSpace = multi and 46 or 8
+						local scroller = new("ScrollingFrame", {Position = UDim2.fromOffset(10, top), Size = UDim2.new(1, -20, 1, -(top + bottomSpace)), BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 4, ScrollBarImageColor3 = C("main"), CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, ZIndex = 53}, content)
+						new("UIListLayout", {Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder}, scroller)
+						if multi then
+							local doneButton = button(content, {AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -8), Size = UDim2.new(1, -20, 0, 32), BackgroundColor3 = C("main"), Text = "Done", Font = FONT_BOLD, TextSize = 14, TextColor3 = Color3.new(1, 1, 1), ZIndex = 53}, nil)
+							corner(doneButton, 6)
+							doneButton.Activated:Connect(closeOverlay)
+						end
+						local function build()
+							for _, child in ipairs(scroller:GetChildren()) do
+								if child:IsA("GuiObject") then
+									child:Destroy()
+								end
+							end
+							local term = searchBox and string.lower(searchBox.Text) or ""
+							local current = library_flags[flag]
+							local items = {}
+							if blank and not table.find(list, blank) then
+								items[1] = blank
+							end
+							for _, v in ipairs(list) do
+								items[1 + #items] = v
+							end
+							local shown = 0
+							for index, v in ipairs(items) do
+								local text = formatValue(v)
+								if term == "" or string.find(string.lower(text), term, 1, true) or string.find(string.lower(tostring(v)), term, 1, true) then
+									shown = shown + 1
+									local selected = (multi and type(current) == "table" and table.find(current, v) ~= nil) or (not multi and current == v)
+									local disabled = isDisabled(v)
+									local item = button(scroller, {Size = UDim2.new(1, -6, 0, 32), BackgroundColor3 = selected and darkenColor(C("main"), 2) or C("topGradient"), Text = "", LayoutOrder = index, ZIndex = 54})
+									corner(item, 6)
+									label(item, {Position = UDim2.fromOffset(10, 0), Size = UDim2.new(1, -40, 1, 0), Text = text, TextColor3 = selected and C("elementText") or C("otherElementText"), TextTransparency = disabled and 0.6 or 0, ZIndex = 55})
+									if selected then
+										label(item, {AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 0), Size = UDim2.new(0, 20, 1, 0), TextXAlignment = Enum.TextXAlignment.Right, Text = "✓", TextColor3 = C("main"), Font = FONT_BOLD, ZIndex = 55})
+									end
+									item.Activated:Connect(function()
+										if disabled then
+											return
+										end
+										if multi then
+											local values = {}
+											local cur = library_flags[flag]
+											if type(cur) == "table" then
+												for _, x in ipairs(cur) do
+													values[1 + #values] = x
+												end
+											end
+											local at = table.find(values, v)
+											if at then
+												table.remove(values, at)
+											else
+												values[1 + #values] = v
+											end
+											applyMulti(values, true)
+											build()
+										else
+											applySingle(v, true)
+											closeOverlay()
+										end
+									end)
+								end
+							end
+							if shown == 0 then
+								label(scroller, {Size = UDim2.new(1, -6, 0, 28), TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = C("otherElementText"), Text = "No entries", ZIndex = 54})
+							end
+						end
+						build()
+						overlayRebuild = build
+						if searchBox then
+							searchBox:GetPropertyChangedSignal("Text"):Connect(build)
+						end
+					end
+					hit.Activated:Connect(openList)
+					local function relistIfOpen()
+						if overlayRebuild then
+							pcall(overlayRebuild)
+						end
+					end
+					element = {
+						Options = o,
+						Name = flag,
+						Flag = flag,
+						Type = elementType,
+						Parent = sectionFunctions,
+						Instance = valueLabel,
+						Container = row,
+						DisplayName = name,
+						Get = function()
+							return library_flags[flag]
+						end,
+						Set = function(a, b)
+							return apply(pickArg(element, a, b), true)
+						end,
+						RawSet = function(a, b)
+							return apply(pickArg(element, a, b), false)
+						end,
+						Update = function()
+							render()
+							return displayText()
+						end,
+						Remove = removeRow(row),
+						resolvelist = function()
+							return refreshList()
+						end,
+						UpdateList = function(t, newList, updateValues)
+							if (newList == nil and t ~= nil and t ~= element) or (type(t) == "table" and t ~= element and type(newList) ~= "table") then
+								newList, updateValues = t, newList
+							end
+							if newList == element then
+								newList = nil
+							end
+							if newList ~= nil then
+								listSource = newList
+								o.List = newList
+							end
+							resolve = getresolver(listSource, o.Filter, o.Method)
+							refreshList()
+							if updateValues and not multi and library_flags[flag] ~= nil and not table.find(list, library_flags[flag]) then
+								applySingle(list[1], true)
+							end
+							render()
+							relistIfOpen()
+							return list
+						end,
+						SetDisabledValues = function(t, values)
+							if values == nil and t ~= element then
+								values = t
+							end
+							if type(values) == "table" then
+								disabledValues = values
+							end
+							relistIfOpen()
+							return disabledValues
+						end,
+						AddDisabledValues = function(t, values)
+							if values == nil and t ~= element then
+								values = t
+							end
+							if type(values) == "table" then
+								for _, v in ipairs(values) do
+									disabledValues[1 + #disabledValues] = v
+								end
+							elseif values ~= nil then
+								disabledValues[1 + #disabledValues] = tostring(values)
+							end
+							relistIfOpen()
+							return disabledValues
+						end
+					}
+					element.Refresh = element.UpdateList
+					element.SetValues = element.UpdateList
+					-- Spieler/Teams live aktualisieren
+					if o.SpecialType == "Player" then
+						library.signals[1 + #library.signals] = playersservice.PlayerAdded:Connect(function()
+							refreshList()
+							relistIfOpen()
+						end)
+						library.signals[1 + #library.signals] = playersservice.PlayerRemoving:Connect(function()
+							task.defer(function()
+								refreshList()
+								relistIfOpen()
+							end)
+						end)
+					elseif o.SpecialType == "Team" then
+						pcall(function()
+							local teams = game:GetService("Teams")
+							library.signals[1 + #library.signals] = teams.ChildAdded:Connect(function()
+								refreshList()
+								relistIfOpen()
+							end)
+							library.signals[1 + #library.signals] = teams.ChildRemoved:Connect(function()
+								refreshList()
+								relistIfOpen()
+							end)
+						end)
+					end
+					-- Startwert
+					local initial = o.Value
+					if blank and initial == nil then
+						initial = blank
+					end
+					if multi then
+						library_flags[flag] = {}
+						if initial ~= nil then
+							applyMulti((type(initial) == "table") and initial or {initial}, true)
+						end
+					else
+						if initial == nil then
+							initial = list[1]
+						end
+						if o.Value ~= nil or blank ~= nil then
+							applySingle(initial, true)
+						else
+							library_flags[flag] = initial
+						end
+					end
+					if o.Location and not multi then
+						o.Location[o.LocationFlag or flag] = library_flags[flag]
+					end
+					render()
+					element.Default = library_flags[flag]
+					element.Reset = function()
+						return element.Set(element.Default)
+					end
+					register(flag, element)
+					return element
+				end
+				function sectionFunctions:AddDropdown(o, ...)
+					o = (o and type(o) == "string" and resolvevararg("Dropdown", o, ...)) or o
+					return makeDropdown(o, "Dropdown")
+				end
+				function sectionFunctions:AddSearchBox(o, ...)
+					o = (o and type(o) == "string" and resolvevararg("SearchBox", o, ...)) or o
+					o.Searchable = true
+					return makeDropdown(o, "SearchBox")
+				end
+
+				-- ---------------- Colorpicker ----------------
+				function sectionFunctions:AddColorpicker(o, ...)
+					o = (o and type(o) == "string" and resolvevararg("Colorpicker", o, ...)) or o
+					local name = assert(o.Name, "Missing Name for new colorpicker.")
+					local flag = o.Flag or unnamed("unnamedcolorpickers", "Colorpicker")
+					warnReused(flag)
+					local function toColor(v)
+						if typeof(v) == "Color3" then
+							return v
+						end
+						if v == "random" or o.Random == true then
+							return Color3.new(math.random(), math.random(), math.random())
+						end
+						if type(v) == "string" and v ~= "rainbow" then
+							local ok, c = pcall(Color3FromHex, v)
+							if ok and typeof(c) == "Color3" then
+								return c
+							end
+						end
+						return nil
+					end
+					local row = makeRow()
+					local hit = button(row, {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ZIndex = 2})
+					local nameLabel = label(row, {Position = UDim2.fromOffset(10, 0), Size = UDim2.new(1, -64, 1, 0), Text = tostring(name)})
+					local swatch = new("Frame", {AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -10, 0.5, 0), Size = UDim2.fromOffset(40, 20), BorderSizePixel = 0}, row)
+					corner(swatch, 5)
+					local element
+					local function render()
+						local c = library_flags[flag]
+						if typeof(c) == "Color3" then
+							swatch.BackgroundColor3 = c
+						end
+						nameLabel.Text = tostring(o.Name or name)
+					end
+					local function apply(value, fire)
+						local c = toColor(value)
+						if not c then
+							return library_flags[flag]
+						end
+						local last = library_flags[flag]
+						library_flags[flag] = c
+						if o.Location then
+							o.Location[o.LocationFlag or flag] = c
+						end
+						render()
+						if fire and o.Callback and (last ~= c or o.AllowDuplicateCalls) then
+							fireCallback(o.Callback, c, last)
+						end
+						return c
+					end
+					-- Farbwahl im Overlay: Farbton/Sättigung/Helligkeit als Balken + Hex-Feld
+					local function openPicker()
+						local h, s, v = Color3.toHSV(library_flags[flag] or Color3.new(1, 1, 1))
+						local content = openOverlay()
+						label(content, {Position = UDim2.fromOffset(12, 8), Size = UDim2.new(1, -24, 0, 20), Font = FONT_BOLD, TextSize = 14, Text = tostring(o.Name or name), ZIndex = 53})
+						local preview = new("Frame", {Position = UDim2.fromOffset(12, 34), Size = UDim2.fromOffset(48, 28), BorderSizePixel = 0, ZIndex = 53}, content)
+						corner(preview, 6)
+						local hexBox = new("TextBox", {Position = UDim2.fromOffset(68, 34), Size = UDim2.new(1, -80, 0, 28), BackgroundColor3 = C("bottomGradient"), BorderSizePixel = 0, ClearTextOnFocus = false, Font = FONT_MEDIUM, TextSize = 13, TextColor3 = C("elementText"), Text = "", ZIndex = 53}, content)
+						corner(hexBox, 5)
+						local bars = {}
+						local function makeBar(index, title)
+							local y = 72 + (index - 1) * 40
+							label(content, {Position = UDim2.fromOffset(12, y), Size = UDim2.new(1, -24, 0, 14), TextSize = 11, TextColor3 = C("otherElementText"), Text = title, ZIndex = 53})
+							local barFrame = new("Frame", {Position = UDim2.fromOffset(12, y + 17), Size = UDim2.new(1, -24, 0, 14), BorderSizePixel = 0, BackgroundColor3 = Color3.new(1, 1, 1), ZIndex = 53}, content)
+							corner(barFrame, "full")
+							local gradient = new("UIGradient", {}, barFrame)
+							local knobFrame = new("Frame", {AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0, 0.5), Size = UDim2.fromOffset(8, 20), BackgroundColor3 = Color3.new(1, 1, 1), BorderSizePixel = 0, ZIndex = 54}, barFrame)
+							corner(knobFrame, "full")
+							new("UIStroke", {Color = Color3.new(0, 0, 0), Thickness = 1}, knobFrame)
+							local hitArea = button(content, {Position = UDim2.fromOffset(12, y + 10), Size = UDim2.new(1, -24, 0, 28), BackgroundTransparency = 1, ZIndex = 55})
+							bars[index] = {Frame = barFrame, Gradient = gradient, Knob = knobFrame, Hit = hitArea}
+						end
+						makeBar(1, "Hue")
+						makeBar(2, "Saturation")
+						makeBar(3, "Brightness")
+						do
+							local keys = {}
+							for i = 0, 6 do
+								keys[#keys + 1] = ColorSequenceKeypoint.new(i / 6, Color3.fromHSV(i / 6, 1, 1))
+							end
+							bars[1].Gradient.Color = ColorSequence.new(keys)
+						end
+						local function refresh(fire)
+							local c = Color3.fromHSV(h, s, v)
+							preview.BackgroundColor3 = c
+							bars[2].Gradient.Color = ColorSequence.new(Color3.fromHSV(h, 0, v), Color3.fromHSV(h, 1, v))
+							bars[3].Gradient.Color = ColorSequence.new(Color3.new(0, 0, 0), Color3.fromHSV(h, s, 1))
+							bars[1].Knob.Position = UDim2.fromScale(h, 0.5)
+							bars[2].Knob.Position = UDim2.fromScale(s, 0.5)
+							bars[3].Knob.Position = UDim2.fromScale(v, 0.5)
+							if not hexBox:IsFocused() then
+								hexBox.Text = "#" .. Color3ToHex(c)
+							end
+							if fire then
+								apply(c, true)
+							end
+						end
+						for index, bar in ipairs(bars) do
+							attachBarDrag(bar.Hit, function(x)
+								local r = ratioOnBar(bar.Frame, x)
+								if r == nil or not content.Parent then
+									return
+								end
+								if index == 1 then
+									h = math.min(r, 0.999)
+								elseif index == 2 then
+									s = r
+								else
+									v = r
+								end
+								refresh(true)
+							end)
+						end
+						hexBox.FocusLost:Connect(function()
+							local c = toColor(hexBox.Text)
+							if c then
+								h, s, v = Color3.toHSV(c)
+								refresh(true)
+							else
+								refresh(false)
+							end
+						end)
+						local randomButton = button(content, {AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 12, 1, -8), Size = UDim2.new(0.5, -15, 0, 30), BackgroundColor3 = C("topGradient"), Text = "Random", ZIndex = 53})
+						corner(randomButton, 6)
+						randomButton.Activated:Connect(function()
+							h, s, v = math.random(), 0.5 + math.random() * 0.5, 0.6 + math.random() * 0.4
+							refresh(true)
+						end)
+						local doneButton = button(content, {AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -12, 1, -8), Size = UDim2.new(0.5, -15, 0, 30), BackgroundColor3 = C("main"), Text = "Done", Font = FONT_BOLD, TextColor3 = Color3.new(1, 1, 1), ZIndex = 53})
+						corner(doneButton, 6)
+						doneButton.Activated:Connect(closeOverlay)
+						refresh(false)
+					end
+					hit.Activated:Connect(openPicker)
+					element = {
+						Options = o,
+						Name = flag,
+						Flag = flag,
+						Type = "Colorpicker",
+						Parent = sectionFunctions,
+						Instance = swatch,
+						Container = row,
+						DisplayName = name,
+						Get = function()
+							return library_flags[flag]
+						end,
+						Set = function(a, b)
+							return apply(pickArg(element, a, b), true)
+						end,
+						RawSet = function(a, b)
+							return apply(pickArg(element, a, b), false)
+						end,
+						Update = function()
+							render()
+							return library_flags[flag]
+						end,
+						Remove = removeRow(row),
+						GetRainbow = function()
+							return false
+						end,
+						SetRainbow = function()
+							return false
+						end
+					}
+					if o.Value ~= nil and toColor(o.Value) then
+						apply(o.Value, true)
+					else
+						library_flags[flag] = Color3.new(1, 1, 1)
+						if o.Location then
+							o.Location[o.LocationFlag or flag] = library_flags[flag]
+						end
+						render()
+					end
+					element.Default = library_flags[flag]
+					element.Reset = function()
+						return element.Set(element.Default)
+					end
+					register(flag, element)
+					return element
+				end
+
+				-- ---------------- Config-Profil (AddPersistence) ----------------
+				function sectionFunctions:AddPersistence(o, ...)
+					o = (o and type(o) == "string" and resolvevararg("Tab", o, ...)) or o or {}
+					local flag = o.Flag or unnamed("unnamedpersistence", "Persistence")
+					local nameBox = sectionFunctions:AddTextbox({Name = "Config Name", Flag = "__Mobile.ConfigName." .. flag, Placeholder = "name"})
+					local configList = sectionFunctions:AddDropdown({Name = "Configs", Flag = "__Mobile.ConfigList." .. flag, List = function()
+						return listConfigs()
+					end, Nothing = "None", Callback = function(v)
+						if v and v ~= "None" then
+							nameBox:RawSet(v)
+						end
+					end})
+					local infoLabel = nil
+					local function currentName()
+						local n = library_flags["__Mobile.ConfigName." .. flag]
+						if type(n) ~= "string" or #sanitizeConfigName(n) == 0 then
+							n = library_flags["__Mobile.ConfigList." .. flag]
+						end
+						if n == "None" then
+							return nil
+						end
+						return n
+					end
+					local function refreshInfo()
+						if infoLabel then
+							infoLabel:Set("Autoload: " .. tostring(readAutoload() or "none"))
+						end
+						configList:UpdateList()
+					end
+					sectionFunctions:AddButton({{Name = "Save", Callback = function()
+						local ok, info = saveConfig(currentName())
+						notify(ok and ("Config saved: " .. tostring(info)) or ("Save failed: " .. tostring(info)), ok and "success" or "error")
+						refreshInfo()
+					end}, {Name = "Load", Callback = function()
+						local ok, info = loadConfig(currentName())
+						notify(ok and "Config loaded" or ("Load failed: " .. tostring(info)), ok and "success" or "error")
+					end}})
+					sectionFunctions:AddButton({{Name = "Delete", Callback = function()
+						local ok = deleteConfig(currentName())
+						notify(ok and "Config deleted" or "Delete failed", ok and "success" or "error")
+						refreshInfo()
+					end}, {Name = "Set Autoload", Callback = function()
+						local n = sanitizeConfigName(currentName() or "")
+						if #n == 0 then
+							notify("Enter or select a config first", "error")
+							return
+						end
+						local ok = writeAutoload(n)
+						notify(ok and ("Autoload: " .. n) or "Could not save autoload", ok and "success" or "error")
+						refreshInfo()
+					end}})
+					infoLabel = sectionFunctions:AddLabel({Text = "Autoload: " .. tostring(readAutoload() or "none")})
+					local element
+					element = {
+						Options = o,
+						Name = flag,
+						Flag = flag,
+						Type = "Persistence",
+						Parent = sectionFunctions,
+						Container = nameBox.Container,
+						Get = currentName,
+						Set = function(a, b)
+							local v = pickArg(element, a, b)
+							nameBox:RawSet(v)
+							return v
+						end,
+						SaveFile = function(a, b)
+							return saveConfig(pickArg(element, a, b) or currentName())
+						end,
+						LoadFile = function(a, b)
+							return loadConfig(pickArg(element, a, b) or currentName())
+						end,
+						Update = refreshInfo
+					}
+					elements[flag] = element
+					return element
+				end
+
+				-- Kurzformen wie im PC-Menü
+				for alias, target in next, {
+					AddColorPicker = "AddColorpicker", AddDropDown = "AddDropdown", AddTextBox = "AddTextbox", Bind = "AddKeybind", Box = "AddTextbox", Button = "AddButton", CP = "AddColorpicker", ColorPicker = "AddColorpicker", Colorpicker = "AddColorpicker", Cp = "AddColorpicker", CreateButton = "AddButton", CreateColorPicker = "AddColorpicker", CreateColorpicker = "AddColorpicker", CreateDropdown = "AddDropdown", CreateKeybind = "AddKeybind", CreateLabel = "AddLabel", CreatePersistence = "AddPersistence", CreateSaveLoad = "AddPersistence", CreateSearchBox = "AddSearchBox", CreateSearchbox = "AddSearchBox", CreateSlider = "AddSlider", CreateTextBox = "AddTextbox", CreateTextbox = "AddTextbox", CreateToggle = "AddToggle", DD = "AddDropdown", Dd = "AddDropdown", DropDown = "AddDropdown", Dropdown = "AddDropdown", Keybind = "AddKeybind", Label = "AddLabel", NewButton = "AddButton", NewColorPicker = "AddColorpicker", NewColorpicker = "AddColorpicker", NewDropDown = "AddDropdown", NewDropdown = "AddDropdown", NewKeybind = "AddKeybind", NewLabel = "AddLabel", NewPersistence = "AddPersistence", NewSearchBox = "AddSearchBox", NewSearchbox = "AddSearchBox", NewSlider = "AddSlider", NewTextBox = "AddTextbox", NewTextbox = "AddTextbox", NewToggle = "AddToggle", NumberConstraint = "AddSlider", Persistence = "AddPersistence", SBox = "AddSearchBox", SL = "AddPersistence", SaveLoad = "AddPersistence", Sbox = "AddSearchBox", SearchBox = "AddSearchBox", Searchbox = "AddSearchBox", Slide = "AddSlider", Slider = "AddSlider", Text = "AddLabel", TextBox = "AddTextbox", Textbox = "AddTextbox", Tog = "AddToggle", Toggle = "AddToggle"
+				} do
+					sectionFunctions[alias] = sectionFunctions[target]
+				end
+				return sectionFunctions
+			end
+			tabFunctions.AddSection = tabFunctions.CreateSection
+			tabFunctions.NewSection = tabFunctions.CreateSection
+			tabFunctions.Section = tabFunctions.CreateSection
+			tabFunctions.Sec = tabFunctions.CreateSection
+			tabFunctions.S = tabFunctions.CreateSection
+			function tabFunctions:UpdateAll()
+				for _, element in next, tabFunctions.Flags do
+					if type(element) == "table" and element.Update then
+						pcall(element.Update)
+					end
+				end
+			end
+			return tabFunctions
+		end
+		windowFunctions.AddTab = windowFunctions.CreateTab
+		windowFunctions.NewTab = windowFunctions.CreateTab
+		windowFunctions.Tab = windowFunctions.CreateTab
+		windowFunctions.T = windowFunctions.CreateTab
+
+		-- Settings-Tab für Mobile: Configs + Menü (statt des großen PC-Designers)
+		function windowFunctions:CreateDesigner(designerOptions)
+			designerOptions = (type(designerOptions) == "table" and designerOptions) or {}
+			if library.MobileDesigner then
+				return library.MobileDesigner
+			end
+			local settingsTab = windowFunctions:CreateTab({Name = designerOptions.Name or "Settings", LastTab = true})
+			library.MobileDesigner = settingsTab
+			local configSection = settingsTab:CreateSection({Name = "Config"})
+			if hasFiles then
+				configSection:AddPersistence({Flag = "__Mobile.Config"})
+			else
+				configSection:AddLabel({Text = "Your executor cannot save files."})
+			end
+			local menuSection = settingsTab:CreateSection({Name = "Menu"})
+			menuSection:AddButton({{Name = "Unload GUI", Callback = function()
+				terminateGui()
+			end}})
+			if designerOptions.Credit ~= false then
+				menuSection:AddLabel({Text = "Library by d3v1lhub2222"})
+			end
+			local info = designerOptions.Info or options.Info
+			if type(info) == "string" then
+				menuSection:AddLabel({Text = info})
+			elseif type(info) == "table" then
+				for _, line in ipairs(info) do
+					menuSection:AddLabel({Text = tostring(line)})
+				end
+			end
+			menuSection:AddLabel({Text = "Library Version: " .. tostring(library.Version or "?") .. " (Mobile)"})
+			return settingsTab
+		end
+		windowFunctions.AddDesigner = windowFunctions.CreateDesigner
+		windowFunctions.NewDesigner = windowFunctions.CreateDesigner
+		windowFunctions.Designer = windowFunctions.CreateDesigner
+		windowFunctions.D = windowFunctions.CreateDesigner
+
+		-- Settings-Tab (wie am PC bei Themeable) erst NACH den Tabs des Scripts anlegen,
+		-- danach die Autoload-Config laden
+		local themeable = options.Themeable or options.DefaultTheme or options.Theme
+		task.spawn(function()
+			local function countElements()
+				local c = 0
+				for _ in next, elements do
+					c = c + 1
+				end
+				return c
+			end
+			-- warten, bis das Script alle Elemente erstellt hat (Anzahl bleibt stabil)
+			local started = os.clock()
+			local lastCount, stableSince = countElements(), os.clock()
+			while os.clock() - started < 15 do
+				task.wait(0.25)
+				if terminated or not library.IsGuiValid() then
+					return
+				end
+				local nowCount = countElements()
+				if nowCount ~= lastCount then
+					lastCount, stableSince = nowCount, os.clock()
+				elseif (os.clock() - stableSince >= 0.75) and (os.clock() - started >= 1) then
+					break
+				end
+			end
+			if themeable then
+				local themeInfo = (type(themeable) == "table") and themeable or nil
+				local ok, err = pcall(windowFunctions.CreateDesigner, windowFunctions, themeInfo)
+				if not ok then
+					warn("[Mobile] Settings-Tab konnte nicht erstellt werden:", err)
+				end
+			end
+			local autoName = readAutoload()
+			if autoName then
+				pcall(DebugLog.Mark, DebugLog, "Mobile-Autoload: " .. autoName)
+				local ok, info = loadConfig(autoName)
+				if ok then
+					notify("Autoload: " .. autoName, "success")
+				else
+					warn("[Mobile] Autoload fehlgeschlagen:", info)
+				end
+			end
+			pcall(DebugLog.Mark, DebugLog, "Mobile-GUI vollständig (" .. tostring(countElements()) .. " Elemente)")
+		end)
+
+		pcall(DebugLog.Mark, DebugLog, "Mobile-GUI: CreateWindow fertig")
+		return windowFunctions
+	end
+end
 function library:CreateWindow(options, ...)
 	options = (options and type(options) == "string" and resolvevararg("Window", options, ...)) or options
+	-- Handy/Tablet -> eigenes, leichtes Mobile-GUI (das PC-Menü unten bleibt unverändert)
+	if MobileUI.ShouldUse(options) then
+		return MobileUI.CreateWindow(options)
+	end
 	pcall(DebugLog.Mark, DebugLog, "CreateWindow startet")
 	local homepage = nil
 	local windowoptions = options
@@ -5307,13 +7631,9 @@ function library:CreateWindow(options, ...)
 	-- Mobile: Menü wird ans Display angepasst, verschiebbarer Button zum Ein-/Ausblenden,
 	-- kein eigener Mauszeiger, kein Resize-Griff. PC: alles bleibt wie bisher.
 	-- ============================================================
-	local isMobile
-	if options.Mobile ~= nil then
-		isMobile = options.Mobile == true
-	else
-		local okDetect, detected = pcall(DetectMobile)
-		isMobile = (okDetect and detected == true) and true or false
-	end
+	-- Handys bekommen jetzt ein eigenes GUI (MobileUI, siehe oben) und kommen hier gar nicht
+	-- mehr an -> das PC-Menü läuft immer im normalen PC-Modus, genau wie vorher.
+	local isMobile = false
 	library.IsMobile = isMobile
 	windowFunctions.IsMobile = isMobile
 	pcall(DebugLog.Mark, DebugLog, "Gerät: " .. (isMobile and "Mobile" or "PC"))
