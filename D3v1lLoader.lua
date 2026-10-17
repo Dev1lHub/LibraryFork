@@ -1,22 +1,3 @@
---[[
-	D3v1lHub Loader (D3v1lLoader.lua)
-	Das Erste, was erscheint: dein Loader (Yes/No, HWID, Asset-Bild, Ladebalken).
-	Er erkennt dabei, worauf gespielt wird, und lädt NUR die passende GUI-Datei:
-	  PC / Laptop      -> PCGUILib.lua
-	  Handy / Tablet   -> MobileGUILib.lua
-	Danach gibt er die Library an dein Script zurück und es geht ganz normal weiter.
-
-	Benutzung im Script (wie bisher, nur dieser Link):
-	  local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Dev1lHub/LibraryFork/refs/heads/main/D3v1lLoader.lua"))()
-	  library:ShowLoadingScreen({ OnAccept = function() ... end, OnDecline = function() ... end })
-	  -> OnAccept läuft sofort (der Loader wurde ja schon angezeigt), bei "No" läuft OnDecline.
-
-	Optional VOR dem Laden setzen:
-	  getgenv().D3v1lHubMobileMode = true / false      -- Gerät erzwingen (zum Testen)
-	  getgenv().D3v1lLoaderOptions = { TitlePart1 = "...", ConfirmText = "...", ShowHWID = false, ... }
-]]
-
--- >>> Links zu deinen Dateien auf GitHub <<<
 local BASE_URL = "https://raw.githubusercontent.com/Dev1lHub/LibraryFork/refs/heads/main/"
 local PC_URL = BASE_URL .. "PCGUILib.lua"
 local MOBILE_URL = BASE_URL .. "MobileGUILib.lua"
@@ -41,7 +22,7 @@ local function protectAndParentGui(gui, fallbackParent)
 	local CoreGui = game:GetService("CoreGui")
 	local syn = (typeof(getgenv) == "function" and getgenv().syn) or nil
 	local gethui = (typeof(gethui) == "function" and gethui) or nil
-	
+
 	if syn and syn.protect_gui then
 		local ok = pcall(function()
 			syn.protect_gui(gui)
@@ -51,7 +32,7 @@ local function protectAndParentGui(gui, fallbackParent)
 			return true
 		end
 	end
-	
+
 	if gethui then
 		local ok = pcall(function()
 			gui.Parent = gethui()
@@ -60,14 +41,14 @@ local function protectAndParentGui(gui, fallbackParent)
 			return true
 		end
 	end
-	
+
 	local ok = pcall(function()
 		gui.Parent = CoreGui
 	end)
 	if ok then
 		return true
 	end
-	
+
 	if fallbackParent then
 		pcall(function()
 			gui.Parent = fallbackParent
@@ -76,7 +57,6 @@ local function protectAndParentGui(gui, fallbackParent)
 	return false
 end
 
--- Farben/Parent wie in der Library (Standard-Theme)
 local library = {
 	colors = {
 		main = Color3.fromRGB(168, 85, 247),
@@ -95,9 +75,6 @@ local library = {
 }
 local library_flags = {}
 
--- ============================================================
--- Geräte-Erkennung
--- ============================================================
 local function readInput(prop)
 	local ok, value = pcall(function()
 		return UserInputService[prop]
@@ -105,14 +82,14 @@ local function readInput(prop)
 	return ok and value == true
 end
 local function DetectMobile()
-	-- Manuelle Überschreibung hat Vorrang
+
 	if genv.D3v1lHubMobileMode ~= nil then
 		return genv.D3v1lHubMobileMode == true
 	end
 	local touchEnabled = readInput("TouchEnabled")
 	local mouseEnabled = readInput("MouseEnabled")
 	local keyboardEnabled = readInput("KeyboardEnabled")
-	-- 1) Plattform direkt abfragen (funktioniert auch im Emulator)
+
 	local okPlat, platform = pcall(function()
 		return UserInputService:GetPlatform()
 	end)
@@ -122,34 +99,29 @@ local function DetectMobile()
 		end
 		if platform == Enum.Platform.Windows or platform == Enum.Platform.OSX
 			or platform == Enum.Platform.Linux or platform == Enum.Platform.UWP then
-			-- Desktop: nur Mobile, wenn Touch ohne Maus
+
 			return touchEnabled and not mouseEnabled
 		end
 	end
-	-- 2) Fallback: Touch vorhanden und keine echte Tastatur
+
 	if touchEnabled and not keyboardEnabled then
 		return true
 	end
 	return touchEnabled and not mouseEnabled
 end
 
--- ============================================================
--- Dein Loader (1:1 aus der Library)
--- ============================================================
 function library:ShowLoadingScreen(options)
 	options = options or {}
 	local onAccept = options.OnAccept or options.Callback
 	local onDecline = options.OnDecline
 	local soundService = game:GetService("SoundService")
-	-- Gleiche Transparenz wie das Hintergrundbild im Hauptmenü (Slider "Image Transparency",
-	-- Standard 50%). Vorher 0.3 -> Bild zu hell, HWID-Text schlecht lesbar
+
 	local backgroundTransparency = tonumber(options.BackgroundTransparency)
 	if not backgroundTransparency then
 		local menuValue = tonumber(library_flags["__Designer.Background.ImageTransparency"])
 		backgroundTransparency = (menuValue and math.clamp(menuValue / 100, 0, 1)) or 0.5
 	end
-	-- Hintergrundbild (gleiches Bild wie im Menü). Eigenes Bild per BackgroundAsset = "rbxassetid://...",
-	-- ausschalten per BackgroundAsset = false
+
 	local backgroundAsset = options.BackgroundAsset
 	if backgroundAsset == nil then
 		backgroundAsset = "rbxassetid://133158046147209"
@@ -330,7 +302,6 @@ function library:ShowLoadingScreen(options)
 	SubLabel.Parent = InnerFrame
 	addTextStroke(SubLabel)
 
-	-- Erkanntes Gerät (vom Loader übergeben): "Detected device: Mobile" / "Detected device: PC"
 	if options.DeviceText then
 		local DeviceLabel = Instance.new("TextLabel")
 		DeviceLabel.Name = generateRandomName()
@@ -512,7 +483,7 @@ function library:ShowLoadingScreen(options)
 			HwidStaticLabel.ZIndex = 303
 			HwidStaticLabel.Text = "Your HWID: "
 			HwidStaticLabel.Parent = LoadInnerFrame
-			addTextStroke(HwidStaticLabel, 1) -- dünne schwarze Umrandung, damit der Text auf dem Bild lesbar bleibt
+			addTextStroke(HwidStaticLabel, 1)
 
 			HwidContainer = Instance.new("Frame")
 			HwidContainer.Name = generateRandomName()
@@ -591,7 +562,7 @@ function library:ShowLoadingScreen(options)
 			local loadTween = tweenService:Create(BarFill, TweenInfo.new(1.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Size = UDim2.new(1, 0, 1, 0)})
 			loadTween:Play()
 			loadTween.Completed:Wait()
-			-- (Loader) warten, bis die passende GUI-Datei (PC/Mobile) fertig geladen ist
+
 			if options.WaitUntil then
 				options.WaitUntil(LoadSub)
 			end
@@ -627,15 +598,12 @@ function library:ShowLoadingScreen(options)
 			closeLoad.Completed:Wait()
 			LoadGui:Destroy()
 
-			-- ✅ Statt eines fremden loadstring(HttpGet(...))() geht's hier einfach ganz normal weiter,
-			-- wie es vorher (ohne Loader) direkt der Fall war - z.B. CreateWindow(...) usw.
 			if onAccept then
 				task.spawn(onAccept)
 			end
 		end)
 	end
 
-	-- Nur EINE Entscheidung zählen (Doppeltipp auf dem Handy startet sonst alles zweimal)
 	local promptDecided = false
 	YesBtn.MouseButton1Click:Connect(function()
 		if promptDecided then
@@ -666,16 +634,12 @@ function library:ShowLoadingScreen(options)
 	return ScreenGui
 end
 
--- ============================================================
--- Ablauf: Loader zeigen -> passende GUI-Datei laden -> Library zurückgeben
--- ============================================================
 local isMobile = false
 do
 	local ok, result = pcall(DetectMobile)
 	isMobile = (ok and result == true) and true or false
 end
 
--- Download startet sofort im Hintergrund, während das Yes/No-Fenster offen ist
 local source, downloadError, downloadDone = nil, nil, false
 local function download(url)
 	local ok, res = pcall(function()
@@ -689,7 +653,7 @@ end
 task.spawn(function()
 	source, downloadError = download(isMobile and MOBILE_URL or PC_URL)
 	if not source and not isMobile then
-		-- PC-Version nicht erreichbar -> Mobile-Version als Notlösung (läuft auch am PC)
+
 		warn("[D3v1lHub Loader] " .. tostring(downloadError) .. " -> versuche Mobile-Version")
 		source, downloadError = download(MOBILE_URL)
 		if source then
@@ -699,7 +663,6 @@ task.spawn(function()
 	downloadDone = true
 end)
 
--- Library ausführen (erst nach "Yes", damit bei "No" nichts gestartet wird)
 local loadedLibrary, loadedFlags, loadedSubs, loadError = nil, nil, nil, nil
 local libraryDone = false
 local function runLibrary()
@@ -727,7 +690,7 @@ local function runLibrary()
 	libraryDone = true
 end
 
-local decision = nil -- true = Yes, false = No
+local decision = nil
 local loaderOptions = {}
 if type(genv.D3v1lLoaderOptions) == "table" then
 	for k, v in pairs(genv.D3v1lLoaderOptions) do
@@ -754,14 +717,12 @@ loaderOptions.OnDecline = function()
 end
 library:ShowLoadingScreen(loaderOptions)
 
--- warten, bis Yes (und Laden fertig) oder No gedrückt wurde
 while decision == nil do
 	task.wait(0.05)
 end
 
 if decision == false then
-	-- "No": nichts wird geladen/erstellt. Das Script bekommt ein leeres Platzhalter-Objekt,
-	-- dessen ShowLoadingScreen direkt OnDecline aufruft; alles andere tut nichts.
+
 	local stub = {}
 	local function noop()
 		return stub
@@ -790,7 +751,6 @@ if not loadedLibrary then
 	error("[D3v1lHub Loader] Library konnte nicht geladen werden: " .. tostring(loadError), 0)
 end
 
--- Der Loader wurde schon angezeigt -> ShowLoadingScreen im Script startet direkt OnAccept
 local function passThroughLoadingScreen(self, options)
 	if options == nil and type(self) == "table" and self ~= loadedLibrary then
 		options = self
