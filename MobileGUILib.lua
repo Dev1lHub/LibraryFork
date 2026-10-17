@@ -771,72 +771,10 @@ local tweenService = game:GetService("TweenService")
 local updatecolors, MainScreenGui = nil
 do
 	local MayGC = 0
-	spawn(function()
-		local IsDescendantOf = game.IsDescendantOf
-		local RemoveTable = table.remove
-		while wait_check() do
-			while shared.NO_LIB_GC do
-				wait(20)
-				if wait_check() then
-				else
-					return
-				end
-			end
-			wait(10)
-			local Breathe = 30
-			for DataIndex = #colored, 1, -1 do
-				if MayGC > 0 then
-					break
-				end
-				Breathe -= 1
-				if Breathe <= 0 then
-					Breathe = 30
-					if wait_check() then
-						if MayGC > 0 then
-							break
-						end
-					else
-						return
-					end
-				end
-				if MayGC > 0 then
-					break
-				end
-				local data = colored[DataIndex]
-				data = data and data[1]
-				if data and (typeof(data) == "Instance") and IsDescendantOf(data, game) then
-					-- Instanz existiert noch irgendwo im Spiel (Hauptmenü, Watermark, Keybinds-Liste, Notify usw.) -> behalten
-				elseif data and typeof(data) ~= "Instance" then
-					-- Kein Roblox-Instance (z. B. ein internes Modul-Table wie KeybindsListModule.MainColor) -> nie automatisch entfernen
-				elseif MayGC <= 0 then
-					RemoveTable(colored, DataIndex)
-				else
-					break
-				end
-			end
-			local sigs = library.signals
-			local len = sigs and #sigs
-			if len then
-				local Dyn = math.round(len / 10)
-				Dyn = ((Dyn < 1) and 1) or Dyn
-				for DataIndex = len, 1, -1 do
-					Breathe -= 1
-					if Breathe <= 0 then
-						Breathe = Dyn
-						if wait_check() then
-						else
-							return
-						end
-					end
-					local data = sigs[DataIndex]
-					if data and (typeof(data) == "RBXScriptConnection") and data.Connected then
-					else
-						RemoveTable(sigs, DataIndex)
-					end
-				end
-			end
-		end
-	end)
+	-- Mobile: die Aufräum-Schleife für Farben ist hier AUS. Sie lief 10 Sek. nach dem Laden zum
+	-- ersten Mal und rief dabei game.IsDescendantOf für jedes GUI-Objekt im versteckten
+	-- Executor-Ordner auf - genau zu dem Zeitpunkt sind die Handys abgestürzt. Ohne
+	-- Design-Tab gibt es auf dem Handy auch nichts, was aufgeräumt werden müsste.
 	local function colortwee(data, tweenit)
 		local cclr = colors[data[3]]
 		local darkness = data[4]
@@ -1699,7 +1637,8 @@ function DebugLog:Start()
 		local statsService = game:GetService("Stats")
 		local renderStepped = game:GetService("RunService").RenderStepped
 		while library.IsGuiValid and library.IsGuiValid() do
-			task.wait(5)
+			-- in den ersten 90 Sekunden jede Sekunde, danach alle 5 Sekunden
+			task.wait(((os.clock() - (self.StartClock or 0)) < 90) and 1 or 5)
 			if not (library.IsGuiValid and library.IsGuiValid()) then
 				break
 			end
@@ -3085,6 +3024,7 @@ do
 						continue
 					end
 					table.remove(Notifications, Index)
+					pcall(DebugLog.Mark, DebugLog, "Notify wird entfernt")
 					if Noti.Object then
 						-- ✅ Beim automatischen Ablaufen ebenfalls smooth raustweenen statt hart zerstören (+ Fade-Out)
 						local ObjToKill = Noti.Object
@@ -3127,6 +3067,7 @@ do
 			local dur = NotificationData.Time or 6
 			local TextStr = NotificationData.Text or NotificationData.String or NotificationData.Value or NotificationData.Message or NotificationData.Msg
 			TextStr = ((TextStr == nil) and "No text given") or tostring(TextStr)
+			pcall(DebugLog.Mark, DebugLog, "Notify: " .. string.sub(TextStr, 1, 60))
 			local NotificationObj = {
 				InitTime = now,
 				Active = true,
