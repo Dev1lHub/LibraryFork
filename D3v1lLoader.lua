@@ -330,6 +330,24 @@ function library:ShowLoadingScreen(options)
 	SubLabel.Parent = InnerFrame
 	addTextStroke(SubLabel)
 
+	-- Erkanntes Gerät (vom Loader übergeben): "Detected device: Mobile" / "Detected device: PC"
+	if options.DeviceText then
+		local DeviceLabel = Instance.new("TextLabel")
+		DeviceLabel.Name = generateRandomName()
+		DeviceLabel.BackgroundTransparency = 1
+		DeviceLabel.Position = UDim2.new(0, 20, 0, 112)
+		DeviceLabel.Size = UDim2.new(1, -40, 0, 20)
+		DeviceLabel.Font = Enum.Font.Code
+		DeviceLabel.TextColor3 = Color3.fromRGB(150, 140, 170)
+		DeviceLabel.TextSize = 13
+		DeviceLabel.RichText = true
+		DeviceLabel.TextXAlignment = Enum.TextXAlignment.Center
+		DeviceLabel.ZIndex = 303
+		DeviceLabel.Text = 'Detected device: <font color="rgb(' .. math.floor(MainColor.R * 255) .. ',' .. math.floor(MainColor.G * 255) .. ',' .. math.floor(MainColor.B * 255) .. ')">' .. tostring(options.DeviceText) .. '</font>'
+		DeviceLabel.Parent = InnerFrame
+		addTextStroke(DeviceLabel)
+	end
+
 	local function createButton(text, posX)
 		local btnOuter = Instance.new("TextButton")
 		btnOuter.Name = generateRandomName()
@@ -716,6 +734,7 @@ if type(genv.D3v1lLoaderOptions) == "table" then
 		loaderOptions[k] = v
 	end
 end
+loaderOptions.DeviceText = isMobile and "Mobile" or "PC"
 loaderOptions.OnYes = function()
 	task.spawn(runLibrary)
 end
