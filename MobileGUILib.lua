@@ -2206,16 +2206,6 @@ do
 						end
 						apply(newValue, true)
 					end)
-					if o.Keybind and typeof(o.Keybind) ~= "boolean" then
-						local kb = o.Keybind
-						local key = (typeof(kb) == "EnumItem" and kb) or (type(kb) == "table" and (kb.Value or kb.Key)) or nil
-						if typeof(key) == "EnumItem" then
-							library.signals[1 + #library.signals] = userInputService.InputBegan:Connect(function(input, processed)
-								if processed or locked or userInputService:GetFocusedTextBox() then return end
-								if input.KeyCode == key or input.UserInputType == key then apply(not library_flags[flag], true) end
-							end)
-						end
-					end
 					local initial = o.Value
 					if initial == nil then initial = o.Enabled end
 					element = {
@@ -2551,83 +2541,25 @@ do
 					local name = assert(o.Name, "Missing Name for new keybind.")
 					local flag = o.Flag or unnamed("unnamedkeybinds", "Keybind")
 					warnReused(flag)
-					local row = makeRow()
-					local hit = button(row, {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ZIndex = 2})
-					local nameLabel = label(row, {Position = UDim2.fromOffset(10, 0), Size = UDim2.new(1, -96, 1, 0), Text = tostring(name)})
-					local keyLabel = label(row, {AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 0), Size = UDim2.new(0, 80, 1, 0), TextXAlignment = Enum.TextXAlignment.Right, TextColor3 = C("otherElementText")})
+					local preset = (typeof(o.Value) == "EnumItem") and o.Value or nil
+					library_flags[flag] = preset
 					local element
-					local binding = false
-					local function keyName(key)
-						if key == nil then return "NONE" end
-						if typeof(key) == "EnumItem" then return key.Name end
-						return tostring(key)
-					end
-					local function render()
-						nameLabel.Text = tostring(o.Name or name)
-						keyLabel.Text = binding and "[...]" or ("[" .. keyName(library_flags[flag]) .. "]")
-					end
-					local function apply(key, fire)
-						if key == "nil" or key == "NONE" or key == "none" then key = nil end
-						local last = library_flags[flag]
-						library_flags[flag] = key
-						if o.Location then o.Location[o.LocationFlag or flag] = key end
-						render()
-						if fire and o.Callback and (last ~= key or o.AllowDuplicateCalls) then fireCallback(o.Callback, key, last) end
-						return key
-					end
-					hit.Activated:Connect(function()
-						local hasKeyboard = false
-						pcall(function() hasKeyboard = userInputService.KeyboardEnabled end)
-						if not hasKeyboard then
-							if type(o.Pressed) == "function" then fireCallback(o.Pressed) end
-							return
-						end
-						if binding then return end
-						binding = true
-						render()
-						local connection
-						connection = userInputService.InputBegan:Connect(function(input)
-							if input.UserInputType == Enum.UserInputType.Keyboard then
-								connection:Disconnect()
-								binding = false
-								if input.KeyCode == Enum.KeyCode.Escape or input.KeyCode == Enum.KeyCode.Backspace then apply(nil, true) else apply(input.KeyCode, true) end
-							elseif input.UserInputType == Enum.UserInputType.Touch then
-								connection:Disconnect()
-								binding = false
-								render()
-							end
-						end)
-						library.signals[1 + #library.signals] = connection
-					end)
-					library.signals[1 + #library.signals] = userInputService.InputBegan:Connect(function(input, processed)
-						if processed or binding or userInputService:GetFocusedTextBox() then return end
-						local key = library_flags[flag]
-						if key ~= nil and (input.KeyCode == key or input.UserInputType == key) and type(o.Pressed) == "function" then fireCallback(o.Pressed, input) end
-					end)
+					local function apply(key) library_flags[flag] = key if o.Location then o.Location[o.LocationFlag or flag] = key end return key end
 					element = {
 						Options = o,
 						Name = flag,
 						Flag = flag,
 						Type = "Keybind",
 						Parent = sectionFunctions,
-						Instance = keyLabel,
-						Container = row,
 						DisplayName = name,
+						Default = preset,
 						Get = function() return library_flags[flag] end,
-						Set = function(a, b) return apply(pickArg(element, a, b), true) end,
-						RawSet = function(a, b) return apply(pickArg(element, a, b), false) end,
-						Update = function()
-							render()
-							return library_flags[flag]
-						end,
-						Remove = removeRow(row)
+						Set = function(a, b) return apply(pickArg(element, a, b)) end,
+						RawSet = function(a, b) return apply(pickArg(element, a, b)) end,
+						Update = function() return library_flags[flag] end,
+						Reset = function() return apply(preset) end,
+						Remove = function() end
 					}
-					local preset = o.Value
-					if typeof(preset) ~= "EnumItem" then preset = nil end
-					library_flags[flag] = preset
-					render()
-					element.Default = preset
-					element.Reset = function() return element.Set(element.Default) end
 					register(flag, element)
 					return element
 				end
