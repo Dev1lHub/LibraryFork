@@ -1777,10 +1777,11 @@ local function resolveid(image, flag)
 					image = tostring(image)
 					if nfo and nfo.AssetTypeId == 1 then
 						image = "rbxassetid://" .. image
-					elseif nfo.AssetTypeId == 13 then
-						local decal = game:GetObjects("rbxassetid://" .. image)[1]
-						image = "rbxassetid://" .. ((decal and decal.Texture) or "0"):match("%d+$")
-						decal = (decal and decal:Destroy() and nil) or nil
+					elseif nfo and nfo.AssetTypeId == 13 then
+						-- Decal-ID -> Bild über rbxthumb anzeigen. Vorher wurde dafür game:GetObjects
+						-- benutzt: das gibt es bei vielen (v.a. mobilen) Executors nicht oder es
+						-- bringt Roblox dort zum Absturz.
+						image = "rbxthumb://type=Asset&id=" .. image .. "&w=420&h=420"
 					end
 				end)
 			else
@@ -2613,6 +2614,179 @@ local function DetectMobile()
 end
 library.DetectMobile = DetectMobile
 -- ============================================================
+-- DIAGNOSE-LOG (standardmäßig nur auf Handys aktiv)
+-- Schreibt mit, wie weit die Library gekommen ist, Fehler/Warnungen aus der Konsole und
+-- alle 5 Sek. Speicher/FPS/Objektanzahl in "D3v1lHub Lib/debug_log.txt".
+-- Stürzt Roblox ab, steht in der letzten Zeile, wobei es passiert ist. Beim nächsten
+-- Ausführen wird das alte Log nach "debug_log_prev.txt" kopiert (= Log des Absturzes).
+-- library.DebugLog = true -> auch am PC an; = false -> komplett aus.
+-- ============================================================
+local DebugLog = {
+	Started = false,
+	Lines = {},
+	MaxLines = 400,
+	Folder = "D3v1lHub Lib",
+	File = "D3v1lHub Lib/debug_log.txt",
+	PrevFile = "D3v1lHub Lib/debug_log_prev.txt",
+	FlushQueued = false,
+	LastError = nil,
+	LastErrorCount = 0,
+	ErrorLines = 0
+}
+library.__DebugLog = DebugLog
+local debugLogMobileCache = nil
+function DebugLog:IsEnabled()
+	if library.DebugLog == false then
+		return false
+	end
+	if library.DebugLog == true then
+		return true
+	end
+	if debugLogMobileCache == nil then
+		local ok, res = pcall(DetectMobile)
+		debugLogMobileCache = (ok and res == true) and true or false
+	end
+	return debugLogMobileCache
+end
+function DebugLog:Flush()
+	if not self.Started then
+		return
+	end
+	pcall(function()
+		writefile(self.File, table.concat(self.Lines, "\n") .. "\n")
+	end)
+end
+function DebugLog:QueueFlush()
+	-- Fehler können sehr schnell hintereinander kommen -> höchstens einmal pro Sekunde schreiben
+	if self.FlushQueued then
+		return
+	end
+	self.FlushQueued = true
+	task.delay(1, function()
+		self.FlushQueued = false
+		self:Flush()
+	end)
+end
+function DebugLog:Add(text)
+	local stamp = string.format("[%7.2f] ", os.clock() - (self.StartClock or os.clock()))
+	self.Lines[1 + #self.Lines] = stamp .. tostring(text)
+	while #self.Lines > self.MaxLines do
+		table.remove(self.Lines, 2) -- Zeile 1 (Kopf mit Gerät/Executor) bleibt immer erhalten
+	end
+end
+function DebugLog:Start()
+	if self.Started then
+		return true
+	end
+	if not self:IsEnabled() then
+		return false
+	end
+	if type(writefile) ~= "function" then
+		return false
+	end
+	self.Started = true
+	self.StartClock = os.clock()
+	pcall(function()
+		if isfolder and makefolder and not isfolder(self.Folder) then
+			makefolder(self.Folder)
+		end
+	end)
+	-- Log des letzten Durchlaufs (z.B. des Absturzes) sichern, bevor es überschrieben wird
+	pcall(function()
+		if isfile and readfile and isfile(self.File) then
+			writefile(self.PrevFile, readfile(self.File))
+		end
+	end)
+	local executorName = "?"
+	pcall(function()
+		if typeof(identifyexecutor) == "function" then
+			executorName = table.concat({identifyexecutor()}, " ")
+		end
+	end)
+	local platformName = "?"
+	pcall(function()
+		platformName = tostring(userInputService:GetPlatform())
+	end)
+	local viewport = "?"
+	pcall(function()
+		viewport = tostring(workspace.CurrentCamera.ViewportSize)
+	end)
+	local dateText = "?"
+	pcall(function()
+		dateText = os.date("%Y-%m-%d %H:%M:%S")
+	end)
+	self.Lines = {}
+	self.Lines[1] = string.format("D3v1lHub Debug-Log | %s | Executor: %s | Plattform: %s | Mobile: %s | Viewport: %s", dateText, executorName, platformName, tostring(debugLogMobileCache), viewport)
+	-- Fehler und Warnungen aus der Konsole mitschreiben (gleiche direkt hintereinander werden zusammengefasst)
+	pcall(function()
+		local logService = game:GetService("LogService")
+		library.signals[1 + #library.signals] = logService.MessageOut:Connect(function(message, messageType)
+			if messageType ~= Enum.MessageType.MessageError and messageType ~= Enum.MessageType.MessageWarning then
+				return
+			end
+			local kind = (messageType == Enum.MessageType.MessageError) and "FEHLER" or "WARNUNG"
+			local text = kind .. ": " .. string.sub(tostring(message), 1, 300)
+			if text == self.LastError then
+				self.LastErrorCount = self.LastErrorCount + 1
+				self.Lines[#self.Lines] = string.format("[%7.2f] ", os.clock() - self.StartClock) .. text .. " (x" .. self.LastErrorCount .. ")"
+			else
+				if self.ErrorLines >= 150 then
+					return -- nicht endlos Fehler sammeln
+				end
+				self.ErrorLines = self.ErrorLines + 1
+				self.LastError, self.LastErrorCount = text, 1
+				self:Add(text)
+			end
+			self:QueueFlush()
+		end)
+	end)
+	-- alle 5 Sekunden: Speicher, Lua-Speicher, FPS, Anzahl GUI-Objekte/Verbindungen
+	task.spawn(function()
+		local statsService = game:GetService("Stats")
+		local renderStepped = game:GetService("RunService").RenderStepped
+		while library.IsGuiValid and library.IsGuiValid() do
+			task.wait(5)
+			if not (library.IsGuiValid and library.IsGuiValid()) then
+				break
+			end
+			local mem, lua, fps, objects, signals = "?", "?", "?", "?", "?"
+			pcall(function()
+				mem = string.format("%.0fMB", statsService:GetTotalMemoryUsageMb())
+			end)
+			pcall(function()
+				lua = string.format("%.1fMB", gcinfo() / 1024)
+			end)
+			pcall(function()
+				fps = tostring(math.floor(1 / renderStepped:Wait()))
+			end)
+			pcall(function()
+				if library.MainScreenGui then
+					objects = tostring(#library.MainScreenGui:GetDescendants())
+				end
+			end)
+			pcall(function()
+				signals = tostring(#library.signals)
+			end)
+			self.LastError = nil -- Statuszeile trennt Fehler-Gruppen
+			self:Add(string.format("Status: Speicher %s | Lua %s | FPS %s | GUI-Objekte %s | Verbindungen %s", mem, lua, fps, objects, signals))
+			self:Flush()
+		end
+	end)
+	return true
+end
+-- Meilenstein eintragen und SOFORT speichern (damit nach einem Absturz klar ist, wie weit es kam)
+function DebugLog:Mark(text)
+	if not self.Started and not self:Start() then
+		return
+	end
+	self.LastError = nil
+	self:Add(">> " .. tostring(text))
+	self:Flush()
+end
+library.DebugMark = function(text)
+	pcall(DebugLog.Mark, DebugLog, text)
+end
+-- ============================================================
 -- Linoria-Feature-Port: Tooltip-System (AddToolTip)
 -- Zeigt eine kleine schwebende Box neben dem Mauszeiger, sobald man
 -- über HoverInstance hovert. DisabledInfoStr wird stattdessen gezeigt,
@@ -2626,6 +2800,11 @@ function library:AddToolTip(InfoStr, DisabledInfoStr, HoverInstance)
 		return nil
 	end
 	if not HoverInstance then
+		return nil
+	end
+	-- Auf Handys gibt es kein Hovern -> keine Tooltips (spart pro Element mehrere Objekte und
+	-- Verbindungen). Wieder einschalten mit library.MobileTooltips = true vor CreateWindow.
+	if library.IsMobile and library.MobileTooltips ~= true then
 		return nil
 	end
 
@@ -2786,6 +2965,7 @@ library.subs.AddToolTip = library.AddToolTip
 -- ============================================================
 function library:ShowLoadingScreen(options)
 	options = options or {}
+	pcall(DebugLog.Mark, DebugLog, "Loader: Yes/No-Fenster wird angezeigt")
 	local onAccept = options.OnAccept or options.Callback
 	local onDecline = options.OnDecline
 	local soundService = game:GetService("SoundService")
@@ -3300,17 +3480,34 @@ function library:ShowLoadingScreen(options)
 
 			-- ✅ Statt eines fremden loadstring(HttpGet(...))() geht's hier einfach ganz normal weiter,
 			-- wie es vorher (ohne Loader) direkt der Fall war - z.B. CreateWindow(...) usw.
+			pcall(DebugLog.Mark, DebugLog, "Loader fertig -> OnAccept (Menü wird aufgebaut)")
 			if onAccept then
 				task.spawn(onAccept)
 			end
 		end)
 	end
 
+	-- Nur EINE Entscheidung zählen: ein Doppeltipp (auf Handys sehr häufig) oder Yes+No kurz
+	-- hintereinander hat vorher alles zweimal gestartet -> zwei Fenster gleichzeitig, das zweite
+	-- hat die Library mitten im Aufbau des ersten entladen und das Script ist abgestürzt.
+	local promptDecided = false
 	YesBtn.MouseButton1Click:Connect(function()
+		if promptDecided then
+			return
+		end
+		promptDecided = true
+		YesBtn.Active, NoBtn.Active = false, false
+		pcall(DebugLog.Mark, DebugLog, "Loader: Yes gedrückt")
 		startLoadingSequence()
 	end)
 
 	NoBtn.MouseButton1Click:Connect(function()
+		if promptDecided then
+			return
+		end
+		promptDecided = true
+		YesBtn.Active, NoBtn.Active = false, false
+		pcall(DebugLog.Mark, DebugLog, "Loader: No gedrückt")
 		playSound(closeSoundId)
 		local closeTween = tweenService:Create(Outer, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)})
 		closeTween:Play()
@@ -4487,6 +4684,7 @@ do
 end
 function library:CreateWindow(options, ...)
 	options = (options and type(options) == "string" and resolvevararg("Window", options, ...)) or options
+	pcall(DebugLog.Mark, DebugLog, "CreateWindow startet")
 	local homepage = nil
 	local windowoptions = options
 	local windowName = options.Name or "Unnamed Window"
@@ -5081,6 +5279,7 @@ function library:CreateWindow(options, ...)
 	end
 	library.IsMobile = isMobile
 	windowFunctions.IsMobile = isMobile
+	pcall(DebugLog.Mark, DebugLog, "Gerät: " .. (isMobile and "Mobile" or "PC"))
 	if isMobile then
 		-- kein Mauszeiger auf Touch-Geräten
 		CursorModule.Disabled = true
@@ -5435,6 +5634,7 @@ function library:CreateWindow(options, ...)
 		end
 		local tabName = options.Name or "Unnamed Tab"
 		options.Name = tabName
+		pcall(DebugLog.Mark, DebugLog, "Tab: " .. tostring(tabName))
 		windowFunctions.tabCount = windowFunctions.tabCount + 1
 		local newTab = Instance_new((image and "ImageButton") or "TextButton")
 		local newTabHolder = Instance_new("Frame")
@@ -5609,6 +5809,7 @@ function library:CreateWindow(options, ...)
 			options = (options and type(options) == "string" and resolvevararg("Tab", options, ...)) or options
 			local sectionName, holderSide = options.Name or "Unnamed Section", options.Side
 			options.Name = sectionName
+			pcall(DebugLog.Mark, DebugLog, "Section: " .. tostring(sectionName))
 			local newSection = Instance_new("Frame")
 			local newSectionBorder = Instance_new("Frame")
 			local insideBorderHider = Instance_new("Frame")
@@ -10052,12 +10253,14 @@ function library:CreateWindow(options, ...)
 									table.sort(jobs, function(a, b)
 										return a.Priority < b.Priority
 									end)
+									pcall(DebugLog.Mark, DebugLog, "Autoload startet (" .. tostring(#jobs) .. " Profil(e))")
 									for _, job in ipairs(jobs) do
 										local okJob, errJob = pcall(job.Run)
 										if not okJob then
 											warn("[Config] Autoload-Fehler:", errJob)
 										end
 									end
+									pcall(DebugLog.Mark, DebugLog, "Autoload fertig")
 									end)
 							end
 						end
@@ -12209,10 +12412,12 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 			os_clock, starttime = nil
 		end)
 	end
+	pcall(DebugLog.Mark, DebugLog, "CreateWindow fertig")
 	return windowFunctions
 end
 library.NewWindow = library.CreateWindow
 library.AddWindow = library.CreateWindow
 library.Window = library.CreateWindow
 library.W = library.CreateWindow
+pcall(DebugLog.Mark, DebugLog, "Library geladen")
 return library, library_flags, library.subs
