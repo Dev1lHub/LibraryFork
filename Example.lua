@@ -1,4 +1,4 @@
-local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Dev1lHub/LibraryFork/refs/heads/main/Library.lua"))()
+local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Dev1lHub/LibraryFork/refs/heads/main/D3v1lLoader.lua"))()
 local Wait = library.subs.Wait
 
 -- ✅ Loading-Screen davor: Yes/No-Prompt + Ladebildschirm. Erst wenn der Nutzer

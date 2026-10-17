@@ -1781,14 +1781,6 @@ function library:ShowLoadingScreen(options)
 	local loadingSubText = options.LoadingSubText or "Loading scripts and assets..."
 	local welcomeSubText = options.WelcomeSubText or "D3v1lHub successfully loaded."
 	local showHWID = (options.ShowHWID ~= false)
-	-- Geräteanzeige ("Device: Mobile Detected" / "Device: PC Detected"), ausschalten per ShowDevice = false
-	local showDevice = (options.ShowDevice ~= false)
-	local deviceIsMobile = false
-	do
-		local okDetect, detected = pcall(DetectMobile)
-		deviceIsMobile = (okDetect and detected == true) and true or false
-	end
-	local deviceName = deviceIsMobile and "Mobile" or "PC"
 
 	local MainColor = library.colors.main
 	local TopGradColor = library.colors.topGradient
@@ -1826,30 +1818,6 @@ function library:ShowLoadingScreen(options)
 		stroke.Color = Color3.new(0, 0, 0)
 		stroke.Thickness = thickness or 1.5
 		stroke.Parent = textLabel
-	end
-
-	-- "Device: <Mobile/PC> Detected" - Gerätename in der Hauptfarbe
-	local function createDeviceLabel(parent, position, size, alignment)
-		local c = MainColor
-		local hex = string.format("#%02X%02X%02X",
-			math.clamp(math.floor(c.R * 255 + 0.5), 0, 255),
-			math.clamp(math.floor(c.G * 255 + 0.5), 0, 255),
-			math.clamp(math.floor(c.B * 255 + 0.5), 0, 255))
-		local label = Instance.new("TextLabel")
-		label.Name = generateRandomName()
-		label.BackgroundTransparency = 1
-		label.Position = position
-		label.Size = size
-		label.Font = Enum.Font.Code
-		label.TextColor3 = Color3.fromRGB(200, 190, 220)
-		label.TextSize = 12
-		label.TextXAlignment = alignment
-		label.RichText = true
-		label.ZIndex = 303
-		label.Text = 'Device: <font color="' .. hex .. '">' .. deviceName .. '</font> Detected'
-		label.Parent = parent
-		addTextStroke(label, 1)
-		return label
 	end
 
 	local function applyBackground(parentFrame)
@@ -1976,10 +1944,6 @@ function library:ShowLoadingScreen(options)
 	SubLabel.Text = confirmText
 	SubLabel.Parent = InnerFrame
 	addTextStroke(SubLabel)
-
-	if showDevice then
-		createDeviceLabel(InnerFrame, UDim2.new(0, 20, 0, 110), UDim2.new(1, -40, 0, 18), Enum.TextXAlignment.Center)
-	end
 
 	local function createButton(text, posX)
 		local btnOuter = Instance.new("TextButton")
@@ -2184,12 +2148,6 @@ function library:ShowLoadingScreen(options)
 			addTextStroke(HwidNoteLabel, 1)
 		end
 
-		-- Geräteanzeige unten im Ladefenster (unter dem Ladebalken)
-		local LoadDeviceLabel
-		if showDevice then
-			LoadDeviceLabel = createDeviceLabel(LoadInnerFrame, UDim2.new(0, 15, 0, 114), UDim2.new(1, -30, 0, 16), Enum.TextXAlignment.Left)
-		end
-
 		local BarBg = Instance.new("Frame")
 		BarBg.Name = generateRandomName()
 		BarBg.BackgroundColor3 = Color3.fromRGB(10, 8, 15)
@@ -2237,9 +2195,6 @@ function library:ShowLoadingScreen(options)
 				tweenService:Create(LoadTitle, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(0, 75, 0, 14)}):Play()
 				tweenService:Create(LoadSub, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(0, 75, 0, 38)}):Play()
 				tweenService:Create(BarBg, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(0, 75, 0, 102), Size = UDim2.new(1, -90, 0, 8)}):Play()
-				if LoadDeviceLabel then
-					tweenService:Create(LoadDeviceLabel, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(0, 75, 0, 114)}):Play()
-				end
 			end
 
 			LoadTitle.Text = "Welcome, " .. LP.Name .. "!"
@@ -2274,16 +2229,14 @@ function library:ShowLoadingScreen(options)
 		end)
 	end
 
-	-- Nur EINE Entscheidung zählen: ein Doppeltipp (auf Handys sehr häufig) oder Yes+No kurz
-	-- hintereinander hat vorher alles zweimal gestartet -> zwei Fenster gleichzeitig, das zweite
-	-- hat die Library mitten im Aufbau des ersten entladen und das Script ist abgestürzt.
+	-- Nur EINE Entscheidung zählen: ein Doppeltipp (auf Handys sehr häufig) hat vorher alles
+	-- zweimal gestartet -> zwei Fenster gleichzeitig -> Script abgestürzt.
 	local promptDecided = false
 	YesBtn.MouseButton1Click:Connect(function()
 		if promptDecided then
 			return
 		end
 		promptDecided = true
-		YesBtn.Active, NoBtn.Active = false, false
 		pcall(DebugLog.Mark, DebugLog, "Loader: Yes gedrückt")
 		startLoadingSequence()
 	end)
@@ -2293,7 +2246,6 @@ function library:ShowLoadingScreen(options)
 			return
 		end
 		promptDecided = true
-		YesBtn.Active, NoBtn.Active = false, false
 		pcall(DebugLog.Mark, DebugLog, "Loader: No gedrückt")
 		playSound(closeSoundId)
 		local closeTween = tweenService:Create(Outer, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)})
