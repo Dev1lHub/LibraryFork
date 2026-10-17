@@ -3053,23 +3053,7 @@ do
 		windowFunctions.NewTab = windowFunctions.CreateTab
 		windowFunctions.Tab = windowFunctions.CreateTab
 		windowFunctions.T = windowFunctions.CreateTab
-		function windowFunctions:CreateDesigner(designerOptions)
-			designerOptions = (type(designerOptions) == "table" and designerOptions) or {}
-			if library.MobileDesigner then return library.MobileDesigner end
-			local settingsTab = windowFunctions:CreateTab({Name = designerOptions.Name or "Settings", LastTab = true})
-			library.MobileDesigner = settingsTab
-			local function mark(t) pcall(DebugLog.Mark, DebugLog, "Settings: " .. t) task.wait(0.2) end
-			mark("Config-Section")
-			local configSection = settingsTab:CreateSection({Name = "Config"})
-			if hasFiles then
-				mark("Persistence")
-				configSection:AddPersistence({Flag = "__Mobile.Config"})
-			else
-				configSection:AddLabel({Text = "Your executor cannot save files."})
-			end
-			mark("fertig")
-			return settingsTab
-		end
+		function windowFunctions:CreateDesigner() return nil end
 		windowFunctions.AddDesigner = windowFunctions.CreateDesigner
 		windowFunctions.NewDesigner = windowFunctions.CreateDesigner
 		windowFunctions.Designer = windowFunctions.CreateDesigner
