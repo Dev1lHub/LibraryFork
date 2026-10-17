@@ -674,7 +674,6 @@ WatermarkModule.WatermarkOuter = nil
 function WatermarkModule:Create()
 	local CoreGui = game:GetService("CoreGui")
 	local RunService = game:GetService("RunService")
-	local Stats = game:GetService("Stats")
 	local UserInputService = game:GetService("UserInputService")
 	local MarketplaceService = game:GetService("MarketplaceService")
 	
@@ -801,12 +800,44 @@ function WatermarkModule:Create()
 	end)
 	
 	task.spawn(function()
+		-- Ping über Player:GetNetworkPing() statt Stats.Network.ServerStatsItem["Data Ping"]:
+		-- der Zugriff auf die internen Netzwerk-Statistiken bringt Roblox mit manchen mobilen
+		-- Executors (z.B. Delta auf Android) direkt zum Absturz. GetNetworkPing ist eine
+		-- normale, offizielle Funktion für Spiel-Skripte.
+		local localPlayer = game:GetService("Players").LocalPlayer
+		local firstTick = true
 		while task.wait(0.5) do
+			if not WatermarkLabel.Parent then
+				break -- Watermark wurde entfernt -> Schleife beenden
+			end
+			if firstTick then
+				pcall(function()
+					if WatermarkModule.Mark then
+						WatermarkModule.Mark("Watermark: erste Aktualisierung (FPS/Ping)")
+					end
+				end)
+			end
+			local fps, ping = 0, 0
 			pcall(function()
-				local fps = math.floor(1 / RunService.RenderStepped:Wait())
-				local ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
+				local dt = RunService.RenderStepped:Wait()
+				if dt and dt > 0 then
+					fps = math.floor(1 / dt)
+				end
+			end)
+			pcall(function()
+				ping = math.floor((localPlayer:GetNetworkPing() or 0) * 1000)
+			end)
+			pcall(function()
 				WatermarkLabel.Text = string.format("D3v1lHub | %s | FPS: %d | Ping: %dms", gameName, fps, ping)
 			end)
+			if firstTick then
+				firstTick = false
+				pcall(function()
+					if WatermarkModule.Mark then
+						WatermarkModule.Mark("Watermark: OK")
+					end
+				end)
+			end
 		end
 	end)
 	
@@ -1738,28 +1769,28 @@ local function resolveid(image, flag)
 								end
 							end)
 							codename = string.sub(codename, 1, 24) .. tostring(fixes)
-							local fold = isfolder("./D3v1lHub Lib")
+							local fold = isfolder("D3v1lHub Lib")
 							if fold then
 							else
-								makefolder("./D3v1lHub Lib")
+								makefolder("D3v1lHub Lib")
 							end
-							fold = isfolder("./D3v1lHub Lib/Themes")
+							fold = isfolder("D3v1lHub Lib/Themes")
 							if fold then
 							else
-								makefolder("./D3v1lHub Lib/Themes")
+								makefolder("D3v1lHub Lib/Themes")
 							end
-							fold = isfolder("./D3v1lHub Lib/Themes/SynapseAssetsCache")
+							fold = isfolder("D3v1lHub Lib/Themes/SynapseAssetsCache")
 							if fold then
 							else
-								makefolder("./D3v1lHub Lib/Themes/SynapseAssetsCache")
+								makefolder("D3v1lHub Lib/Themes/SynapseAssetsCache")
 							end
-							if not fold or not isfile("./D3v1lHub Lib/Themes/SynapseAssetsCache/" .. codename .. ".dat") then
+							if not fold or not isfile("D3v1lHub Lib/Themes/SynapseAssetsCache/" .. codename .. ".dat") then
 								local res = game:HttpGet(string.sub(image, 15))
 								if res ~= nil then
-									writefile("./D3v1lHub Lib/Themes/SynapseAssetsCache/" .. codename .. ".dat", res)
+									writefile("D3v1lHub Lib/Themes/SynapseAssetsCache/" .. codename .. ".dat", res)
 								end
 							end
-							return getsynasset(readfile("./D3v1lHub Lib/Themes/SynapseAssetsCache/" .. codename .. ".dat"))
+							return getsynasset(readfile("D3v1lHub Lib/Themes/SynapseAssetsCache/" .. codename .. ".dat"))
 						end)
 						if x and e ~= nil then
 							return e
@@ -2736,6 +2767,11 @@ function DebugLog:Start()
 				self.ErrorLines = self.ErrorLines + 1
 				self.LastError, self.LastErrorCount = text, 1
 				self:Add(text)
+				-- die ersten Fehler sofort speichern: stürzt Roblox direkt danach ab, wären sie sonst weg
+				if self.ErrorLines <= 30 then
+					self:Flush()
+					return
+				end
 			end
 			self:QueueFlush()
 		end)
@@ -2786,6 +2822,7 @@ end
 library.DebugMark = function(text)
 	pcall(DebugLog.Mark, DebugLog, text)
 end
+WatermarkModule.Mark = library.DebugMark -- Watermark-Code steht vor "library" und kennt es nicht direkt
 -- ============================================================
 -- Linoria-Feature-Port: Tooltip-System (AddToolTip)
 -- Zeigt eine kleine schwebende Box neben dem Mauszeiger, sobald man
@@ -8950,8 +8987,8 @@ function library:CreateWindow(options, ...)
 					local realDropdownHolderList = Instance_new("UIListLayout")
 					local dropdownEnabled = false
 					pcall(function()
-						if not isfolder("./D3v1lHub Lib") then
-							makefolder("./D3v1lHub Lib")
+						if not isfolder("D3v1lHub Lib") then
+							makefolder("D3v1lHub Lib")
 						end
 					end)
 					local common_string = nil
@@ -8964,14 +9001,14 @@ function library:CreateWindow(options, ...)
 						if #folderName == 0 then
 							folderName = "Unnamed Workspace"
 						end
-						common_string = "./D3v1lHub Lib/" .. folderName
+						common_string = "D3v1lHub Lib/" .. folderName
 						return common_string
 					end
 					refreshWorkspacePath()
 					local function ensureFolder()
 						local ok = pcall(function()
-							if not isfolder("./D3v1lHub Lib") then
-								makefolder("./D3v1lHub Lib")
+							if not isfolder("D3v1lHub Lib") then
+								makefolder("D3v1lHub Lib")
 							end
 							if not isfolder(common_string) then
 								makefolder(common_string)
@@ -12011,6 +12048,7 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 		})
 		local designerelements = {}
 		library.designerelements = designerelements
+		pcall(DebugLog.Mark, DebugLog, "Designer: Farb-Colorpicker werden erstellt")
 		for _, v in next, {{"Main", "main"}, {"Background", "background"}, {"Outer Border", "outerBorder"}, {"Inner Border", "innerBorder"}, {"Top Gradient", "topGradient"}, {"Bottom Gradient", "bottomGradient"}, {"Section Background", "sectionBackground"}, {"Section", "section"}, {"Element Text", "elementText"}, {"Other Element Text", "otherElementText"}, {"Tab Text", "tabText"}, {"Element Border", "elementBorder"}, {"Selected Option", "selectedOption"}, {"Unselected Option", "unselectedOption"}, {"Hovered Option Top", "hoveredOptionTop"}, {"Unhovered Option Top", "unhoveredOptionTop"}, {"Hovered Option Bottom", "hoveredOptionBottom"}, {"Unhovered Option Bottom", "unhoveredOptionBottom"}} do
 			local nam, codename = v[1], v[2]
 			local cflag = "__Designer.Colors." .. codename
@@ -12027,6 +12065,7 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 				Flag = cflag
 			}
 		end
+		pcall(DebugLog.Mark, DebugLog, "Designer: Farb-Colorpicker fertig")
 		local flags = {}
 		local persistoptions = {
 			Name = "Config Profile",
@@ -12095,9 +12134,11 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 			Callback = function(value)
 				if value then
 					if not WatermarkModule.WatermarkOuter then
+						pcall(DebugLog.Mark, DebugLog, "Watermark wird erstellt")
 						pcall(function()
 							WatermarkModule:Create()
 						end)
+						pcall(DebugLog.Mark, DebugLog, "Watermark erstellt")
 					else
 						pcall(function()
 							WatermarkModule:Show()
@@ -12232,8 +12273,10 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 			end
 		end
 		for _, v in next, daaata do
+			pcall(DebugLog.Mark, DebugLog, "Designer: " .. tostring(v[1]) .. " " .. tostring((type(v[4]) == "table" and (v[4].Name or (type(v[4][1]) == "table" and v[4][1].Name))) or v[2]))
 			designerelements[v[2]] = v[3][v[1]](v[3], v[4])
 		end
+		pcall(DebugLog.Mark, DebugLog, "Designer: alle Elemente erstellt")
 		designerelements["__Designer.Textbox.WorkspaceName"]:Set(library.WorkspaceName or "Unnamed Workspace")
 		for k, v in next, elements do
 			if v and k and string.sub(k, 1, 11) == "__Designer." and v.Type and v.Type ~= "Persistence" then
