@@ -556,6 +556,51 @@ do
 	end
 end
 library.subs.textToSize = textToSize
+local function makeDraggable(topBarObject, object)
+	local dragging, dragInput, dragStart, startPosition = nil, nil, nil, nil
+	library.signals[1 + #library.signals] = topBarObject.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging, dragStart, startPosition = true, input.Position, object.Position
+			input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
+		end
+	end)
+	library.signals[1 + #library.signals] = topBarObject.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
+	end)
+	library.signals[1 + #library.signals] = userInputService.InputChanged:Connect(function(input)
+		if input == dragInput and dragging then
+			local delta = input.Position - dragStart
+			local pos = UDim2.new(startPosition.X.Scale, startPosition.X.Offset + delta.X, startPosition.Y.Scale, startPosition.Y.Offset + delta.Y)
+			if library.configuration.smoothDragging then tweenService:Create(object, TweenInfo.new(0.25, library.configuration.easingStyle, library.configuration.easingDirection), {Position = pos}):Play() else object.Position = pos end
+		end
+	end)
+end
+library.subs.makeDraggable = makeDraggable
+local function resolveid(image, flag)
+	local function apply(value) local thing = flag and library.elements[flag] if thing and thing.Set then task.spawn(thing.Set, thing, value) end end
+	if not image then return image end
+	if type(image) == "string" and ((#image > 14 and string.sub(image, 1, 13) == "rbxassetid://") or (#image > 12 and string.sub(image, 1, 11) == "rbxasset://") or (#image > 12 and string.sub(image, 1, 11) ~= "rbxthumb://")) then apply(image) return image end
+	local cached = library.resolvercache[image]
+	if cached then apply(cached) return cached end
+	local orig = image
+	image = tonumber(image) or image
+	local ok = pcall(function()
+		if type(image) == "string" then
+			if getsynasset and #image > 11 and string.sub(image, 1, 11) == "synasset://" then image = getsynasset(string.sub(image, 12)) return end
+			if #image < 11 or (string.sub(image, 1, 13) ~= "rbxassetid://" and string.sub(image, 1, 11) ~= "rbxasset://" and string.sub(image, 1, 11) ~= "rbxthumb://") then image = tonumber((image:gsub("%D", "")), 10) or image end
+		end
+		if type(image) == "number" and image > 0 then
+			local id = tostring(image)
+			pcall(function() local info = Marketplace and Marketplace:GetProductInfo(image) if info and info.AssetTypeId == 1 then id = "rbxassetid://" .. id elseif info and info.AssetTypeId == 13 then id = "rbxthumb://type=Asset&id=" .. id .. "&w=420&h=420" end end)
+			image = id
+		elseif type(image) ~= "string" then image = nil end
+	end)
+	if ok and image then library.resolvercache[orig], library.resolvercache[image] = image, image apply(image) end
+	return image
+end
+library.subs.ResolveID = resolveid
+library.subs.updatecolors = function() end
+library.AddToolTip = function() return nil end library.subs.AddToolTip = library.AddToolTip
 local function toLogical(v)
 	local s = library.__MenuScale
 	if type(s) ~= "number" or s <= 0 then return v end
@@ -1389,6 +1434,7 @@ end
 library.subs.DeserializeFlagValue = deserializeFlagValue
 do
 	local alive, holder = {}, nil
+	library.Notifications = alive
 	local function getHolder()
 		if holder and holder.Parent then return holder end
 		if not MainScreenGui then return nil end
@@ -1406,6 +1452,7 @@ do
 		list.Parent = holder
 		holder.Parent = MainScreenGui
 		library.NotificationsFrame = holder
+		library.NotifyLayout = list
 		return holder
 	end
 	function library.Notify(self, data, ...)
