@@ -2981,43 +2981,38 @@ do
 					o = (o and type(o) == "string" and resolvevararg("Tab", o, ...)) or o or {}
 					local flag = o.Flag or unnamed("unnamedpersistence", "Persistence")
 					local nameBox = sectionFunctions:AddTextbox({Name = "Config Name", Flag = "__Mobile.ConfigName." .. flag, Placeholder = "name"})
-					local configList = sectionFunctions:AddDropdown({Name = "Configs", Flag = "__Mobile.ConfigList." .. flag, List = function()
-						return listConfigs()
-					end, Nothing = "None", Callback = function(v) if v and v ~= "None" then nameBox:RawSet(v) end end})
 					local infoLabel = nil
 					local function currentName()
 						local n = library_flags["__Mobile.ConfigName." .. flag]
-						if type(n) ~= "string" or #sanitizeConfigName(n) == 0 then n = library_flags["__Mobile.ConfigList." .. flag] end
-						if n == "None" then return nil end
+						if type(n) ~= "string" or #sanitizeConfigName(n) == 0 then return nil end
 						return n
 					end
 					local function refreshInfo()
-						if infoLabel then infoLabel:Set("Autoload: " .. tostring(readAutoload() or "none")) end
-						configList:UpdateList()
+						if infoLabel then infoLabel:Set("Autoload: " .. tostring(readAutoload() or "none") .. "\nConfigs: " .. (table.concat(listConfigs(), ", ") ~= "" and table.concat(listConfigs(), ", ") or "none")) end
 					end
 					sectionFunctions:AddButton({{Name = "Save", Callback = function()
 						local ok, info = saveConfig(currentName())
-						notify(ok and ("Config saved: " .. tostring(info)) or ("Save failed: " .. tostring(info)), ok and "success" or "error")
+						notify(ok and ("Saved: " .. tostring(info)) or ("Save failed: " .. tostring(info)), ok and "success" or "error")
 						refreshInfo()
 					end}, {Name = "Load", Callback = function()
 						local ok, info = loadConfig(currentName())
-						notify(ok and "Config loaded" or ("Load failed: " .. tostring(info)), ok and "success" or "error")
-					end}})
-					sectionFunctions:AddButton({{Name = "Delete", Callback = function()
+						notify(ok and "Loaded" or ("Load failed: " .. tostring(info)), ok and "success" or "error")
+					end}, {Name = "Delete", Callback = function()
 						local ok = deleteConfig(currentName())
-						notify(ok and "Config deleted" or "Delete failed", ok and "success" or "error")
+						notify(ok and "Deleted" or "Delete failed", ok and "success" or "error")
 						refreshInfo()
-					end}, {Name = "Set Autoload", Callback = function()
+					end}, {Name = "Autoload", Callback = function()
 						local n = sanitizeConfigName(currentName() or "")
 						if #n == 0 then
-							notify("Enter or select a config first", "error")
+							notify("Enter a config name first", "error")
 							return
 						end
 						local ok = writeAutoload(n)
-						notify(ok and ("Autoload: " .. n) or "Could not save autoload", ok and "success" or "error")
+						notify(ok and ("Autoload: " .. n) or "Autoload failed", ok and "success" or "error")
 						refreshInfo()
 					end}})
 					infoLabel = sectionFunctions:AddLabel({Text = "Autoload: " .. tostring(readAutoload() or "none")})
+					task.defer(refreshInfo)
 					local element
 					element = {
 						Options = o,
@@ -3072,13 +3067,6 @@ do
 			else
 				configSection:AddLabel({Text = "Your executor cannot save files."})
 			end
-			mark("Menu-Section")
-			local menuSection = settingsTab:CreateSection({Name = "Menu"})
-			menuSection:AddButton({{Name = "Unload GUI", Callback = function() terminateGui() end}})
-			local info = designerOptions.Info or options.Info
-			local text = ((designerOptions.Credit ~= false) and "Library by d3v1lhub2222\n" or "") .. "Version " .. tostring(library.Version or "?") .. " (Mobile)"
-			if type(info) == "string" then text = info .. "\n" .. text elseif type(info) == "table" then text = table.concat(info, "\n") .. "\n" .. text end
-			menuSection:AddLabel({Text = text})
 			mark("fertig")
 			return settingsTab
 		end
