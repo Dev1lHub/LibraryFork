@@ -79,8 +79,9 @@ function CursorModule:Enable()
 
 	local bindName = generateRandomName()
 	local CursorGui, CursorImage, ModalButton = nil, nil, nil
-	local savedIcon, savedBehavior = nil, nil
+	local savedIcon = nil
 	local active = false
+	local ourIcon = nil
 	local tickStart = tick()
 	local colorLightLila = Color3.fromRGB(185, 110, 255)
 	local colorDarkLila = Color3.fromRGB(75, 20, 120)
@@ -101,7 +102,7 @@ function CursorModule:Enable()
 		ModalButton.Name = generateRandomName()
 		ModalButton.BackgroundTransparency = 1
 		ModalButton.Text = ""
-		ModalButton.Size = UDim2.fromOffset(0, 0)
+		ModalButton.Size = UDim2.fromOffset(1, 1)
 		ModalButton.Modal = false
 		ModalButton.Parent = CursorGui
 
@@ -126,15 +127,19 @@ function CursorModule:Enable()
 		return true
 	end
 
+	local function sampleGameState()
+		local curIcon = UserInputService.MouseIconEnabled
+		if ourIcon ~= nil and curIcon ~= ourIcon then
+			savedIcon = curIcon
+		end
+	end
+
 	local function release()
 		if active then
 			active = false
 			pcall(function()
 				if savedIcon ~= nil then
 					UserInputService.MouseIconEnabled = savedIcon
-				end
-				if savedBehavior ~= nil and UserInputService.MouseBehavior == Enum.MouseBehavior.Default then
-					UserInputService.MouseBehavior = savedBehavior
 				end
 			end)
 		end
@@ -208,21 +213,25 @@ function CursorModule:Enable()
 			if not active then
 				active = true
 				savedIcon = UserInputService.MouseIconEnabled
-				savedBehavior = UserInputService.MouseBehavior
-				if savedBehavior == Enum.MouseBehavior.Default and savedIcon == false then
+				if UserInputService.MouseBehavior == Enum.MouseBehavior.Default and savedIcon == false then
 					savedIcon = true
 				end
+				ourIcon = nil
 				ModalButton.Modal = true
 			end
 
-			UserInputService.MouseIconEnabled = false
+			local rightHeld = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
 
-			if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+			if not rightHeld then
+				sampleGameState()
+			end
+
+			UserInputService.MouseIconEnabled = false
+			ourIcon = false
+
+			if rightHeld then
 				CursorImage.Visible = false
 			else
-				if UserInputService.MouseBehavior ~= Enum.MouseBehavior.Default then
-					UserInputService.MouseBehavior = Enum.MouseBehavior.Default
-				end
 				local mPos = UserInputService:GetMouseLocation()
 				local pulse = (math.sin((tick() - tickStart) * 2) + 1) / 2
 				CursorImage.ImageColor3 = colorLightLila:Lerp(colorDarkLila, pulse)
@@ -230,6 +239,9 @@ function CursorModule:Enable()
 				CursorImage.Visible = true
 			end
 		elseif active then
+			if not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+				sampleGameState()
+			end
 			release()
 		end
 	end)
