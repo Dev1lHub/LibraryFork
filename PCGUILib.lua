@@ -72,26 +72,42 @@ function CursorModule:Enable()
 
 	local UserInputService = game:GetService("UserInputService")
 	local RunService = game:GetService("RunService")
-	local RenderStepped = RunService.RenderStepped
 
 	self.Toggled = true
-
 	self.Generation = (self.Generation or 0) + 1
 	local myGeneration = self.Generation
 
-	task.spawn(function()
+	local bindName = generateRandomName()
+	local CursorGui, CursorImage, ModalButton = nil, nil, nil
+	local savedIcon, savedBehavior = nil, nil
+	local active = false
+	local tickStart = tick()
+	local colorLightLila = Color3.fromRGB(185, 110, 255)
+	local colorDarkLila = Color3.fromRGB(75, 20, 120)
+	local stopped = false
 
-		local CursorGui = Instance.new("ScreenGui")
+	local function buildGui()
+		if CursorGui then
+			pcall(function() CursorGui:Destroy() end)
+		end
+		CursorGui = Instance.new("ScreenGui")
 		CursorGui.Name = generateRandomName()
 		CursorGui.IgnoreGuiInset = true
 		CursorGui.ResetOnSpawn = false
-		CursorGui.DisplayOrder = 999999
+		CursorGui.DisplayOrder = 2147483647
 		CursorGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
-		local CursorImage = Instance.new("ImageLabel")
+		ModalButton = Instance.new("TextButton")
+		ModalButton.Name = generateRandomName()
+		ModalButton.BackgroundTransparency = 1
+		ModalButton.Text = ""
+		ModalButton.Size = UDim2.fromOffset(0, 0)
+		ModalButton.Modal = false
+		ModalButton.Parent = CursorGui
+
+		CursorImage = Instance.new("ImageLabel")
 		CursorImage.Name = generateRandomName()
 		CursorImage.BackgroundTransparency = 1
-
 		CursorImage.Image = "rbxasset://textures/Cursors/KeyboardMouse/ArrowFarCursor.png"
 		CursorImage.Size = UDim2.fromOffset(64, 64)
 		CursorImage.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -104,79 +120,126 @@ function CursorModule:Enable()
 				CursorGui.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui", 5)
 			end)
 			if not ok or not CursorGui.Parent then
-				if self.Generation == myGeneration then
-					self.Toggled = false
+				return false
+			end
+		end
+		return true
+	end
+
+	local function release()
+		if active then
+			active = false
+			pcall(function()
+				if savedIcon ~= nil then
+					UserInputService.MouseIconEnabled = savedIcon
 				end
+				if savedBehavior ~= nil and UserInputService.MouseBehavior == Enum.MouseBehavior.Default then
+					UserInputService.MouseBehavior = savedBehavior
+				end
+			end)
+		end
+		if ModalButton then
+			pcall(function() ModalButton.Modal = false end)
+		end
+		if CursorImage then
+			pcall(function() CursorImage.Visible = false end)
+		end
+	end
+
+	local function stop()
+		if stopped then
+			return
+		end
+		stopped = true
+		pcall(function() RunService:UnbindFromRenderStep(bindName) end)
+		release()
+		pcall(function()
+			if CursorGui then
 				CursorGui:Destroy()
-				return
 			end
-		end
-
-		local tickStart = tick()
-		local State = UserInputService.MouseIconEnabled
-		local BehaviorState = UserInputService.MouseBehavior
-		local wasMenuVisible = false
-		local colorLightLila = Color3.fromRGB(185, 110, 255)
-		local colorDarkLila = Color3.fromRGB(75, 20, 120)
-
-		while self.Toggled and self.Generation == myGeneration and CursorGui.Parent do
-
-			local menuVisible = (CursorModule.MenuFrame and CursorModule.MenuFrame.Parent and CursorModule.MenuFrame.Visible) and true or false
-
-			if menuVisible then
-				if not wasMenuVisible then
-
-					BehaviorState = UserInputService.MouseBehavior
-				end
-
-				local rightMouseHeld = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
-				UserInputService.MouseIconEnabled = false
-
-				if rightMouseHeld then
-
-					CursorImage.Visible = false
-				else
-
-					if UserInputService.MouseBehavior ~= Enum.MouseBehavior.Default then
-						UserInputService.MouseBehavior = Enum.MouseBehavior.Default
-					end
-
-					local mPos = UserInputService:GetMouseLocation()
-					local timePassed = (tick() - tickStart) * 2
-					local pulse = (math.sin(timePassed) + 1) / 2
-
-					CursorImage.ImageColor3 = colorLightLila:Lerp(colorDarkLila, pulse)
-					CursorImage.Position = UDim2.fromOffset(mPos.X, mPos.Y)
-					CursorImage.Visible = true
-				end
-			else
-				UserInputService.MouseIconEnabled = State
-
-				if wasMenuVisible then
-
-					UserInputService.MouseBehavior = BehaviorState
-				end
-
-				CursorImage.Visible = false
-			end
-
-			wasMenuVisible = menuVisible
-			RenderStepped:Wait()
-		end
-
+		end)
 		if self.Generation == myGeneration then
 			self.Toggled = false
-			UserInputService.MouseIconEnabled = State
-			UserInputService.MouseBehavior = BehaviorState
+			self.Stop = nil
 		end
-		pcall(function()
-			CursorGui:Destroy()
-		end)
-		end)
+	end
+	self.Stop = stop
+
+	local function menuIsVisible()
+		local frame = CursorModule.MenuFrame
+		if not (frame and frame.Parent and frame.Visible) then
+			return false
 		end
+		local gui = frame:FindFirstAncestorWhichIsA("ScreenGui")
+		if gui and not gui.Enabled then
+			return false
+		end
+		return true
+	end
+
+	if not buildGui() then
+		stopped = true
+		if self.Generation == myGeneration then
+			self.Toggled = false
+			self.Stop = nil
+		end
+		pcall(function() CursorGui:Destroy() end)
+		return
+	end
+
+	RunService:BindToRenderStep(bindName, Enum.RenderPriority.Last.Value, function()
+		if stopped then
+			return
+		end
+		if not self.Toggled or self.Generation ~= myGeneration then
+			stop()
+			return
+		end
+		if not CursorGui or not CursorGui.Parent then
+			if not buildGui() then
+				return
+			end
+			if active then
+				ModalButton.Modal = true
+			end
+		end
+
+		if menuIsVisible() then
+			if not active then
+				active = true
+				savedIcon = UserInputService.MouseIconEnabled
+				savedBehavior = UserInputService.MouseBehavior
+				if savedBehavior == Enum.MouseBehavior.Default and savedIcon == false then
+					savedIcon = true
+				end
+				ModalButton.Modal = true
+			end
+
+			UserInputService.MouseIconEnabled = false
+
+			if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+				CursorImage.Visible = false
+			else
+				if UserInputService.MouseBehavior ~= Enum.MouseBehavior.Default then
+					UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+				end
+				local mPos = UserInputService:GetMouseLocation()
+				local pulse = (math.sin((tick() - tickStart) * 2) + 1) / 2
+				CursorImage.ImageColor3 = colorLightLila:Lerp(colorDarkLila, pulse)
+				CursorImage.Position = UDim2.fromOffset(mPos.X, mPos.Y)
+				CursorImage.Visible = true
+			end
+		elseif active then
+			release()
+		end
+	end)
+end
 
 function CursorModule:Disable()
 	self.Toggled = false
+	if self.Stop then
+		pcall(self.Stop)
+	end
 end
 
 local WatermarkModule = {}
