@@ -59,7 +59,7 @@ end
 
 local library = {
 	colors = {
-		main = Color3.fromRGB(168, 85, 247),
+		main = Color3.fromRGB(128, 0, 255),
 		topGradient = Color3.fromRGB(28, 24, 38),
 		bottomGradient = Color3.fromRGB(20, 17, 27)
 	},

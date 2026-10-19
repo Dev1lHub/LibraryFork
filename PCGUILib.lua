@@ -83,8 +83,8 @@ function CursorModule:Enable()
 	local active = false
 	local ourIcon = nil
 	local tickStart = tick()
-	local colorLightLila = Color3.fromRGB(185, 110, 255)
-	local colorDarkLila = Color3.fromRGB(75, 20, 120)
+	local colorLightLila = Color3.fromRGB(160, 70, 255)
+	local colorDarkLila = Color3.fromRGB(55, 0, 120)
 	local stopped = false
 
 	local function buildGui()
@@ -274,7 +274,7 @@ function WatermarkModule:Create()
 
 	protectAndParentGui(ScreenGui)
 
-	local MainColor = (self.GetMainColor and self.GetMainColor()) or Color3.fromRGB(168, 85, 247)
+	local MainColor = (self.GetMainColor and self.GetMainColor()) or Color3.fromRGB(128, 0, 255)
 	local TopGradColor = Color3.fromRGB(32, 32, 37)
 	local BottomGradColor = Color3.fromRGB(6, 6, 8)
 
@@ -416,7 +416,7 @@ local KeybindsListModule = {}
 KeybindsListModule.Frame = nil
 KeybindsListModule.Container = nil
 KeybindsListModule.Entries = {}
-KeybindsListModule.MainColor = Color3.fromRGB(168, 85, 247)
+KeybindsListModule.MainColor = Color3.fromRGB(128, 0, 255)
 KeybindsListModule.IdleColor = Color3.fromRGB(200, 200, 210)
 
 function KeybindsListModule:Create()
@@ -711,7 +711,7 @@ KeystrokesModule.Keys = {}
 KeystrokesModule.Connection = nil
 KeystrokesModule.JumpButton = nil
 KeystrokesModule.JumpDown = false
-KeystrokesModule.MainColor = Color3.fromRGB(168, 85, 247)
+KeystrokesModule.MainColor = Color3.fromRGB(128, 0, 255)
 
 function KeystrokesModule:Create()
 	if self.Holder then
@@ -1140,7 +1140,7 @@ local library = {
 		easingDirection = Enum.EasingDirection.Out
 	},
 colors = {
-        main = Color3.fromRGB(168, 85, 247),
+        main = Color3.fromRGB(128, 0, 255),
         background = Color3.fromRGB(18, 16, 24),
         outerBorder = Color3.fromRGB(10, 8, 15),
         innerBorder = Color3.fromRGB(59, 43, 76),
