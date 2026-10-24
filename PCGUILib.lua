@@ -394,11 +394,16 @@ function WatermarkModule:Create()
 
 	task.spawn(function()
 		while task.wait(0.5) do
-			pcall(function()
-				local fps = math.floor(1 / RunService.RenderStepped:Wait())
-				local ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
-				WatermarkLabel.Text = string.format("D3v1lHub | %s | FPS: %d | Ping: %dms", gameName, fps, ping)
-			end)
+			if not WatermarkOuter.Parent or not ScreenGui.Parent then
+				break
+			end
+			if WatermarkOuter.Visible then
+				pcall(function()
+					local fps = math.floor(1 / RunService.Heartbeat:Wait())
+					local ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
+					WatermarkLabel.Text = string.format("D3v1lHub | %s | FPS: %d | Ping: %dms", gameName, fps, ping)
+				end)
+			end
 		end
 	end)
 
@@ -1130,7 +1135,7 @@ function KeystrokesModule:Hide()
 end
 
 local library = {
-	Version = "0.84",
+	Version = "0.85",
 	WorkspaceName = "D3v1lHub Lib",
 	flags = {},
 	signals = {},
@@ -1652,7 +1657,7 @@ local function scanDependencies()
 end
 task.spawn(function()
 	local warnedLoopError = false
-	while wait_check(0.05) do
+	while wait_check(0.15) do
 
 		local ok, err = pcall(scanDependencies)
 		if not ok and not warnedLoopError then

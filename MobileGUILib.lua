@@ -43,7 +43,7 @@ local function addCorner(instance, radius)
 	return nil
 end
 local library = {
-	Version = "0.84 Mobile",
+	Version = "0.86 Mobile",
 	WorkspaceName = "D3v1lHub Lib",
 	flags = {},
 	signals = {},
@@ -1958,6 +1958,7 @@ do
 			library.MainScreenGui, MainScreenGui = nil, nil
 			pcall(library.unload)
 		end
+		library.__MobileTerminate = terminateGui
 		if typeof(getgenv) == "function" then getgenv().D3v1lHub_ActiveTerminate = terminateGui end
 		local windowFunctions = {
 			tabCount = 0,
@@ -2352,12 +2353,12 @@ do
 								local mine = os.clock()
 								confirming = mine
 								render()
-								task.delay(3, function() if confirming == mine then confirming = 0 render() end end)
+								task.delay(3, function() if confirming == mine and btn.Parent then confirming = 0 render() end end)
 								return
 							end
 							confirming = 0
 							tweenService:Create(btn, TweenInfo.new(0.08), {BackgroundColor3 = darkenColor(C("main"), 2)}):Play()
-							task.delay(0.12, function() tweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = C("topGradient")}):Play() end)
+							task.delay(0.12, function() if not btn.Parent then return end tweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = C("topGradient")}):Play() end)
 							press()
 							local seconds = tonumber(bo.Cooldown)
 							if seconds and seconds > 0 then
@@ -3076,6 +3077,11 @@ do
 			else
 				configSection:AddLabel({Text = "Your executor cannot save files."})
 			end
+			local unloadSection = settingsTab:CreateSection({Name = "Menu"})
+			unloadSection:AddButton({Name = "Unload", Confirm = true, Tooltip = "Closes the menu and unloads everything.", Callback = function()
+				local terminate = library.__MobileTerminate
+				if terminate then task.defer(terminate) end
+			end})
 			mark("fertig")
 			return settingsTab
 		end
