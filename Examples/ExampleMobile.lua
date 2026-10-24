@@ -25,6 +25,8 @@ local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Dev1l
 --   }
 --   After loading: library.Executor.Name / .Missing / .Supported, library:CheckExecutor({"firesignal"})
 --
+-- Copyright: the library shows a small "(c) D3v1lHub" footer under the menu and a Terms Of Use window (library:ShowTerms()). Do not remove them.
+--
 -- Tip: keep the menu small (few elements per tab), it is more stable on phones.
 
 library:ShowLoadingScreen({
@@ -109,6 +111,13 @@ library:ShowLoadingScreen({
             Cooldown = 10,
             Callback = function()
                 print("Collected")
+            end
+        })
+
+        MiscSection:AddButton({
+            Name = "Terms Of Use",
+            Callback = function()
+                library:ShowTerms()
             end
         })
 

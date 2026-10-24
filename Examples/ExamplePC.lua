@@ -247,6 +247,14 @@ library:ShowLoadingScreen({
             Callback = print
         })
 
+        -- Opens the Terms Of Use / copyright window (same as Settings > More Info > "View Terms Of Use")
+        MiscSection:AddButton({
+            Name = "Terms Of Use",
+            Callback = function()
+                library:ShowTerms()
+            end
+        })
+
         -- Confirm: first click asks "Confirm?", second click within 3 seconds runs the callback
         MiscSection:AddButton({
             Name = "Reset everything",
