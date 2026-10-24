@@ -18,6 +18,16 @@ local Wait = library.subs.Wait
 --   library.MobileBuildBatch = 2      -- elements per pause
 --   library.MobileBuildDelay = 0.06   -- pause in seconds, 0 = everything at once
 --
+-- Executor check (the loader does this automatically):
+--   After "Yes" a warning lists functions your executor does not support
+--   (the ones the library needs plus your own RequiredFunctions), with Continue / Cancel.
+--   getgenv().D3v1lLoaderOptions = {
+--       RequiredFunctions = { "hookfunction", getconnections = "used by my auto farm" },
+--       KnownUnsupported = { xeno = { "hookmetamethod" } },   -- your own list per executor name
+--       ExecutorWarning = false                                -- turn the warning off
+--   }
+--   After loading: library.Executor.Name / .Missing / .Supported, library:CheckExecutor({"firesignal"})
+--
 -- Customize loader texts (BEFORE loading the loader):
 --   getgenv().D3v1lLoaderOptions = { TitlePart1 = "D3v1l", ConfirmText = "Execute?", ShowHWID = false }
 
@@ -37,12 +47,16 @@ library:ShowLoadingScreen({
             Type = "success"
         })
 
+        -- Tab badges: small label on the tab (Badge / BadgeColor), change later with tab:SetBadge("text") / tab:ClearBadge()
         local MainTab = PepsisWorld:CreateTab({
-            Name = "Main"
+            Name = "Main",
+            Badge = "NEW"
         })
 
         local ESPTab = PepsisWorld:CreateTab({
-            Name = "ESP"
+            Name = "ESP",
+            Badge = "SOON",
+            BadgeColor = Color3.fromRGB(128, 0, 255)
         })
 
         local WorldTab = PepsisWorld:CreateTab({
@@ -214,12 +228,66 @@ library:ShowLoadingScreen({
             end
         })
 
+        -- Keybind modes: "Dynamic", "Hold" or "Toggle". Click the small D/H/T letter next to the key to cycle modes.
         MiscSection:AddToggle({
             Name = "Test Toggle/Key",
             Keybind = {
                 Mode = "Dynamic"
             },
             Callback = print
+        })
+
+        MiscSection:AddToggle({
+            Name = "Hold to sprint",
+            Flag = "MiscSection_HoldSprint",
+            Keybind = {
+                Value = Enum.KeyCode.LeftShift,
+                Mode = "Hold"
+            },
+            Callback = print
+        })
+
+        -- Confirm: first click asks "Confirm?", second click within 3 seconds runs the callback
+        MiscSection:AddButton({
+            Name = "Reset everything",
+            Confirm = "Really reset?",
+            Callback = function()
+                library:Notify({Text = "Everything was reset.", Time = 3, Type = "success"})
+            end
+        })
+
+        -- Cooldown: after a press the button is blocked for N seconds and shows the countdown
+        MiscSection:AddButton({
+            Name = "Collect reward",
+            Cooldown = 10,
+            Callback = function()
+                library:Notify({Text = "Reward collected!", Time = 3, Type = "success"})
+            end
+        })
+
+        -- VIP elements: gold badge, locked until library:SetVIP(true) or until VIPCheck returns true
+        MiscSection:AddToggle({
+            Name = "Auto Farm Pro",
+            Flag = "MiscSection_AutoFarmPro",
+            VIP = true,
+            Callback = print
+        })
+
+        MiscSection:AddButton({
+            Name = "Teleport to boss",
+            VIP = "PREMIUM",
+            Callback = function()
+                print("Teleported")
+            end
+        })
+
+        -- Replace this with your own key / whitelist check
+        MiscSection:AddToggle({
+            Name = "Unlock VIP (test)",
+            Flag = "MiscSection_UnlockVIP",
+            Callback = function(State)
+                library:SetVIP(State)
+            end
         })
 
         MiscSection:AddTextbox({
@@ -256,7 +324,7 @@ library:ShowLoadingScreen({
         MiscSection:AddColorpicker({
             Name = "Example color",
             Flag = "MiscSection_ExampleColor",
-            Value = Color3.fromRGB(168, 85, 247),
+            Value = Color3.fromRGB(128, 0, 255),
             Callback = print
         })
 
@@ -315,6 +383,16 @@ library:ShowLoadingScreen({
             Tooltip = "Select one of the three values.",
             Callback = print
         })
+
+        -- Example of a multiselect dropdown - the open list has "Select All" and "Clear" (SelectButtons = false hides them)
+        local MultiDropdown = DropdownSection:AddDropdown({
+            Name = "Multiselect dropdown",
+            Flag = "DropdownSection_Multi",
+            List = { "Red", "Green", "Blue", "Yellow" },
+            MultiSelect = true,
+            Callback = print
+        })
+        -- MultiDropdown:SelectAll() / MultiDropdown:Clear() also work from code
 
         -- Example of a searchable dropdown (Searchable) - handy for long lists
         DropdownSection:AddDropdown({

@@ -31,6 +31,19 @@ LOADER OPTIONS (getgenv().D3v1lLoaderOptions = {...} or directly in ShowLoadingS
    (function) OnAccept / (function | nil) OnDecline
    (boolean | nil) MobileWarning = true or false // default: true on mobile. After "Yes" a warning (Continue / Cancel) is shown
    (string | nil) MobileWarningText // custom warning text
+   (table | nil) RequiredFunctions = {"hookfunction", getconnections = "reason"} // extra executor functions your script needs
+   (table | nil) KnownUnsupported = { xeno = {"hookmetamethod"} } // your own list of unsupported functions per executor name (matched by substring)
+   (boolean | nil) ExecutorWarning = true or false // default true: after "Yes" a warning lists unsupported functions (Continue / Cancel)
+   (table | nil) ExecutorStatusList = { wave = "supported", madium = "partial", xeno = "untested" } // overrides the built-in list (matched by substring of the executor name)
+   Executor status line in the Yes/No window: green = supported, yellow = partially supported, red = not tested / unknown.
+   Yellow and red also show: "Some features may not work properly because of the lack of UNC/sUNC."
+   Built-in list: Wave, Volt, Real, Potassium = supported | Madium = partial | Synapse Z = not tested | everything else = not tested
+
+EXECUTOR CHECK (after the loader returned)
+   library.Executor = { Name = string, Version = string | nil, Missing = { {Name, Reason}, ... }, Supported = { "name", ... } }
+   library:CheckExecutor({"firesignal", ...}) -> same table format for the given function names
+   library:SetVIP(State | nil) -> State // Unlocks / locks every element created with VIP = true (nil toggles)
+   library:IsVIP() -> boolean
 
 MOBILE ONLY (set before CreateWindow)
    library.MobileBuildBatch = 2      -- elements per pause during the step-by-step build
@@ -69,8 +82,13 @@ Library v0.66 [
            (table | nil) Options [
                (string | nil) Name = "Tab Name"
                (string | number | nil) Image = "rbxassetid://133337" | 133337
+               (string | nil) Badge = "NEW" // Small label on the tab
+               (Color3 | nil) BadgeColor = Color3.fromRGB(128, 0, 255)
            ]
        ) -> Tab [
+           SetBadge: Function (Text, Color) // nil or "" removes the badge
+           ClearBadge: Function
+           GetBadge: Function -> Text | nil
            CreateSection: Function (
                (table) Options [
                    (string | nil) Name = "Section Name"
@@ -108,7 +126,11 @@ Update: Function -> CurrentText // Same function as Get, exists for compat.
                        (any) UnloadValue = UnloadValue
                        (function | nil) UnloadFunc = Function
                        (boolean | nil) Locked = true or false
+                       (boolean | string | nil) VIP = true | "Badge text" // Shows a gold badge and stays locked until library:SetVIP(true)
+                       (function | nil) VIPCheck = Function -> boolean // Alternative unlock check, VIP is unlocked if library.VIP or this returns true
                        (table | boolean | EnumItem | nil) Keybind/Key/KeyBind = Keybind [
+                           (string | nil) Mode/KeybindMode = "Dynamic" | "Hold" | "Toggle" // Click the small D/H/T letter next to the key to change it
+                           (function | nil) ModeCallback = Function (NewMode)
                            (string | nil) Flag = "ToggleKeybindFlag"
                            (EnumItem | nil) Value = Enum.KeyCode.F
                            (function | nil) Callback = Function (NewValue, OldValue)
@@ -129,6 +151,8 @@ Update: Function -> CurrentText // Same function as Get, exists for compat.
                    Default: Boolean
                    Parent: Section
                    Instance: Instance
+                   IsVIP: boolean
+                   VIPLocked: Function -> boolean
                    SetLocked: Function (LockedState) -> LockState
                    Unlock: function
                    Lock: Function
@@ -228,6 +252,10 @@ RawSet: Function (NewValue) -> NewValue // Sets the flag without firing the call
                        (function | nil) Callback = Function (NumPresses)
 (boolean | nil) Locked = true or false
 (function | nil) Condition = Function (NumPresses) // Will only allow the button to be pressed, if this function returns true
+(boolean | string | nil) Confirm = true | "Confirm text" // First click asks, second click within 3 seconds runs the callback
+(number | nil) Cooldown = 10 // Seconds the button is blocked after a press, shows a countdown
+(boolean | string | nil) VIP = true | "Badge text" // Gold badge, locked until library:SetVIP(true)
+(function | nil) VIPCheck = Function -> boolean
                    ]
                    (table | nil) Options ...
                ) -> Buttons [
@@ -238,6 +266,8 @@ RawSet: Function (NewValue) -> NewValue // Sets the flag without firing the call
                    Instance: Instance
                    Update: Function -> ButtonName
                    Press: Function (...)
+                   IsVIP: boolean
+                   VIPLocked: Function -> boolean
                    SetLocked: Function (LockedState) -> LockState
                    Unlock: function
                    Lock: Function
@@ -294,6 +324,7 @@ SetCallback: Function (NewCallback) -> NewCallback
                        (string | nil) BlankValue/NoValueString/Nothing = "No Selection"
                        (boolean | function | nil) Sort = true or false | Function
                        (boolean | string | nil) Multi/Multiple/MultiSelect = true or false | "Text to display"
+                       (boolean | nil) SelectButtons = false // Hides the "Select All" / "Clear" buttons of multiselect lists (shown by default)
                        (function | nil) ItemAdded/AddedCallback = Function (Item, AllItems)
                        (function | nil) ItemRemoved/RemovedCallback = Function (Item, AllItems)
                        (function | nil) ItemChanged/ChangedCallback = Function (Item, SelectedState, Items)
@@ -352,6 +383,7 @@ RawSet: Function (NewValue) -> NewValue // Sets value without firing callback
                        (boolean | function | nil) Sort = true or false | Function
                        (string | nil) BlankValue/NoValueString/Nothing = "No Selection"
                        (boolean | string | nil) Multi/Multiple/MultiSelect = true or false | "Text to display"
+                       (boolean | nil) SelectButtons = false // Hides the "Select All" / "Clear" buttons of multiselect lists (shown by default)
                        (function | nil) ItemAdded/AddedCallback = Function (Item, AllItems)
                        (function | nil) ItemRemoved/RemovedCallback = Function (Item, AllItems)
                        (function | nil) ItemChanged/ChangedCallback = Function (Item, SelectedState, Items)

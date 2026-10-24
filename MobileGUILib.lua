@@ -639,18 +639,7 @@ local function DetectMobile()
 end
 library.DetectMobile = DetectMobile
 local MobileUI = nil
-local DebugLog = {
-	Started = false,
-	Lines = {},
-	MaxLines = 400,
-	Folder = "D3v1lHub Lib",
-	File = "D3v1lHub Lib/debug_log.txt",
-	PrevFile = "D3v1lHub Lib/debug_log_prev.txt",
-	FlushQueued = false,
-	LastError = nil,
-	LastErrorCount = 0,
-	ErrorLines = 0
-}
+local DebugLog = {Started = false, Lines = {}, File = "D3v1lHub Lib/debug_log.txt", PrevFile = "D3v1lHub Lib/debug_log_prev.txt", ErrorLines = 0}
 library.__DebugLog = DebugLog
 local debugLogMobileCache = nil
 function DebugLog:IsEnabled()
@@ -663,88 +652,35 @@ function DebugLog:IsEnabled()
 	return debugLogMobileCache
 end
 function DebugLog:Flush()
-	if not self.Started then return end
-	pcall(function() writefile(self.File, table.concat(self.Lines, "\n") .. "\n") end)
-end
-function DebugLog:QueueFlush()
-	if self.FlushQueued then return end
-	self.FlushQueued = true
-	task.delay(1, function()
-		self.FlushQueued = false
-		self:Flush()
-	end)
+	if self.Started then pcall(function() writefile(self.File, table.concat(self.Lines, "\n") .. "\n") end) end
 end
 function DebugLog:Add(text)
-	local stamp = string.format("[%7.2f] ", os.clock() - (self.StartClock or os.clock()))
-	self.Lines[1 + #self.Lines] = stamp .. tostring(text)
-	while #self.Lines > self.MaxLines do
-		table.remove(self.Lines, 2)
-	end
+	self.Lines[1 + #self.Lines] = string.format("[%7.2f] ", os.clock() - (self.StartClock or os.clock())) .. tostring(text)
+	while #self.Lines > 400 do table.remove(self.Lines, 2) end
 end
 function DebugLog:Start()
 	if self.Started then return true end
-	if not self:IsEnabled() then return false end
-	if type(writefile) ~= "function" then return false end
+	if not self:IsEnabled() or type(writefile) ~= "function" then return false end
 	self.Started = true
 	self.StartClock = os.clock()
-	pcall(function() if isfolder and makefolder and not isfolder(self.Folder) then makefolder(self.Folder) end end)
+	pcall(function() if isfolder and makefolder and not isfolder("D3v1lHub Lib") then makefolder("D3v1lHub Lib") end end)
 	pcall(function() if isfile and readfile and isfile(self.File) then writefile(self.PrevFile, readfile(self.File)) end end)
 	local executorName = "?"
 	pcall(function() if typeof(identifyexecutor) == "function" then executorName = table.concat({identifyexecutor()}, " ") end end)
-	local platformName = "?"
-	pcall(function() platformName = tostring(userInputService:GetPlatform()) end)
-	local viewport = "?"
-	pcall(function() viewport = tostring(workspace.CurrentCamera.ViewportSize) end)
-	local dateText = "?"
-	pcall(function() dateText = os.date("%Y-%m-%d %H:%M:%S") end)
-	self.Lines = {}
-	self.Lines[1] = string.format("D3v1lHub Debug Log | %s | Executor: %s | Platform: %s | Mobile: %s | Viewport: %s", dateText, executorName, platformName, tostring(debugLogMobileCache), viewport)
+	self.Lines = {"D3v1lHub Debug Log | " .. tostring(os.date("%Y-%m-%d %H:%M:%S")) .. " | Executor: " .. executorName}
 	pcall(function()
-		local logService = game:GetService("LogService")
-		library.signals[1 + #library.signals] = logService.MessageOut:Connect(function(message, messageType)
+		library.signals[1 + #library.signals] = game:GetService("LogService").MessageOut:Connect(function(message, messageType)
 			if messageType ~= Enum.MessageType.MessageError and messageType ~= Enum.MessageType.MessageWarning then return end
-			local kind = (messageType == Enum.MessageType.MessageError) and "ERROR" or "WARNING"
-			local text = kind .. ": " .. string.sub(tostring(message), 1, 300)
-			if text == self.LastError then
-				self.LastErrorCount = self.LastErrorCount + 1
-				self.Lines[#self.Lines] = string.format("[%7.2f] ", os.clock() - self.StartClock) .. text .. " (x" .. self.LastErrorCount .. ")"
-			else
-				if self.ErrorLines >= 150 then
-					return
-				end
-				self.ErrorLines = self.ErrorLines + 1
-				self.LastError, self.LastErrorCount = text, 1
-				self:Add(text)
-				if self.ErrorLines <= 30 then
-					self:Flush()
-					return
-				end
-			end
-			self:QueueFlush()
-		end)
-	end)
-	task.spawn(function()
-		local statsService = game:GetService("Stats")
-		local renderStepped = game:GetService("RunService").RenderStepped
-		while library.IsGuiValid and library.IsGuiValid() do
-			task.wait(((os.clock() - (self.StartClock or 0)) < 90) and 1 or 5)
-			if not (library.IsGuiValid and library.IsGuiValid()) then break end
-			local mem, lua, fps, objects, signals = "?", "?", "?", "?", "?"
-			pcall(function() mem = string.format("%.0fMB", statsService:GetTotalMemoryUsageMb()) end)
-			pcall(function() lua = string.format("%.1fMB", gcinfo() / 1024) end)
-			pcall(function() fps = tostring(math.floor(1 / renderStepped:Wait())) end)
-			pcall(function() if library.MainScreenGui then objects = tostring(#library.MainScreenGui:GetDescendants()) end end)
-			pcall(function() signals = tostring(#library.signals) end)
-			self.LastError = nil
-			self:Add(string.format("Status: Memory %s | Lua %s | FPS %s | GUI objects %s | Connections %s", mem, lua, fps, objects, signals))
+			if self.ErrorLines >= 100 then return end
+			self.ErrorLines = self.ErrorLines + 1
+			self:Add(((messageType == Enum.MessageType.MessageError) and "ERROR: " or "WARNING: ") .. string.sub(tostring(message), 1, 300))
 			self:Flush()
-		end
+		end)
 	end)
 	return true
 end
 function DebugLog:Mark(text)
 	if not self.Started and not self:Start() then return end
-	self.LastError = nil
 	self:Add(">> " .. tostring(text))
 	self:Flush()
 end
@@ -755,13 +691,11 @@ function library:ShowLoadingScreen(options)
 	local onAccept = options.OnAccept or options.Callback
 	local onDecline = options.OnDecline
 	local soundService = game:GetService("SoundService")
-
 	local backgroundTransparency = tonumber(options.BackgroundTransparency)
 	if not backgroundTransparency then
 		local menuValue = tonumber(library_flags["__Designer.Background.ImageTransparency"])
 		backgroundTransparency = (menuValue and math.clamp(menuValue / 100, 0, 1)) or 0.5
 	end
-
 	local backgroundAsset = options.BackgroundAsset
 	if backgroundAsset == nil then
 		backgroundAsset = "rbxassetid://133158046147209"
@@ -778,11 +712,9 @@ function library:ShowLoadingScreen(options)
 	local loadingSubText = options.LoadingSubText or "Loading scripts and assets..."
 	local welcomeSubText = options.WelcomeSubText or "D3v1lHub successfully loaded."
 	local showHWID = (options.ShowHWID ~= false)
-
 	local MainColor = library.colors.main
 	local TopGradColor = library.colors.topGradient
 	local BottomGradColor = library.colors.bottomGradient
-
 	local function playSound(soundId)
 		pcall(function()
 			local sound = Instance.new("Sound")
@@ -795,7 +727,6 @@ function library:ShowLoadingScreen(options)
 			end)
 		end)
 	end
-
 	local function getHWID()
 		local hwid = ""
 		pcall(function()
@@ -809,14 +740,12 @@ function library:ShowLoadingScreen(options)
 		end)
 		return hwid
 	end
-
 	local function addTextStroke(textLabel, thickness)
 		local stroke = Instance.new("UIStroke")
 		stroke.Color = Color3.new(0, 0, 0)
 		stroke.Thickness = thickness or 1.5
 		stroke.Parent = textLabel
 	end
-
 	local function applyBackground(parentFrame)
 		if type(backgroundAsset) == "string" and backgroundAsset ~= "" then
 			local BgAsset = Instance.new("ImageLabel")
@@ -830,16 +759,12 @@ function library:ShowLoadingScreen(options)
 			BgAsset.Parent = parentFrame
 		end
 	end
-
 	local ScreenGui = Instance.new("ScreenGui")
 	ScreenGui.Name = generateRandomName()
 	ScreenGui.IgnoreGuiInset = true
 	ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	ScreenGui.ResetOnSpawn = false
-	if not protectAndParentGui(ScreenGui, library.gui_parent) then
-		ScreenGui.Parent = library.gui_parent
-	end
-
+	if not protectAndParentGui(ScreenGui, library.gui_parent) then ScreenGui.Parent = library.gui_parent end
 	local Outer = Instance.new("Frame")
 	Outer.Name = generateRandomName()
 	Outer.BackgroundColor3 = Color3.new(0, 0, 0)
@@ -852,7 +777,6 @@ function library:ShowLoadingScreen(options)
 	Outer.ClipsDescendants = true
 	Outer.ZIndex = 300
 	Outer.Parent = ScreenGui
-
 	local Inner = Instance.new("Frame")
 	Inner.Name = generateRandomName()
 	Inner.BackgroundColor3 = MainColor
@@ -863,7 +787,6 @@ function library:ShowLoadingScreen(options)
 	Inner.ClipsDescendants = true
 	Inner.ZIndex = 301
 	Inner.Parent = Outer
-
 	local InnerFrame = Instance.new("Frame")
 	InnerFrame.Name = generateRandomName()
 	InnerFrame.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -873,9 +796,7 @@ function library:ShowLoadingScreen(options)
 	InnerFrame.ClipsDescendants = true
 	InnerFrame.ZIndex = 302
 	InnerFrame.Parent = Inner
-
 	applyBackground(InnerFrame)
-
 	local Gradient = Instance.new("UIGradient")
 	Gradient.Color = ColorSequence.new({
 		ColorSequenceKeypoint.new(0, TopGradColor),
@@ -883,7 +804,6 @@ function library:ShowLoadingScreen(options)
 	})
 	Gradient.Rotation = 90
 	Gradient.Parent = InnerFrame
-
 	local TitleContainer = Instance.new("Frame")
 	TitleContainer.Name = generateRandomName()
 	TitleContainer.BackgroundTransparency = 1
@@ -892,14 +812,12 @@ function library:ShowLoadingScreen(options)
 	TitleContainer.Size = UDim2.new(0, 0, 0, 25)
 	TitleContainer.ZIndex = 303
 	TitleContainer.Parent = InnerFrame
-
 	local TitleLayout = Instance.new("UIListLayout")
 	TitleLayout.FillDirection = Enum.FillDirection.Horizontal
 	TitleLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	TitleLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	TitleLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 	TitleLayout.Parent = TitleContainer
-
 	local TitlePart1Label = Instance.new("TextLabel")
 	TitlePart1Label.Name = generateRandomName()
 	TitlePart1Label.BackgroundTransparency = 1
@@ -913,7 +831,6 @@ function library:ShowLoadingScreen(options)
 	TitlePart1Label.LayoutOrder = 1
 	TitlePart1Label.Parent = TitleContainer
 	addTextStroke(TitlePart1Label)
-
 	local TitlePart2Label = Instance.new("TextLabel")
 	TitlePart2Label.Name = generateRandomName()
 	TitlePart2Label.BackgroundTransparency = 1
@@ -927,7 +844,6 @@ function library:ShowLoadingScreen(options)
 	TitlePart2Label.LayoutOrder = 2
 	TitlePart2Label.Parent = TitleContainer
 	addTextStroke(TitlePart2Label)
-
 	local SubLabel = Instance.new("TextLabel")
 	SubLabel.Name = generateRandomName()
 	SubLabel.BackgroundTransparency = 1
@@ -941,7 +857,6 @@ function library:ShowLoadingScreen(options)
 	SubLabel.Text = confirmText
 	SubLabel.Parent = InnerFrame
 	addTextStroke(SubLabel)
-
 	local function createButton(text, posX)
 		local btnOuter = Instance.new("TextButton")
 		btnOuter.Name = generateRandomName()
@@ -956,7 +871,6 @@ function library:ShowLoadingScreen(options)
 		btnOuter.ClipsDescendants = true
 		btnOuter.ZIndex = 303
 		btnOuter.Parent = InnerFrame
-
 		local btnInner = Instance.new("Frame")
 		btnInner.Name = generateRandomName()
 		btnInner.BackgroundColor3 = library.colors.topGradient
@@ -965,7 +879,6 @@ function library:ShowLoadingScreen(options)
 		btnInner.Size = UDim2.new(1, -2, 1, -2)
 		btnInner.ZIndex = 304
 		btnInner.Parent = btnOuter
-
 		local btnGrad = Instance.new("UIGradient")
 		btnGrad.Color = ColorSequence.new({
 			ColorSequenceKeypoint.new(0, TopGradColor),
@@ -973,7 +886,6 @@ function library:ShowLoadingScreen(options)
 		})
 		btnGrad.Rotation = 90
 		btnGrad.Parent = btnInner
-
 		local btnText = Instance.new("TextLabel")
 		btnText.Name = generateRandomName()
 		btnText.BackgroundTransparency = 1
@@ -985,33 +897,25 @@ function library:ShowLoadingScreen(options)
 		btnText.ZIndex = 305
 		btnText.Parent = btnInner
 		addTextStroke(btnText)
-
 		return btnOuter
 	end
-
 	local YesBtn = createButton("Yes", 20)
 	local NoBtn = createButton("No", 187)
-
 	task.spawn(function()
 		playSound(openSoundId)
 		tweenService:Create(Outer, TweenInfo.new(0.45, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(0, 360, 0, 360)}):Play()
 	end)
-
 	local function startLoadingSequence()
 		local closeTween = tweenService:Create(Outer, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)})
 		closeTween:Play()
 		closeTween.Completed:Wait()
 		ScreenGui:Destroy()
-
 		local LoadGui = Instance.new("ScreenGui")
 		LoadGui.Name = generateRandomName()
 		LoadGui.IgnoreGuiInset = true
 		LoadGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 		LoadGui.ResetOnSpawn = false
-		if not protectAndParentGui(LoadGui, library.gui_parent) then
-			LoadGui.Parent = library.gui_parent
-		end
-
+		if not protectAndParentGui(LoadGui, library.gui_parent) then LoadGui.Parent = library.gui_parent end
 		local LoadOuter = Instance.new("Frame")
 		LoadOuter.Name = generateRandomName()
 		LoadOuter.BackgroundColor3 = Color3.new(0, 0, 0)
@@ -1024,7 +928,6 @@ function library:ShowLoadingScreen(options)
 		LoadOuter.ClipsDescendants = true
 		LoadOuter.ZIndex = 300
 		LoadOuter.Parent = LoadGui
-
 		local LoadInner = Instance.new("Frame")
 		LoadInner.Name = generateRandomName()
 		LoadInner.BackgroundColor3 = MainColor
@@ -1035,7 +938,6 @@ function library:ShowLoadingScreen(options)
 		LoadInner.ClipsDescendants = true
 		LoadInner.ZIndex = 301
 		LoadInner.Parent = LoadOuter
-
 		local LoadInnerFrame = Instance.new("Frame")
 		LoadInnerFrame.Name = generateRandomName()
 		LoadInnerFrame.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -1045,7 +947,6 @@ function library:ShowLoadingScreen(options)
 		LoadInnerFrame.ClipsDescendants = true
 		LoadInnerFrame.ZIndex = 302
 		LoadInnerFrame.Parent = LoadInner
-
 		local LoadGrad = Instance.new("UIGradient")
 		LoadGrad.Color = ColorSequence.new({
 			ColorSequenceKeypoint.new(0, TopGradColor),
@@ -1054,7 +955,6 @@ function library:ShowLoadingScreen(options)
 		LoadGrad.Rotation = 90
 		LoadGrad.Parent = LoadInnerFrame
 		applyBackground(LoadInnerFrame)
-
 		local AvatarImage = Instance.new("ImageLabel")
 		AvatarImage.Name = generateRandomName()
 		AvatarImage.BackgroundTransparency = 1
@@ -1063,7 +963,6 @@ function library:ShowLoadingScreen(options)
 		AvatarImage.Size = UDim2.new(0, 48, 0, 48)
 		AvatarImage.ZIndex = 303
 		AvatarImage.Parent = LoadInnerFrame
-
 		local LoadTitle = Instance.new("TextLabel")
 		LoadTitle.Name = generateRandomName()
 		LoadTitle.BackgroundTransparency = 1
@@ -1077,7 +976,6 @@ function library:ShowLoadingScreen(options)
 		LoadTitle.Text = loadingTitle
 		LoadTitle.Parent = LoadInnerFrame
 		addTextStroke(LoadTitle)
-
 		local LoadSub = Instance.new("TextLabel")
 		LoadSub.Name = generateRandomName()
 		LoadSub.BackgroundTransparency = 1
@@ -1091,7 +989,6 @@ function library:ShowLoadingScreen(options)
 		LoadSub.Text = loadingSubText
 		LoadSub.Parent = LoadInnerFrame
 		addTextStroke(LoadSub)
-
 		local HwidContainer, HwidValueLabel
 		if showHWID then
 			local HwidStaticLabel = Instance.new("TextLabel")
@@ -1107,7 +1004,6 @@ function library:ShowLoadingScreen(options)
 			HwidStaticLabel.Text = "Your HWID: "
 			HwidStaticLabel.Parent = LoadInnerFrame
 			addTextStroke(HwidStaticLabel, 1)
-
 			HwidContainer = Instance.new("Frame")
 			HwidContainer.Name = generateRandomName()
 			HwidContainer.BackgroundTransparency = 1
@@ -1116,7 +1012,6 @@ function library:ShowLoadingScreen(options)
 			HwidContainer.ClipsDescendants = true
 			HwidContainer.ZIndex = 303
 			HwidContainer.Parent = LoadInnerFrame
-
 			HwidValueLabel = Instance.new("TextLabel")
 			HwidValueLabel.Name = generateRandomName()
 			HwidValueLabel.BackgroundTransparency = 1
@@ -1129,7 +1024,6 @@ function library:ShowLoadingScreen(options)
 			HwidValueLabel.Text = getHWID()
 			HwidValueLabel.Parent = HwidContainer
 			addTextStroke(HwidValueLabel, 1)
-
 			local HwidNoteLabel = Instance.new("TextLabel")
 			HwidNoteLabel.Name = generateRandomName()
 			HwidNoteLabel.BackgroundTransparency = 1
@@ -1144,7 +1038,6 @@ function library:ShowLoadingScreen(options)
 			HwidNoteLabel.Parent = LoadInnerFrame
 			addTextStroke(HwidNoteLabel, 1)
 		end
-
 		local BarBg = Instance.new("Frame")
 		BarBg.Name = generateRandomName()
 		BarBg.BackgroundColor3 = Color3.fromRGB(10, 8, 15)
@@ -1156,7 +1049,6 @@ function library:ShowLoadingScreen(options)
 		BarBg.ClipsDescendants = true
 		BarBg.ZIndex = 303
 		BarBg.Parent = LoadInnerFrame
-
 		local BarFill = Instance.new("Frame")
 		BarFill.Name = generateRandomName()
 		BarFill.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -1164,7 +1056,6 @@ function library:ShowLoadingScreen(options)
 		BarFill.Size = UDim2.new(0, 0, 1, 0)
 		BarFill.ZIndex = 304
 		BarFill.Parent = BarBg
-
 		local BarGrad = Instance.new("UIGradient")
 		BarGrad.Color = ColorSequence.new({
 			ColorSequenceKeypoint.new(0, Color3.fromRGB(210, 130, 255)),
@@ -1172,20 +1063,16 @@ function library:ShowLoadingScreen(options)
 		})
 		BarGrad.Rotation = 90
 		BarGrad.Parent = BarFill
-
 		task.spawn(function()
 			local openLoad = tweenService:Create(LoadOuter, TweenInfo.new(0.45, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(0, 380, 0, 138)})
 			openLoad:Play()
 			openLoad.Completed:Wait()
-
 			local success, thumbUrl = pcall(function()
 				return playersservice:GetUserThumbnailAsync(LP.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size420x420)
 			end)
-
 			local loadTween = tweenService:Create(BarFill, TweenInfo.new(1.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Size = UDim2.new(1, 0, 1, 0)})
 			loadTween:Play()
 			loadTween.Completed:Wait()
-
 			if success and thumbUrl then
 				AvatarImage.Image = thumbUrl
 				tweenService:Create(AvatarImage, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(0, 15, 0, 15), ImageTransparency = 0}):Play()
@@ -1193,51 +1080,37 @@ function library:ShowLoadingScreen(options)
 				tweenService:Create(LoadSub, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(0, 75, 0, 38)}):Play()
 				tweenService:Create(BarBg, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(0, 75, 0, 102), Size = UDim2.new(1, -90, 0, 8)}):Play()
 			end
-
 			LoadTitle.Text = "Welcome, " .. LP.Name .. "!"
 			LoadSub.Text = welcomeSubText
-
 			local barHideTween = tweenService:Create(BarBg, TweenInfo.new(0.35, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(1, -90, 0, 0)})
 			barHideTween:Play()
 			barHideTween.Completed:Wait()
 			BarBg.Visible = false
-
 			if showHWID and HwidValueLabel then
 				task.wait(0.4)
 				local scrollTween = tweenService:Create(HwidValueLabel, TweenInfo.new(2.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Position = UDim2.new(-0.7, 0, 0, 0)})
 				scrollTween:Play()
 				scrollTween.Completed:Wait()
 			end
-
 			task.wait(1.2)
-
 			playSound(closeSoundId)
 			local closeLoad = tweenService:Create(LoadOuter, TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)})
 			closeLoad:Play()
 			closeLoad.Completed:Wait()
 			LoadGui:Destroy()
-
 			pcall(DebugLog.Mark, DebugLog, "Loader finished -> OnAccept (building menu)")
-			if onAccept then
-				task.spawn(onAccept)
-			end
+			if onAccept then task.spawn(onAccept) end
 		end)
 	end
-
 	local promptDecided = false
 	YesBtn.MouseButton1Click:Connect(function()
-		if promptDecided then
-			return
-		end
+		if promptDecided then return end
 		promptDecided = true
 		pcall(DebugLog.Mark, DebugLog, "Loader: Yes pressed")
 		startLoadingSequence()
 	end)
-
 	NoBtn.MouseButton1Click:Connect(function()
-		if promptDecided then
-			return
-		end
+		if promptDecided then return end
 		promptDecided = true
 		pcall(DebugLog.Mark, DebugLog, "Loader: No pressed")
 		playSound(closeSoundId)
@@ -1245,11 +1118,8 @@ function library:ShowLoadingScreen(options)
 		closeTween:Play()
 		closeTween.Completed:Wait()
 		ScreenGui:Destroy()
-		if onDecline then
-			task.spawn(onDecline)
-		end
+		if onDecline then task.spawn(onDecline) end
 	end)
-
 	return ScreenGui
 end
 library.subs.ShowLoadingScreen = library.ShowLoadingScreen
@@ -1274,9 +1144,7 @@ library.subs.Color3FromHex = Color3FromHex
 local floor = math.floor
 local function Color3ToHex(color)
 	local function channel(v)
-		if type(v) ~= "number" or v ~= v then
-			return 0
-		end
+		if type(v) ~= "number" or v ~= v then return 0 end
 		return math.clamp(floor(v * 255 + 0.5), 0, 255)
 	end
 	return string.format("%02X%02X%02X", channel(color.R), channel(color.G), channel(color.B))
@@ -1762,10 +1630,7 @@ do
 	local function persistable(cflag, data)
 		return data and type(cflag) == "string" and data.Type ~= "Persistence" and data.Type ~= "Button" and data.Type ~= "Label" and not configIgnoredFlags[cflag] and string.sub(cflag, 1, 11) ~= "__Designer." and string.sub(cflag, 1, 9) ~= "__Mobile."
 	end
-	local function saveConfig(name)
-		name = sanitizeConfigName(name or "")
-		if #name == 0 then return false, "Invalid name" end
-		if not hasFiles then return false, "Executor cannot save files" end
+	local function buildConfig()
 		local saving = {}
 		for cflag, data in next, elements do
 			if persistable(cflag, data) then
@@ -1774,7 +1639,27 @@ do
 			end
 		end
 		saving.__meta = {savedAt = os.time(), version = 1}
-		local good, content = JSONEncode(saving)
+		return saving
+	end
+	local function applyConfig(data)
+		local applied = 0
+		for cflag, val in next, data do
+			local element = (type(cflag) == "string") and elements[cflag]
+			if element and persistable(cflag, element) then
+				local converted, usable = deserializeFlagValue(val, element)
+				if usable and converted ~= nil then
+					local ok = pcall(function() if element.Set then element:Set(converted) else library_flags[cflag] = converted end end)
+					if ok then applied = applied + 1 end
+				end
+			end
+		end
+		return applied
+	end
+	local function saveConfig(name)
+		name = sanitizeConfigName(name or "")
+		if #name == 0 then return false, "Invalid name" end
+		if not hasFiles then return false, "Executor cannot save files" end
+		local good, content = JSONEncode(buildConfig())
 		if not (good and content) then return false, "Encode error" end
 		ensureFolder()
 		local okw = pcall(writefile, workspaceFolder() .. "/" .. name .. ".txt", content)
@@ -1792,18 +1677,7 @@ do
 		if not okr or type(content) ~= "string" or #content < 2 then return false, "Not found" end
 		local good, data = JSONDecode(content)
 		if not (good and type(data) == "table") then return false, "Broken file" end
-		local applied = 0
-		for cflag, val in next, data do
-			local element = (type(cflag) == "string") and elements[cflag]
-			if element and persistable(cflag, element) then
-				local converted, usable = deserializeFlagValue(val, element)
-				if usable and converted ~= nil then
-					local ok = pcall(function() if element.Set then element:Set(converted) else library_flags[cflag] = converted end end)
-					if ok then applied = applied + 1 end
-				end
-			end
-		end
-		return true, applied
+		return true, applyConfig(data)
 	end
 	local function deleteConfig(name)
 		name = sanitizeConfigName(name or "")
@@ -1836,6 +1710,52 @@ do
 	MobileUI.SaveConfig, MobileUI.LoadConfig, MobileUI.DeleteConfig, MobileUI.ListConfigs = saveConfig, loadConfig, deleteConfig, listConfigs
 	local function notify(text, kind)
 		pcall(function() library:Notify({Text = text, Time = 3, Type = kind}) end)
+	end
+	local vipRefresh = {}
+	local function vipUnlocked(o)
+		if library.VIP == true then return true end
+		if type(o.VIPCheck) == "function" then
+			local ok, v = pcall(o.VIPCheck)
+			return ok and v and true or false
+		end
+		return false
+	end
+	function library.SetVIP(a, b)
+		library.VIP = (pickArg(library, a, b) and true) or false
+		for _, f in ipairs(vipRefresh) do pcall(f) end
+		return library.VIP
+	end
+	local function addVIP(o, parent, element, onChange, x)
+		if not o.VIP then return function() return false end end
+		local badge = label(parent, {AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, x, 0.5, 0), Size = UDim2.fromOffset(34, 16), BackgroundColor3 = Color3.fromRGB(255, 200, 60), TextColor3 = Color3.fromRGB(40, 28, 0), Text = (type(o.VIP) == "string" and o.VIP) or "VIP", TextSize = 10, Font = FONT_BOLD, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 3})
+		badge.BackgroundTransparency = 0
+		corner(badge, "full")
+		local locked = not vipUnlocked(o)
+		local function refresh()
+			locked = not vipUnlocked(o)
+			badge.BackgroundTransparency = locked and 0.35 or 0
+			onChange()
+		end
+		vipRefresh[1 + #vipRefresh] = refresh
+		element.IsVIPLocked = function() return locked end
+		element.SetVIPLocked = function(t, state)
+			if type(t) ~= "table" then state = t end
+			locked = state and true or false
+			badge.BackgroundTransparency = locked and 0.35 or 0
+			onChange()
+			return locked
+		end
+		badge.BackgroundTransparency = locked and 0.35 or 0
+		return function(silent)
+			if locked and not silent then notify("VIP only feature", "error") end
+			return locked
+		end
+	end
+	local function addMode(element, mode)
+		local function norm(m) m = type(m) == "string" and string.lower(m) or "toggle" return (m == "hold" and "Hold") or (m == "always" and "Always") or "Toggle" end
+		element.Mode = norm(mode)
+		element.GetMode = function() return element.Mode end
+		element.SetMode = function(a, b) element.Mode = norm(pickArg(element, a, b)) return element.Mode end
 	end
 	function MobileUI.CreateWindow(options)
 		options = options or {}
@@ -2100,6 +2020,25 @@ do
 			new("UIPadding", {PaddingRight = UDim.new(0, 8), PaddingBottom = UDim.new(0, 8)}, page)
 			local sectionCount = 0
 			local tabFunctions = {Flags = {}, Name = tabName}
+			local badge = nil
+			local function setBadge(text, color)
+				text = (text ~= nil and text ~= "") and tostring(text) or nil
+				if not text then
+					if badge then badge.Visible = false end
+					return
+				end
+				if not badge then
+					badge = label(tabButton, {AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -5, 0.5, 0), TextSize = 9, Font = FONT_BOLD, TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = Color3.new(1, 1, 1), ZIndex = 3})
+					badge.BackgroundTransparency = 0
+					corner(badge, "full")
+				end
+				badge.Text, badge.Size, badge.BackgroundColor3, badge.Visible = text, UDim2.fromOffset(math.max(24, 6 * #text + 10), 14), color or C("main"), true
+			end
+			function tabFunctions.SetBadge(t, text, color)
+				if type(t) ~= "table" then text, color = t, text end
+				setBadge(text, color)
+			end
+			if tabOptions.Badge then setBadge(tabOptions.Badge, tabOptions.BadgeColor) end
 			local tabEntry = {Button = tabButton, Accent = accent, Page = page, Functions = tabFunctions}
 			tabs[1 + #tabs] = tabEntry
 			tabButton.Activated:Connect(function() selectTab(tabEntry) end)
@@ -2168,20 +2107,22 @@ do
 					local locked = (o.Locked or o.Disabled) and true or false
 					local row = makeRow()
 					local hit = button(row, {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ZIndex = 2})
-					local nameLabel = label(row, {Position = UDim2.fromOffset(10, 0), Size = UDim2.new(1, -66, 1, 0), Text = tostring(name)})
+					local nameLabel = label(row, {Position = UDim2.fromOffset(10, 0), Size = UDim2.new(1, o.VIP and -102 or -66, 1, 0), Text = tostring(name)})
 					local track = new("Frame", {AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -10, 0.5, 0), Size = UDim2.fromOffset(40, 20), BackgroundColor3 = C("innerBorder"), BorderSizePixel = 0}, row)
 					corner(track, "full")
 					local knob = new("Frame", {AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 2, 0.5, 0), Size = UDim2.fromOffset(16, 16), BackgroundColor3 = C("elementText"), BorderSizePixel = 0}, track)
 					corner(knob, "full")
 					local element
+					local vipBlock = function() return false end
 					local function render(animate)
 						local on = library_flags[flag] and true or false
+						local dim = locked or vipBlock(true)
 						local info = TweenInfo.new(animate and 0.15 or 0, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 						tweenService:Create(knob, info, {Position = on and UDim2.new(1, -18, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)}):Play()
 						track.BackgroundColor3 = on and C("main") or C("innerBorder")
 						nameLabel.Text = tostring(o.Name or name)
-						nameLabel.TextTransparency = locked and 0.55 or 0
-						track.BackgroundTransparency = locked and 0.5 or 0
+						nameLabel.TextTransparency = dim and 0.55 or 0
+						track.BackgroundTransparency = dim and 0.5 or 0
 					end
 					local function apply(value, fire)
 						local last = library_flags[flag]
@@ -2194,7 +2135,7 @@ do
 					end
 					local function Set(a, b) return apply(pickArg(element, a, b), true) end
 					hit.Activated:Connect(function()
-						if locked then return end
+						if locked or vipBlock() then return end
 						local newValue = not library_flags[flag]
 						if type(o.Condition) == "function" then
 							local ok, allowed = pcall(o.Condition, newValue, not newValue)
@@ -2233,6 +2174,8 @@ do
 						locked = v
 						render(false)
 					end)
+					vipBlock = addVIP(o, row, element, function() render(false) end, -52)
+					addMode(element, o.KeybindMode)
 					if initial ~= nil then
 						apply(initial, true)
 					else
@@ -2381,14 +2324,18 @@ do
 						local callback = bo.Callback or function()
 						end
 						local locked = (bo.Locked or bo.Disabled) and true or false
+						local vipBlock = function() return false end
+						local confirmText = bo.Confirm and ((type(bo.Confirm) == "string" and bo.Confirm) or "Click again to confirm") or nil
+						local confirming, cooling, coolLeft = 0, false, 0
 						local btn = button(container, {Size = UDim2.new(1 / count, -((count - 1) * 6) / count, 1, 0), BackgroundColor3 = C("topGradient"), Text = tostring(name), TextTruncate = Enum.TextTruncate.AtEnd, LayoutOrder = index})
 						corner(btn, 6)
 						local stroke = new("UIStroke", {Color = C("main"), Thickness = 1, Transparency = 0.6, ApplyStrokeMode = Enum.ApplyStrokeMode.Border}, btn)
 						local element
 						local function render()
-							btn.Text = tostring(bo.Name or name)
-							btn.TextTransparency = locked and 0.55 or 0
-							stroke.Transparency = locked and 0.85 or 0.6
+							local dim = locked or cooling or vipBlock(true)
+							btn.Text = (confirming > 0 and confirmText) or (cooling and (tostring(bo.Name or name) .. " (" .. math.ceil(coolLeft) .. "s)")) or tostring(bo.Name or name)
+							btn.TextTransparency = dim and 0.55 or 0
+							stroke.Transparency = dim and 0.85 or 0.6
 						end
 						local function press()
 							if type(bo.Condition) == "function" then
@@ -2398,10 +2345,34 @@ do
 							fireCallback(callback)
 						end
 						btn.Activated:Connect(function()
-							if locked then return end
+							if locked or cooling or vipBlock() then return end
+							if confirmText and confirming == 0 then
+								local mine = os.clock()
+								confirming = mine
+								render()
+								task.delay(3, function() if confirming == mine then confirming = 0 render() end end)
+								return
+							end
+							confirming = 0
 							tweenService:Create(btn, TweenInfo.new(0.08), {BackgroundColor3 = darkenColor(C("main"), 2)}):Play()
 							task.delay(0.12, function() tweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = C("topGradient")}):Play() end)
 							press()
+							local seconds = tonumber(bo.Cooldown)
+							if seconds and seconds > 0 then
+								cooling, coolLeft = true, seconds
+								task.spawn(function()
+									local endAt = os.clock() + seconds
+									while btn.Parent and endAt - os.clock() > 0 do
+										coolLeft = endAt - os.clock()
+										render()
+										task.wait(math.min(1, coolLeft))
+									end
+									cooling = false
+									render()
+								end)
+							else
+								render()
+							end
 						end)
 						element = {
 							Options = bo,
@@ -2441,6 +2412,7 @@ do
 							locked = v
 							render()
 						end)
+						vipBlock = addVIP(bo, btn, element, render, -6)
 						render()
 						register(name, element)
 						buttons[1 + #buttons] = element
@@ -2556,6 +2528,7 @@ do
 						Reset = function() return apply(preset) end,
 						Remove = function() end
 					}
+					addMode(element, o.Mode or o.KeybindMode)
 					register(flag, element)
 					return element
 				end
@@ -2678,13 +2651,42 @@ do
 							new("UIPadding", {PaddingLeft = UDim.new(0, 8)}, searchBox)
 							top = top + 34
 						end
+						local showSelect = multi and o.SelectButtons ~= false
 						local bottomSpace = multi and 46 or 8
+						local function visibleValues()
+							local term, out = searchBox and string.lower(searchBox.Text) or "", {}
+							for _, v in ipairs(list) do
+								local text = formatValue(v)
+								if not isDisabled(v) and (term == "" or string.find(string.lower(text), term, 1, true) or string.find(string.lower(tostring(v)), term, 1, true)) then out[1 + #out] = v end
+							end
+							return out
+						end
 						local scroller = new("ScrollingFrame", {Position = UDim2.fromOffset(10, top), Size = UDim2.new(1, -20, 1, -(top + bottomSpace)), BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 4, ScrollBarImageColor3 = C("main"), CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, ZIndex = 53}, content)
 						new("UIListLayout", {Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder}, scroller)
 						if multi then
-							local doneButton = button(content, {AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -8), Size = UDim2.new(1, -20, 0, 32), BackgroundColor3 = C("main"), Text = "Done", Font = FONT_BOLD, TextSize = 14, TextColor3 = Color3.new(1, 1, 1), ZIndex = 53}, nil)
-							corner(doneButton, 6)
-							doneButton.Activated:Connect(closeOverlay)
+							local bar = new("Frame", {AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -8), Size = UDim2.new(1, -20, 0, 32), BackgroundTransparency = 1, ZIndex = 53}, content)
+							new("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder}, bar)
+							local function barButton(text, order, color, fn)
+								local count = showSelect and 3 or 1
+								local b = button(bar, {Size = UDim2.new(1 / count, -((count - 1) * 6) / count, 1, 0), BackgroundColor3 = color, Text = text, Font = FONT_BOLD, TextSize = 14, TextColor3 = Color3.new(1, 1, 1), LayoutOrder = order, ZIndex = 53})
+								corner(b, 6)
+								b.Activated:Connect(fn)
+							end
+							if showSelect then
+								barButton("Select All", 1, C("topGradient"), function()
+									local values = {}
+									local cur = library_flags[flag]
+									if type(cur) == "table" then for _, x in ipairs(cur) do values[1 + #values] = x end end
+									for _, v in ipairs(visibleValues()) do if not table.find(values, v) then values[1 + #values] = v end end
+									applyMulti(values, true)
+									if overlayRebuild then overlayRebuild() end
+								end)
+								barButton("Clear", 2, C("topGradient"), function()
+									applyMulti({}, true)
+									if overlayRebuild then overlayRebuild() end
+								end)
+							end
+							barButton("Done", 3, C("main"), closeOverlay)
 						end
 						local function build()
 							for _, child in ipairs(scroller:GetChildren()) do if child:IsA("GuiObject") then child:Destroy() end end
@@ -2749,6 +2751,17 @@ do
 						end,
 						Remove = removeRow(row),
 						resolvelist = function() return refreshList() end,
+						SelectAll = function()
+							if not multi then return library_flags[flag] end
+							refreshList()
+							local values = {}
+							for _, v in ipairs(list) do if not isDisabled(v) then values[1 + #values] = v end end
+							return applyMulti(values, true)
+						end,
+						Clear = function()
+							if not multi then return library_flags[flag] end
+							return applyMulti({}, true)
+						end,
 						UpdateList = function(t, newList, updateValues)
 							if (newList == nil and t ~= nil and t ~= element) or (type(t) == "table" and t ~= element and type(newList) ~= "table") then newList, updateValues = t, newList end
 							if newList == element then newList = nil end
@@ -3042,18 +3055,11 @@ do
 				end
 				return sectionFunctions
 			end
-			tabFunctions.AddSection = tabFunctions.CreateSection
-			tabFunctions.NewSection = tabFunctions.CreateSection
-			tabFunctions.Section = tabFunctions.CreateSection
-			tabFunctions.Sec = tabFunctions.CreateSection
-			tabFunctions.S = tabFunctions.CreateSection
+			tabFunctions.AddSection, tabFunctions.NewSection, tabFunctions.Section, tabFunctions.Sec, tabFunctions.S = tabFunctions.CreateSection, tabFunctions.CreateSection, tabFunctions.CreateSection, tabFunctions.CreateSection, tabFunctions.CreateSection
 			function tabFunctions:UpdateAll() for _, element in next, tabFunctions.Flags do if type(element) == "table" and element.Update then pcall(element.Update) end end end
 			return tabFunctions
 		end
-		windowFunctions.AddTab = windowFunctions.CreateTab
-		windowFunctions.NewTab = windowFunctions.CreateTab
-		windowFunctions.Tab = windowFunctions.CreateTab
-		windowFunctions.T = windowFunctions.CreateTab
+		windowFunctions.AddTab, windowFunctions.NewTab, windowFunctions.Tab, windowFunctions.T = windowFunctions.CreateTab, windowFunctions.CreateTab, windowFunctions.CreateTab, windowFunctions.CreateTab
 		function windowFunctions:CreateDesigner(designerOptions)
 			designerOptions = (type(designerOptions) == "table" and designerOptions) or {}
 			if library.MobileDesigner then return library.MobileDesigner end
@@ -3071,10 +3077,7 @@ do
 			mark("fertig")
 			return settingsTab
 		end
-		windowFunctions.AddDesigner = windowFunctions.CreateDesigner
-		windowFunctions.NewDesigner = windowFunctions.CreateDesigner
-		windowFunctions.Designer = windowFunctions.CreateDesigner
-		windowFunctions.D = windowFunctions.CreateDesigner
+		windowFunctions.AddDesigner, windowFunctions.NewDesigner, windowFunctions.Designer, windowFunctions.D = windowFunctions.CreateDesigner, windowFunctions.CreateDesigner, windowFunctions.CreateDesigner, windowFunctions.CreateDesigner
 		local themeable = options.Themeable or options.DefaultTheme or options.Theme
 		task.spawn(function()
 			local function countElements()
@@ -3116,9 +3119,6 @@ function library:CreateWindow(options, ...)
 	options = (options and type(options) == "string" and resolvevararg("Window", options, ...)) or options or {}
 	return MobileUI.CreateWindow(options)
 end
-library.NewWindow = library.CreateWindow
-library.AddWindow = library.CreateWindow
-library.Window = library.CreateWindow
-library.W = library.CreateWindow
+library.NewWindow, library.AddWindow, library.Window, library.W = library.CreateWindow, library.CreateWindow, library.CreateWindow, library.CreateWindow
 pcall(DebugLog.Mark, DebugLog, "Library loaded")
 return library, library_flags, library.subs

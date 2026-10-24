@@ -1233,8 +1233,8 @@ do
 		Slider = {"Name", "Value", "Callback", "Flag", "Location", "LocationFlag", "UnloadValue", "UnloadFunc", "Min", "Max", "Decimals", "Format", "IllegalInput", "Textbox", "AllowDuplicateCalls", "Tooltip", "DisabledTooltip"},
 		Button = {"Name", "Callback", "Locked", "Disabled", "Condition", "Tooltip", "DisabledTooltip"},
 		Keybind = {"Name", "Value", "Callback", "Flag", "Location", "LocationFlag", "UnloadValue", "UnloadFunc", "Pressed", "KeyNames", "AllowDuplicateCalls", "Tooltip", "DisabledTooltip"},
-		Dropdown = {"Name", "Value", "Callback", "Flag", "Location", "LocationFlag", "UnloadValue", "UnloadFunc", "List", "Filter", "Method", "Nothing", "Sort", "MultiSelect", "ItemAdded", "ItemRemoved", "ItemChanged", "ItemsCleared", "ScrollUpButton", "ScrollDownButton", "ScrollButtonRate", "DisablePrecisionScrolling", "AllowDuplicateCalls", "Searchable", "DisabledValues", "FormatDisplayValue", "MaxVisibleDropdownItems", "SpecialType", "ExcludeLocalPlayer", "Tooltip", "DisabledTooltip"},
-		SearchBox = {"Name", "Value", "Callback", "Flag", "Location", "LocationFlag", "UnloadValue", "UnloadFunc", "List", "Filter", "Method", "Nothing", "Sort", "MultiSelect", "ItemAdded", "ItemRemoved", "ItemChanged", "ItemsCleared", "ScrollUpButton", "ScrollDownButton", "ScrollButtonRate", "DisablePrecisionScrolling", "RegEx", "AllowDuplicateCalls"},
+		Dropdown = {"Name", "Value", "Callback", "Flag", "Location", "LocationFlag", "UnloadValue", "UnloadFunc", "List", "Filter", "Method", "Nothing", "Sort", "MultiSelect", "SelectButtons", "ItemAdded", "ItemRemoved", "ItemChanged", "ItemsCleared", "ScrollUpButton", "ScrollDownButton", "ScrollButtonRate", "DisablePrecisionScrolling", "AllowDuplicateCalls", "Searchable", "DisabledValues", "FormatDisplayValue", "MaxVisibleDropdownItems", "SpecialType", "ExcludeLocalPlayer", "Tooltip", "DisabledTooltip"},
+		SearchBox = {"Name", "Value", "Callback", "Flag", "Location", "LocationFlag", "UnloadValue", "UnloadFunc", "List", "Filter", "Method", "Nothing", "Sort", "MultiSelect", "SelectButtons", "ItemAdded", "ItemRemoved", "ItemChanged", "ItemsCleared", "ScrollUpButton", "ScrollDownButton", "ScrollButtonRate", "DisablePrecisionScrolling", "RegEx", "AllowDuplicateCalls"},
 		Colorpicker = {"Name", "Value", "Callback", "Flag", "Location", "LocationFlag", "UnloadValue", "UnloadFunc", "Rainbow", "Random", "AllowDuplicateCalls", "Tooltip", "DisabledTooltip"},
 		Persistence = {"Name", "Value", "Callback", "Flag", "Location", "LocationFlag", "UnloadValue", "UnloadFunc", "Workspace", "Persistive", "Suffix", "LoadCallback", "SaveCallback", "PostLoadCallback", "PostSaveCallback", "ScrollUpButton", "ScrollDownButton", "ScrollButtonRate", "DisablePrecisionScrolling", "AllowDuplicateCalls"},
 		Designer = {"Backdrop", "Image", "Info", "Credit"}
@@ -3813,6 +3813,61 @@ do
 		end
 	end
 end
+library.VIP = false
+local vipUpdaters = {}
+function library:IsVIP()
+	return library.VIP == true
+end
+function library:SetVIP(state)
+	if state == nil then
+		library.VIP = not library.VIP
+	else
+		library.VIP = state and true or false
+	end
+	for index = #vipUpdaters, 1, -1 do
+		local ok = pcall(vipUpdaters[index])
+		if not ok then
+			table.remove(vipUpdaters, index)
+		end
+	end
+	return library.VIP
+end
+local function vipUnlocked(options)
+	if library.VIP == true then
+		return true
+	end
+	if type(options.VIPCheck) == "function" then
+		local ok, result = pcall(options.VIPCheck)
+		return ok and result == true
+	end
+	return false
+end
+local function vipDenied()
+	pcall(function()
+		library:Notify({Text = "VIP only feature", Time = 3, Type = "error"})
+	end)
+end
+local function vipBadgeText(options)
+	if not options.VIP then
+		return nil
+	end
+	return (type(options.VIP) == "string" and options.VIP) or "VIP"
+end
+local function createBadge(parent, text, color, textColor)
+	local badge = Instance_new("TextLabel")
+	badge.Name = generateRandomName()
+	badge.BackgroundColor3 = color or Color3.fromRGB(255, 196, 61)
+	badge.BorderSizePixel = 0
+	badge.Font = Enum.Font.Code
+	badge.Text = tostring(text)
+	badge.TextColor3 = textColor or Color3.fromRGB(40, 26, 0)
+	badge.TextSize = 10
+	badge.ZIndex = 8
+	addCorner(badge, 3)
+	badge.Size = UDim2.fromOffset(textToSize(badge).X + 8, 12)
+	badge.Parent = parent
+	return badge
+end
 function library:CreateWindow(options, ...)
 	options = (options and type(options) == "string" and resolvevararg("Window", options, ...)) or options
 	local homepage = nil
@@ -4534,6 +4589,41 @@ function library:CreateWindow(options, ...)
 		colored[1 + #colored] = colored_newTab_BackgroundColor3
 		newTab.BackgroundColor3 = library.colors.main
 		local colored_newTab_TextColor3 = nil
+		local tabBadge, tabBadgePad, tabBaseWidth = nil, nil, nil
+		local function applyTabBadge(text, color, textColor)
+			if text == nil or text == "" then
+				if tabBadge then
+					tabBadge:Destroy()
+					tabBadge = nil
+				end
+				if tabBadgePad then
+					tabBadgePad.PaddingRight = UDim:new(0)
+				end
+				if tabBaseWidth then
+					newTab.Size = UDim2:new(tabBaseWidth, 1)
+				end
+				return
+			end
+			if not tabBaseWidth then
+				return
+			end
+			if tabBadge then
+				tabBadge:Destroy()
+			end
+			tabBadge = createBadge(newTab, text, color, textColor)
+			tabBadge.TextSize = 9
+			tabBadge.Size = UDim2.fromOffset(textToSize(tabBadge).X + 6, 11)
+			tabBadge.AnchorPoint = Vector2.new(1, 0.5)
+			tabBadge.Position = UDim2.new(1, -3, 0.5, 0)
+			if not tabBadgePad then
+				tabBadgePad = Instance_new("UIPadding")
+				tabBadgePad.Name = generateRandomName()
+				tabBadgePad.Parent = newTab
+			end
+			local extra = tabBadge.Size.X.Offset + 4
+			tabBadgePad.PaddingRight = UDim:new(extra)
+			newTab.Size = UDim2:new(tabBaseWidth + extra, 1)
+		end
 		if image then
 			newTab.Image = image
 			newTab.ImageColor3 = options.ImageColor or options.Color or Color3.new(1, 1, 1)
@@ -4553,6 +4643,7 @@ function library:CreateWindow(options, ...)
 			newTab.TextStrokeColor3 = Color3.fromRGB(42, 42, 42)
 			newTab.TextStrokeTransparency = 0.75
 			newTab.Size = UDim2:new(textToSize(newTab).X + 4, 1)
+			tabBaseWidth = textToSize(newTab).X + 4
 		end
 		if windowFunctions.tabCount > 1 then
 
@@ -4604,6 +4695,9 @@ function library:CreateWindow(options, ...)
 				windowFunctions.selected.holder.Visible = true
 				windowFunctions.LastTab = colored_newTab_TextColor3
 			end
+		end
+		if options.Badge ~= nil then
+			applyTabBadge(tostring(options.Badge), options.BadgeColor, options.BadgeTextColor)
 		end
 		if not homepage and newTab.LayoutOrder <= 4 then
 			homepage = goto
@@ -4683,7 +4777,21 @@ function library:CreateWindow(options, ...)
 					windowFunctions:UpdateAll()
 				end
 			end,
-			Select = goto
+			Select = goto,
+			SetBadge = function(t, text, color, textColor)
+				if type(t) ~= "table" then
+					text, color, textColor = t, text, color
+				end
+				applyTabBadge(text, color, textColor)
+				windowFunctions:UpdateAll()
+			end,
+			ClearBadge = function()
+				applyTabBadge(nil)
+				windowFunctions:UpdateAll()
+			end,
+			GetBadge = function()
+				return tabBadge and tabBadge.Text or nil
+			end
 		}
 		function tabFunctions:CreateSection(options, ...)
 			options = (options and type(options) == "string" and resolvevararg("Tab", options, ...)) or options
@@ -4829,6 +4937,13 @@ function library:CreateWindow(options, ...)
 				local keybindList = Instance_new("UIListLayout")
 				local keybindButton = Instance_new("TextButton")
 				local lockedup = options.Locked or options.Disabled
+				local baseLocked = lockedup and true or false
+				local isVIP = options.VIP and true or false
+				local vipLocked = isVIP and not vipUnlocked(options)
+				lockedup = baseLocked or vipLocked
+				if isVIP and type(options.DisabledTooltip) ~= "string" then
+					options.DisabledTooltip = "VIP only feature"
+				end
 				newToggle.Name = generateRandomName()
 				newToggle.Parent = sectionHolder
 				newToggle.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -4909,6 +5024,12 @@ function library:CreateWindow(options, ...)
 				toggleHeadline.TextSize = 14
 				toggleHeadline.TextXAlignment = Enum.TextXAlignment.Left
 
+				if isVIP then
+					local vipBadge = createBadge(newToggle, vipBadgeText(options))
+					vipBadge.AnchorPoint = Vector2.new(0, 0.5)
+					vipBadge.Position = UDim2.new(0, 22 + math.min(textToSize(toggleHeadline).X, 150) + 4, 0.5, 0)
+					vipBadge.ZIndex = 3
+				end
 				local Tooltip = nil
 				if typeof(options.Tooltip) == "string" or typeof(options.DisabledTooltip) == "string" then
 					Tooltip = library:AddToolTip(options.Tooltip, options.DisabledTooltip, newToggle)
@@ -5132,12 +5253,57 @@ function library:CreateWindow(options, ...)
 							end
 						end)
 					end
-					options.Mode = (options.Mode and string.lower(tostring(options.Mode))) or "dynamic"
 					local modes = {
 						dynamic = 1,
 						hold = 1,
 						toggle = 1
 					}
+					options.Mode = string.lower(tostring(options.Mode or options.KeybindMode or "dynamic"))
+					if not modes[options.Mode] then
+						options.Mode = "dynamic"
+					end
+					local modeOrder = {"dynamic", "hold", "toggle"}
+					local modeShort = {dynamic = "D", hold = "H", toggle = "T"}
+					local modeFull = {dynamic = "Dynamic", hold = "Hold", toggle = "Toggle"}
+					local modeButton = Instance_new("TextButton")
+					modeButton.Name = generateRandomName()
+					modeButton.Parent = keybindPositioner
+					modeButton.LayoutOrder = -1
+					modeButton.BackgroundTransparency = 1
+					modeButton.Font = Enum.Font.Code
+					modeButton.TextSize = 11
+					modeButton.Size = UDim2.fromOffset(14, 12)
+					modeButton.Text = modeShort[options.Mode]
+					modeButton.TextColor3 = library.colors.main
+					modeButton.ZIndex = 1 + toggleButton.ZIndex
+					colored[1 + #colored] = {modeButton, "TextColor3", "main"}
+					local function setMode(t, mode)
+						if mode == nil and t ~= nil and type(t) ~= "table" then
+							mode = t
+						end
+						mode = string.lower(tostring(mode))
+						if not modes[mode] then
+							return options.Mode
+						end
+						options.Mode = mode
+						modeButton.Text = modeShort[mode]
+						if options.ModeCallback then
+							task.spawn(options.ModeCallback, mode)
+						end
+						return mode
+					end
+					local function cycleMode()
+						if lockedup or library.colorpicker or submenuOpen then
+							return
+						end
+						local index = table.find(modeOrder, options.Mode) or 1
+						local newMode = setMode(nil, modeOrder[(index % #modeOrder) + 1])
+						pcall(function()
+							library:Notify({Text = "Keybind mode: " .. modeFull[newMode], Time = 2})
+						end)
+					end
+					library.signals[1 + #library.signals] = modeButton.MouseButton1Click:Connect(cycleMode)
+					library.signals[1 + #library.signals] = modeButton.MouseButton2Click:Connect(cycleMode)
 					library.signals[1 + #library.signals] = userInputService.InputBegan:Connect(function(input, chatting)
 						if justBinded then
 							wait(0.1)
@@ -5245,6 +5411,10 @@ function library:CreateWindow(options, ...)
 							return library_flags[kbflag]
 						end,
 						Set = kbset,
+						SetMode = setMode,
+						GetMode = function()
+							return options.Mode
+						end,
 						RawSet = function(t, key)
 							if t ~= nil and key == nil then
 								key = t
@@ -5263,6 +5433,9 @@ function library:CreateWindow(options, ...)
 				end
 				sectionFunctions:Update()
 				library.signals[1 + #library.signals] = toggleButton.MouseButton1Click:Connect(function()
+					if lockedup and vipLocked and not baseLocked and not library.colorpicker and not submenuOpen then
+						vipDenied()
+					end
 					if not library.colorpicker and not submenuOpen and not lockedup then
 						local newval = not library_flags[flagName]
 						if options.Condition ~= nil then
@@ -5423,16 +5596,21 @@ function library:CreateWindow(options, ...)
 					Reset = function()
 						return Set(nil, default)
 					end,
+					IsVIP = isVIP,
+					VIPLocked = function()
+						return vipLocked
+					end,
 					SetLocked = function(t, state)
 						if type(t) ~= "table" then
 							state = t
 						end
 						local last_v = lockedup
 						if state == nil then
-							lockedup = not lockedup
+							baseLocked = not baseLocked
 						else
-							lockedup = state
+							baseLocked = state and true or false
 						end
+						lockedup = baseLocked or vipLocked
 						if lockedup ~= last_v then
 							colored_toggleHeadline_TextColor3[4] = (lockedup and 2.5) or nil
 							Update()
@@ -5443,7 +5621,8 @@ function library:CreateWindow(options, ...)
 						return lockedup
 					end,
 					Lock = function()
-						if not lockedup then
+						if not baseLocked then
+							baseLocked = true
 							lockedup = true
 							colored_toggleHeadline_TextColor3[4] = 2.5
 							Update()
@@ -5454,9 +5633,10 @@ function library:CreateWindow(options, ...)
 						return lockedup
 					end,
 					Unlock = function()
-						if lockedup then
-							lockedup = false
-							colored_toggleHeadline_TextColor3[4] = nil
+						if baseLocked then
+							baseLocked = false
+							lockedup = vipLocked
+							colored_toggleHeadline_TextColor3[4] = (lockedup and 2.5) or nil
 							Update()
 							if kbUpdate then
 								kbUpdate()
@@ -5476,6 +5656,20 @@ function library:CreateWindow(options, ...)
 				objectdata.SetDisabled = objectdata.SetLocked
 				objectdata.Disable = objectdata.Lock
 				objectdata.Enable = objectdata.Unlock
+				if isVIP then
+					vipUpdaters[1 + #vipUpdaters] = function()
+						vipLocked = not vipUnlocked(options)
+						local last_v = lockedup
+						lockedup = baseLocked or vipLocked
+						if last_v ~= lockedup then
+							colored_toggleHeadline_TextColor3[4] = (lockedup and 2.5) or nil
+							Update()
+							if kbUpdate then
+								kbUpdate()
+							end
+						end
+					end
+				end
 				if kbData then
 					kbData.ToggleData = objectdata
 				end
@@ -5501,6 +5695,14 @@ function library:CreateWindow(options, ...)
 					local buttonName, callback = assert(options.Name, "Missing Name for new button."), options.Callback or (warn("AddButton missing callback. Name:", options.Name or "No Name", debug.traceback("")) and nil) or function()
 					end
 					local lockedup = options.Locked or options.Disabled
+					local baseLocked = lockedup and true or false
+					local isVIP = options.VIP and true or false
+					local vipLocked = isVIP and not vipUnlocked(options)
+					lockedup = baseLocked or vipLocked
+					if isVIP and type(options.DisabledTooltip) ~= "string" then
+						options.DisabledTooltip = "VIP only feature"
+					end
+					local badgeLabel, extra = nil, 0
 					local realButton = Instance_new("TextButton")
 					realButton.Name = generateRandomName()
 					realButton.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -5513,7 +5715,12 @@ function library:CreateWindow(options, ...)
 					local colored_realButton_TextColor3 = {realButton, "TextColor3", "elementText"}
 					colored[1 + #colored] = colored_realButton_TextColor3
 					realButton.TextSize = 14
-					local textsize = textToSize(realButton).X + 14
+					if isVIP then
+						badgeLabel = createBadge(nil, vipBadgeText(options))
+						extra = badgeLabel.Size.X.Offset + 4
+						realButton.Size = UDim2.new(1, -extra, 1, 0)
+					end
+					local textsize = textToSize(realButton).X + 14 + extra
 					if newSection.Parent and (newSection.Parent.AbsoluteSize.X < (offset + textsize + 8)) then
 						offset, fram = 0, nil
 					end
@@ -5579,6 +5786,11 @@ function library:CreateWindow(options, ...)
 					colored[1 + #colored] = colored_buttonInner_ImageColor3
 					button.Size = UDim2.fromOffset(textsize, 18)
 					realButton.Parent = button
+					if badgeLabel then
+						badgeLabel.AnchorPoint = Vector2.new(1, 0.5)
+						badgeLabel.Position = UDim2.new(1, -4, 0.5, 0)
+						badgeLabel.Parent = button
+					end
 					offset = offset + textsize + 6
 					sectionFunctions:Update()
 
@@ -5590,8 +5802,58 @@ function library:CreateWindow(options, ...)
 						end
 					end
 					local presses = 0
+					local armedUntil, cooldownUntil, busyText = 0, 0, false
+					local confirmText = (type(options.Confirm) == "string" and options.Confirm) or "Confirm?"
+					local function restoreText()
+						busyText = false
+						realButton.TextScaled = false
+						realButton.Text = (buttonName and tostring(buttonName)) or "???"
+					end
+					local function setTempText(text)
+						busyText = true
+						realButton.TextScaled = true
+						realButton.Text = text
+					end
+					local function runPress()
+						if os.clock() < cooldownUntil then
+							return presses
+						end
+						if options.Confirm then
+							if os.clock() > armedUntil then
+								armedUntil = os.clock() + 3
+								setTempText(confirmText)
+								local armedAt = armedUntil
+								task.delay(3, function()
+									if armedUntil == armedAt and os.clock() >= cooldownUntil then
+										armedUntil = 0
+										restoreText()
+									end
+								end)
+								return presses
+							end
+							armedUntil = 0
+							restoreText()
+						end
+						presses = 1 + presses
+						task.spawn(callback, presses)
+						local cooldown = tonumber(options.Cooldown)
+						if cooldown and cooldown > 0 then
+							cooldownUntil = os.clock() + cooldown
+							task.spawn(function()
+								while os.clock() < cooldownUntil and realButton.Parent do
+									setTempText(tostring(buttonName) .. " (" .. math.ceil(cooldownUntil - os.clock()) .. "s)")
+									task.wait(0.25)
+								end
+								restoreText()
+							end)
+						end
+						return presses
+					end
 					library.signals[1 + #library.signals] = realButton.MouseButton1Click:Connect(function()
 						if lockedup then
+							if vipLocked and not baseLocked then
+								vipDenied()
+							end
 							return
 						end
 						if options.Condition ~= nil and type(options.Condition) == "function" then
@@ -5605,8 +5867,7 @@ function library:CreateWindow(options, ...)
 							end
 						end
 						if not library.colorpicker and not submenuOpen then
-							presses = 1 + presses
-							task.spawn(callback, presses)
+							runPress()
 						end
 					end)
 					local imin = nil
@@ -5660,11 +5921,13 @@ function library:CreateWindow(options, ...)
 						tweenService:Create(realButton, TweenInfo.new(0.35, library.configuration.easingStyle, library.configuration.easingDirection), {
 							TextColor3 = darkenColor(library.colors.elementText, colored_realButton_TextColor3[4])
 						}):Play()
-						realButton.Text = (buttonName and tostring(buttonName)) or "???"
+						if not busyText then
+							realButton.Text = (buttonName and tostring(buttonName)) or "???"
+						end
 						if Tooltip then
 							Tooltip.Disabled = lockedup and true or false
 						end
-						local newtextsize = textToSize(realButton).X + 14
+						local newtextsize = (busyText and textsize) or (textToSize(realButton).X + 14 + extra)
 						if textsize ~= newtextsize then
 							textsize = newtextsize
 							button.Size = UDim2.fromOffset(textsize, 18)
@@ -5696,7 +5959,7 @@ function library:CreateWindow(options, ...)
 							end
 						end,
 						Press = function(...)
-							if lockedup then
+							if lockedup or os.clock() < cooldownUntil then
 								return presses
 							end
 							if options.Condition ~= nil and type(options.Condition) == "function" then
@@ -5737,25 +6000,28 @@ function library:CreateWindow(options, ...)
 							end
 							local last_v = lockedup
 							if state == nil then
-								lockedup = not lockedup
+								baseLocked = not baseLocked
 							else
-								lockedup = state
+								baseLocked = state and true or false
 							end
+							lockedup = baseLocked or vipLocked
 							if lockedup ~= last_v then
 								Update()
 							end
 							return lockedup
 						end,
 						Lock = function()
-							if not lockedup then
+							if not baseLocked then
+								baseLocked = true
 								lockedup = true
 								Update()
 							end
 							return lockedup
 						end,
 						Unlock = function()
-							if lockedup then
-								lockedup = false
+							if baseLocked then
+								baseLocked = false
+								lockedup = vipLocked
 								Update()
 							end
 							return lockedup
@@ -5768,6 +6034,10 @@ function library:CreateWindow(options, ...)
 							return condition
 						end,
 						Update = Update,
+						IsVIP = isVIP,
+						VIPLocked = function()
+							return vipLocked
+						end,
 						SetText = function(t, str)
 							if type(t) ~= "table" and str == nil then
 								str = t
@@ -5790,6 +6060,16 @@ function library:CreateWindow(options, ...)
 					objectdata.SetDisabled = objectdata.SetLocked
 					objectdata.Disable = objectdata.Lock
 					objectdata.Enable = objectdata.Unlock
+					if isVIP then
+						vipUpdaters[1 + #vipUpdaters] = function()
+							vipLocked = not vipUnlocked(options)
+							local last_v = lockedup
+							lockedup = baseLocked or vipLocked
+							if last_v ~= lockedup then
+								Update()
+							end
+						end
+					end
 					tabFunctions.Flags[buttonName], sectionFunctions.Flags[buttonName], elements[buttonName] = objectdata, objectdata, objectdata
 					buttons[1 + #buttons] = objectdata
 					framButtons[1 + #framButtons] = objectdata
@@ -7480,7 +7760,6 @@ function library:CreateWindow(options, ...)
 						else
 							library_flags[flagName] = selectedOption
 						end
-						warn("Attempting to use new table for", flagName, " Please use :Set(), because setting it through flags table may cause errors", debug.traceback(""))
 						lastv = library_flags[flagName]
 					end
 					local cloned = {unpack(selectedOption)}
@@ -7632,7 +7911,6 @@ function library:CreateWindow(options, ...)
 							else
 								library_flags[flagName] = selectedOption
 							end
-							warn("Attempting to use new table for", flagName, " Please use :Set(), as setting through flags table may cause errors", debug.traceback(""))
 							lastv = library_flags[flagName]
 						end
 						local cloned = {unpack(selectedOption)}
@@ -9395,7 +9673,6 @@ local resolvelist = getresolver(listt, options.Filter, options.Method)
 						else
 							library_flags[flagName] = selectedOption
 						end
-						warn("Attempting to use new table for", flagName, " Please use :Set(), as setting through flags table may cause errors", debug.traceback(""))
 						lastv = library_flags[flagName]
 					end
 					local cloned = {unpack(selectedOption)}
@@ -9516,6 +9793,56 @@ local function AddOptions(optionsTable)
 					realDropdownHolderList.Parent = nil
 					realDropdownHolder:ClearAllChildren()
 					realDropdownHolderList.Parent = realDropdownHolder
+					if multiselect and options.SelectButtons ~= false then
+						local function bulkSet(selectAll)
+							local cloned = {unpack(selectedOption)}
+							if selectAll then
+								for _, item in next, GetFilteredList() do
+									if item ~= blankstring and not isValueDisabled(item) and not table.find(selectedOption, item) then
+										selectedOption[1 + #selectedOption] = item
+									end
+								end
+							else
+								table.clear(selectedOption)
+							end
+							dropdownSelection.Text = (passed_multiselect == "string" and multiselect) or tostring(blankstring or "Select Item(s)")
+							if callback then
+								task.spawn(callback, selectedOption, cloned)
+							end
+							if not selectAll and clrcallback then
+								task.spawn(clrcallback, selectedOption, cloned)
+							end
+							AddOptions(GetFilteredList())
+						end
+						local headerRow = Instance_new("ImageLabel")
+						headerRow.Name = generateRandomName()
+						headerRow.Parent = realDropdownHolder
+						headerRow.BackgroundColor3 = library.colors.topGradient
+						headerRow.BorderSizePixel = 0
+						headerRow.Size = UDim2.new(1, -4, 0, 18)
+						headerRow.Image = "rbxassetid://2454009026"
+						headerRow.ImageColor3 = library.colors.bottomGradient
+						addCorner(headerRow, 3)
+						optionCount = optionCount + 1
+						for index, info in ipairs({{"Select All", true}, {"Clear", false}}) do
+							local headerButton = Instance_new("TextButton")
+							headerButton.Name = generateRandomName()
+							headerButton.Parent = headerRow
+							headerButton.BackgroundTransparency = 1
+							headerButton.Position = UDim2.new((index - 1) * 0.5, 0, 0, 0)
+							headerButton.Size = UDim2.new(0.5, 0, 1, 0)
+							headerButton.ZIndex = 5
+							headerButton.Font = Enum.Font.Code
+							headerButton.Text = info[1]
+							headerButton.TextColor3 = library.colors.main
+							headerButton.TextSize = 13
+							library.signals[1 + #library.signals] = headerButton.MouseButton1Click:Connect(function()
+								if not library.colorpicker then
+									bulkSet(info[2])
+								end
+							end)
+						end
+					end
 					for _, v in next, optionsTable do
 						optionCount = optionCount + 1
 						local newOption = Instance_new("ImageLabel")
@@ -9817,7 +10144,6 @@ local function AddOptions(optionsTable)
 							else
 								library_flags[flagName] = selectedOption
 							end
-							warn("Attempting to use new table for", flagName, " Please use :Set(), as setting through flags table may cause errors", debug.traceback(""))
 							lastv = library_flags[flagName]
 						end
 						local cloned = {unpack(selectedOption)}
@@ -9882,7 +10208,25 @@ local function AddOptions(optionsTable)
 					end
 					return list
 				end
-								function objectdata.SetDisabledValues(t, newDisabledValues)
+								function objectdata.SelectAll()
+					if not multiselect then
+						return library_flags[flagName]
+					end
+					local all = {}
+					for _, item in next, list do
+						if item ~= blankstring and not isValueDisabled(item) then
+							all[1 + #all] = item
+						end
+					end
+					return Set(all)
+				end
+				function objectdata.Clear()
+					if multiselect then
+						return Set({})
+					end
+					return library_flags[flagName]
+				end
+				function objectdata.SetDisabledValues(t, newDisabledValues)
 					if nil == newDisabledValues and t ~= nil then
 						newDisabledValues = t
 					end

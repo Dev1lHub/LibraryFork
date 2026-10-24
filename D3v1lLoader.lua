@@ -319,6 +319,43 @@ function library:ShowLoadingScreen(options)
 		addTextStroke(DeviceLabel)
 	end
 
+	if type(options.ExecutorStatus) == "table" then
+		local status = options.ExecutorStatus
+		local statusColor = status.Color or Color3.fromRGB(255, 80, 80)
+		local ExecLabel = Instance.new("TextLabel")
+		ExecLabel.Name = generateRandomName()
+		ExecLabel.BackgroundTransparency = 1
+		ExecLabel.Position = UDim2.new(0, 20, 0, 134)
+		ExecLabel.Size = UDim2.new(1, -40, 0, 20)
+		ExecLabel.Font = Enum.Font.Code
+		ExecLabel.TextColor3 = Color3.fromRGB(150, 140, 170)
+		ExecLabel.TextSize = 13
+		ExecLabel.RichText = true
+		ExecLabel.TextXAlignment = Enum.TextXAlignment.Center
+		ExecLabel.ZIndex = 303
+		ExecLabel.Text = 'Executor: <font color="rgb(' .. math.floor(statusColor.R * 255) .. ',' .. math.floor(statusColor.G * 255) .. ',' .. math.floor(statusColor.B * 255) .. ')">' .. tostring(status.Text) .. '</font>'
+		ExecLabel.Parent = InnerFrame
+		addTextStroke(ExecLabel)
+
+		if status.Note then
+			local NoteLabel = Instance.new("TextLabel")
+			NoteLabel.Name = generateRandomName()
+			NoteLabel.BackgroundTransparency = 1
+			NoteLabel.Position = UDim2.new(0, 20, 0, 158)
+			NoteLabel.Size = UDim2.new(1, -40, 0, 36)
+			NoteLabel.Font = Enum.Font.Code
+			NoteLabel.TextColor3 = statusColor
+			NoteLabel.TextSize = 12
+			NoteLabel.TextWrapped = true
+			NoteLabel.TextXAlignment = Enum.TextXAlignment.Center
+			NoteLabel.TextYAlignment = Enum.TextYAlignment.Top
+			NoteLabel.ZIndex = 303
+			NoteLabel.Text = tostring(status.Note)
+			NoteLabel.Parent = InnerFrame
+			addTextStroke(NoteLabel)
+		end
+	end
+
 	local function createButton(text, posX, parent, zb)
 		zb = zb or 303
 		local btnOuter = Instance.new("TextButton")
@@ -613,7 +650,7 @@ function library:ShowLoadingScreen(options)
 		startLoadingSequence()
 	end
 	local warningShown = false
-	local function showMobileWarning()
+	local function showWarning(bodyText, onContinue)
 		warningShown = true
 		local Overlay = Instance.new("Frame")
 		Overlay.Name = generateRandomName()
@@ -649,7 +686,7 @@ function library:ShowLoadingScreen(options)
 		WarnBody.TextXAlignment = Enum.TextXAlignment.Left
 		WarnBody.TextYAlignment = Enum.TextYAlignment.Top
 		WarnBody.ZIndex = 311
-		WarnBody.Text = options.MobileWarningText or "Mobile device detected.\n\nThis script was not really made for mobile. It needs heavy functions that can make the game crash on phones and tablets.\n\nDo you want to continue anyway?"
+		WarnBody.Text = bodyText
 		WarnBody.Parent = Overlay
 		addTextStroke(WarnBody)
 
@@ -659,8 +696,9 @@ function library:ShowLoadingScreen(options)
 			if promptDecided then
 				return
 			end
-			promptDecided = true
-			acceptNow()
+			Overlay:Destroy()
+			warningShown = false
+			onContinue()
 		end)
 		CancelBtn.MouseButton1Click:Connect(function()
 			if promptDecided then
@@ -682,12 +720,24 @@ function library:ShowLoadingScreen(options)
 		if promptDecided or warningShown then
 			return
 		end
+		local queue = {}
 		if options.MobileWarning then
-			showMobileWarning()
-			return
+			queue[1 + #queue] = options.MobileWarningText or "Mobile device detected.\n\nThis script was not really made for mobile. It needs heavy functions that can make the game crash on phones and tablets.\n\nDo you want to continue anyway?"
 		end
-		promptDecided = true
-		acceptNow()
+		if type(options.ExecutorWarningText) == "string" then
+			queue[1 + #queue] = options.ExecutorWarningText
+		end
+		local index = 0
+		local function nextStep()
+			index = index + 1
+			if queue[index] then
+				showWarning(queue[index], nextStep)
+				return
+			end
+			promptDecided = true
+			acceptNow()
+		end
+		nextStep()
 	end)
 
 	NoBtn.MouseButton1Click:Connect(function()
@@ -722,13 +772,13 @@ local function download(url)
 	if ok and type(res) == "string" and #res > 100 then
 		return res
 	end
-	return nil, "Download fehlgeschlagen (" .. url .. "): " .. tostring(res)
+	return nil, "Download failed (" .. url .. "): " .. tostring(res)
 end
 task.spawn(function()
 	source, downloadError = download(isMobile and MOBILE_URL or PC_URL)
 	if not source and not isMobile then
 
-		warn("[D3v1lHub Loader] " .. tostring(downloadError) .. " -> versuche Mobile-Version")
+		warn("[D3v1lHub Loader] " .. tostring(downloadError) .. " -> trying Mobile version")
 		source, downloadError = download(MOBILE_URL)
 		if source then
 			isMobile = true
@@ -764,6 +814,183 @@ local function runLibrary()
 	libraryDone = true
 end
 
+
+local ExecutorCheck = {}
+do
+	local function executorName()
+		local name, version = nil, nil
+		if typeof(identifyexecutor) == "function" then
+			local ok, a, b = pcall(identifyexecutor)
+			if ok and a ~= nil then
+				name, version = tostring(a), b ~= nil and tostring(b) or nil
+			end
+		end
+		if not name and typeof(getexecutorname) == "function" then
+			local ok, a = pcall(getexecutorname)
+			if ok and a ~= nil then
+				name = tostring(a)
+			end
+		end
+		return name or "Unknown", version
+	end
+
+	local function lookup(fnName)
+		local value = nil
+		pcall(function()
+			value = getfenv(0)[fnName]
+		end)
+		if value == nil and typeof(getgenv) == "function" then
+			pcall(function()
+				value = getgenv()[fnName]
+			end)
+		end
+		return value
+	end
+
+	local function isUsable(fnName)
+		for alternative in string.gmatch(fnName, "[^|]+") do
+			local value = lookup(alternative)
+			if alternative == "Drawing" then
+				if type(value) == "table" and type(value.new) == "function" then
+					return true
+				end
+			elseif type(value) == "function" then
+				return true
+			end
+		end
+		return false
+	end
+
+	ExecutorCheck.LibraryNeeds = {
+		{"writefile", "saving configs and the debug log"},
+		{"readfile", "loading configs"},
+		{"isfile", "config files"},
+		{"isfolder", "config folders"},
+		{"makefolder", "config folders"},
+		{"listfiles", "listing saved configs"},
+		{"delfile", "deleting configs"},
+		{"gethui", "hidden GUI parent (falls back to CoreGui/PlayerGui)"},
+		{"cloneref", "safe service access"},
+		{"setclipboard", "copy buttons"},
+		{"getcustomasset|getsynasset", "custom background and sounds"},
+	}
+
+	function ExecutorCheck.Run(extra, known)
+		local name, version = executorName()
+		local missing, supported = {}, {}
+		local seen = {}
+		local function test(fnName, why)
+			if seen[fnName] then
+				return
+			end
+			seen[fnName] = true
+			if isUsable(fnName) then
+				supported[1 + #supported] = fnName
+			else
+				missing[1 + #missing] = {Name = fnName, Reason = why}
+			end
+		end
+		for _, entry in ipairs(ExecutorCheck.LibraryNeeds) do
+			test(entry[1], entry[2])
+		end
+		if type(extra) == "table" then
+			for key, value in pairs(extra) do
+				if type(key) == "number" then
+					test(tostring(value), "used by this script")
+				else
+					test(tostring(key), tostring(value))
+				end
+			end
+		end
+		local lowered = string.lower(name)
+		if type(known) == "table" then
+			for executor, list in pairs(known) do
+				if string.find(lowered, string.lower(tostring(executor)), 1, true) and type(list) == "table" then
+					for _, fnName in ipairs(list) do
+						if not seen[fnName .. "#known"] then
+							seen[fnName .. "#known"] = true
+							missing[1 + #missing] = {Name = tostring(fnName), Reason = "known to be unsupported or buggy on this executor"}
+						end
+					end
+				end
+			end
+		end
+		return {Name = name, Version = version, Missing = missing, Supported = supported}
+	end
+
+	ExecutorCheck.StatusList = {
+		{"wave", "supported"},
+		{"madium", "partial"},
+		{"medium", "partial"},
+		{"volt", "supported"},
+		{"synapse z", "untested"},
+		{"synapsez", "untested"},
+		{"real", "supported"},
+		{"potassium", "supported"},
+	}
+	ExecutorCheck.Colors = {
+		supported = Color3.fromRGB(80, 220, 120),
+		partial = Color3.fromRGB(255, 205, 70),
+		untested = Color3.fromRGB(255, 80, 80),
+	}
+	ExecutorCheck.Labels = {
+		supported = "Supported",
+		partial = "Partially supported",
+		untested = "Not tested",
+	}
+
+	function ExecutorCheck.Status(result, overrides)
+		local lowered = string.lower(result.Name)
+		local level = "untested"
+		local function scan(list)
+			for _, entry in ipairs(list) do
+				if string.find(lowered, entry[1], 1, true) then
+					level = entry[2]
+					return true
+				end
+			end
+			return false
+		end
+		local found = false
+		if type(overrides) == "table" then
+			local list = {}
+			for key, value in pairs(overrides) do
+				list[1 + #list] = {string.lower(tostring(key)), tostring(value)}
+			end
+			found = scan(list)
+		end
+		if not found then
+			scan(ExecutorCheck.StatusList)
+		end
+		if not ExecutorCheck.Colors[level] then
+			level = "untested"
+		end
+		local text = result.Name .. (result.Version and (" " .. result.Version) or "") .. " - " .. ExecutorCheck.Labels[level]
+		local note = nil
+		if level ~= "supported" then
+			note = "Some features may not work properly because of the lack of UNC/sUNC."
+		end
+		return {Level = level, Text = text, Color = ExecutorCheck.Colors[level], Note = note}
+	end
+
+	function ExecutorCheck.Text(result)
+		if #result.Missing == 0 then
+			return nil
+		end
+		local lines = {"Your executor (" .. result.Name .. (result.Version and (" " .. result.Version) or "") .. ") does not support:"}
+		for index, entry in ipairs(result.Missing) do
+			if index > 8 then
+				lines[1 + #lines] = "... and " .. (#result.Missing - 8) .. " more"
+				break
+			end
+			lines[1 + #lines] = "- " .. entry.Name .. " (" .. entry.Reason .. ")"
+		end
+		lines[1 + #lines] = ""
+		lines[1 + #lines] = "These features may be buggy or not work. Continue anyway?"
+		return table.concat(lines, "\n")
+	end
+end
+
 local decision = nil
 local loaderOptions = {}
 if type(genv.D3v1lLoaderOptions) == "table" then
@@ -772,6 +999,14 @@ if type(genv.D3v1lLoaderOptions) == "table" then
 	end
 end
 loaderOptions.DeviceText = isMobile and "Mobile" or "PC"
+local executorResult = ExecutorCheck.Run(loaderOptions.RequiredFunctions, loaderOptions.KnownUnsupported)
+executorResult.Status = ExecutorCheck.Status(executorResult, loaderOptions.ExecutorStatusList)
+loaderOptions.ExecutorStatus = executorResult.Status
+if loaderOptions.ExecutorWarning ~= false then
+	loaderOptions.ExecutorWarningText = loaderOptions.ExecutorWarningText or ExecutorCheck.Text(executorResult)
+else
+	loaderOptions.ExecutorWarningText = nil
+end
 if loaderOptions.MobileWarning == nil then
 	loaderOptions.MobileWarning = isMobile
 end
@@ -842,6 +1077,13 @@ end
 loadedLibrary.ShowLoadingScreen = passThroughLoadingScreen
 if type(loadedLibrary.subs) == "table" then
 	loadedLibrary.subs.ShowLoadingScreen = passThroughLoadingScreen
+end
+loadedLibrary.Executor = executorResult
+loadedLibrary.CheckExecutor = function(self, list)
+	if list == nil and type(self) == "table" and self ~= loadedLibrary then
+		list = self
+	end
+	return ExecutorCheck.Run(list)
 end
 loadedLibrary.IsMobile = isMobile
 loadedLibrary.LoadedVersion = isMobile and "Mobile" or "PC"
