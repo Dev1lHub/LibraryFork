@@ -1,4 +1,4 @@
-D3v1lHub - Dokumentation (Library v0.91)
+D3v1lHub - Dokumentation (Library v0.92)
 
 DATEIEN
    D3v1lLoader.lua   Entry point. Detects the device (PC or phone/tablet), shows Yes/No + "Detected device" + HWID + loading bar
@@ -31,6 +31,7 @@ LOADER OPTIONS (getgenv().D3v1lLoaderOptions = {...} or directly in ShowLoadingS
    (function) OnAccept / (function | nil) OnDecline
    (boolean | nil) MobileWarning = true or false // default: true on mobile. After "Yes" a warning (Continue / Cancel) is shown
    (string | nil) MobileWarningText // custom warning text
+   (string | nil) AntiTamper // "off", "warn", "block" (default) or "strict". Checks loadstring/HttpGet for hooks at start and every 15s afterwards
    (table | nil) RequiredFunctions = {"hookfunction", getconnections = "reason"} // extra executor functions your script needs
    (table | nil) KnownUnsupported = { xeno = {"hookmetamethod"} } // your own list of unsupported functions per executor name (matched by substring)
    (boolean | nil) ExecutorWarning = true or false // default true: after "Yes" a warning lists unsupported functions (Continue / Cancel)
@@ -63,7 +64,7 @@ GEMEINSAME ELEMENT-OPTIONEN (Toggle, Slider, Button, Label, Textbox, Dropdown, C
        -- Element is only visible while the condition holds (Dependency Box). An element object instead of a flag name is also allowed.
    Elements with SetLocked/Lock/Unlock additionally have SetDisabled/Disable/Enable (same function).
 
-Library v0.91 [
+Library v0.92 [
    CreateWindow: Function (
        (table | nil) Options [
            (string | nil) Name = "Window Name"

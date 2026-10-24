@@ -1135,7 +1135,7 @@ function KeystrokesModule:Hide()
 end
 
 local library = {
-	Version = "0.91",
+	Version = "0.92",
 	WorkspaceName = "D3v1lHub Lib",
 	flags = {},
 	signals = {},
@@ -4826,8 +4826,9 @@ function library:CreateWindow(options, ...)
 			local footer = Instance_new("TextLabel")
 			footer.Name = generateRandomName()
 			footer.AnchorPoint = Vector2.new(0.5, 0)
-			footer.Position = UDim2.new(0.5, 0, 1, 4)
-			footer.Size = UDim2.new(1, 0, 0, 12)
+			footer.Position = UDim2.fromOffset(main.AbsolutePosition.X + main.AbsoluteSize.X / 2, main.AbsolutePosition.Y + main.AbsoluteSize.Y + 4)
+			footer.Size = UDim2.fromOffset(main.AbsoluteSize.X, 12)
+			footer.Visible = main.Visible
 			footer.BackgroundTransparency = 1
 			footer.Font = Enum.Font.Code
 			footer.Text = copyText
@@ -4836,16 +4837,27 @@ function library:CreateWindow(options, ...)
 			footer.TextTransparency = 0.45
 			footer.TextStrokeTransparency = 0.8
 			footer.ZIndex = 50
-			footer.Parent = main
+			footer.Parent = d3v1lLibrary
 			return footer
 		end
 		local footer = buildFooter()
+		local function syncFooter()
+			if footer and footer.Parent then
+				footer.Position = UDim2.fromOffset(main.AbsolutePosition.X + main.AbsoluteSize.X / 2, main.AbsolutePosition.Y + main.AbsoluteSize.Y + 4)
+				footer.Size = UDim2.fromOffset(main.AbsoluteSize.X, 12)
+				footer.Visible = main.Visible
+			end
+		end
+		library.signals[1 + #library.signals] = main:GetPropertyChangedSignal("AbsolutePosition"):Connect(syncFooter)
+		library.signals[1 + #library.signals] = main:GetPropertyChangedSignal("AbsoluteSize"):Connect(syncFooter)
+		library.signals[1 + #library.signals] = main:GetPropertyChangedSignal("Visible"):Connect(syncFooter)
 		task.spawn(function()
 			while wait_check(6) and library.objects do
-				if not footer or footer.Parent ~= main then
+				if not footer or footer.Parent ~= d3v1lLibrary then
 					footer = buildFooter()
-				elseif footer.Text ~= copyText or not footer.Visible or footer.TextTransparency > 0.8 then
-					footer.Text, footer.Visible, footer.TextTransparency = copyText, true, 0.45
+				elseif footer.Text ~= copyText or footer.TextTransparency > 0.8 then
+					footer.Text, footer.TextTransparency = copyText, 0.45
+					syncFooter()
 				end
 			end
 		end)
