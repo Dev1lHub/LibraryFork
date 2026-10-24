@@ -43,7 +43,7 @@ local function addCorner(instance, radius)
 	return nil
 end
 local library = {
-	Version = "0.86 Mobile",
+	Version = "0.87 Mobile",
 	WorkspaceName = "D3v1lHub Lib",
 	flags = {},
 	signals = {},
@@ -1469,6 +1469,71 @@ do
 		if tonumber(data.Timeout) then task.delay(tonumber(data.Timeout), close, "timeout_") end
 		return obj, frame
 	end
+end
+library.TermsSections = {
+	{"Copyright", "Copyright (c) 2026 D3v1lHub (GitHub: Dev1lHub). All rights reserved."},
+	{"1. Ownership", "D3v1lHub - the loader, the PC and Mobile libraries, the examples and the documentation - is the exclusive property of its owner."},
+	{"2. Permitted use", "You may run the script exactly as provided for personal, non-commercial use. This permission is revocable and gives you no rights to the source code."},
+	{"3. Prohibited", "Without written permission of the owner you may not copy, modify, adapt, translate, decompile, deobfuscate, extract, re-upload, redistribute, resell, host or create derivative works of this script or any part of it."},
+	{"4. Third-party code", "Parts of the libraries derive from Pepsi's UI Library (Apache License 2.0). Those parts stay under their original license."},
+	{"5. No warranty", "The script is provided \"as is\" without warranty of any kind. Use it at your own risk. The owner is not liable for any damage, loss or account action."},
+	{"6. Violations", "Any violation ends all permissions and may be reported, removed (e.g. DMCA takedown) and pursued legally."},
+	{"Acceptance", "By using this script you accept these terms."}
+}
+function library:ShowTerms()
+	if library.__TermsRoot and library.__TermsRoot.Parent then return library.__TermsRoot end
+	local parentGui = library.MainScreenGui
+	if not parentGui then return nil end
+	local mc, parts = library.colors.main, {}
+	for _, e in ipairs(library.TermsSections) do
+		parts[1 + #parts] = string.format('<font color="rgb(%d,%d,%d)"><b>%s</b></font>\n%s', math.floor(mc.R * 255), math.floor(mc.G * 255), math.floor(mc.B * 255), e[1], e[2])
+	end
+	local function make(class, props, parent)
+		local o = Instance_new(class)
+		o.Name = generateRandomName()
+		for k, v in next, props do o[k] = v end
+		o.Parent = parent
+		return o
+	end
+	local function tween(t, time, goal) pcall(function() tweenService:Create(t, TweenInfo.new(time, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), goal):Play() end) end
+	local root = make("Frame", {Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 1, BorderSizePixel = 0, Active = true, ZIndex = 900}, parentGui)
+	library.__TermsRoot = root
+	local okGroup, panel = pcall(Instance_new, "CanvasGroup")
+	if not okGroup or not panel then panel = Instance_new("Frame") end
+	panel.Name = generateRandomName()
+	for k, v in next, {AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.new(0.92, 0, 0.86, 0), BackgroundColor3 = library.colors.background, BorderSizePixel = 0, ZIndex = 901} do panel[k] = v end
+	pcall(function() panel.GroupTransparency = 1 end)
+	panel.Parent = root
+	make("UISizeConstraint", {MaxSize = Vector2.new(440, 410), MinSize = Vector2.new(240, 220)}, panel)
+	local scale = make("UIScale", {Scale = 0.94}, panel)
+	addCorner(panel, 8)
+	make("UIStroke", {Color = library.colors.outerBorder, Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border}, panel)
+	make("Frame", {Size = UDim2.new(1, 0, 0, 3), BackgroundColor3 = mc, BorderSizePixel = 0, ZIndex = 902}, panel)
+	local function text(content, size, color, y)
+		make("TextLabel", {BackgroundTransparency = 1, Position = UDim2.new(0, 18, 0, y), Size = UDim2.new(1, -36, 0, size + 6), Font = Enum.Font.GothamMedium, Text = content, TextSize = size, TextColor3 = color, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 902}, panel)
+	end
+	text("Terms of Use", 17, library.colors.elementText, 14)
+	text("D3v1lHub - Copyright & License", 12, library.colors.otherElementText, 38)
+	make("Frame", {Position = UDim2.new(0, 18, 0, 62), Size = UDim2.new(1, -36, 0, 1), BackgroundColor3 = library.colors.outerBorder, BorderSizePixel = 0, ZIndex = 902}, panel)
+	local scroller = make("ScrollingFrame", {BackgroundTransparency = 1, BorderSizePixel = 0, Position = UDim2.new(0, 18, 0, 72), Size = UDim2.new(1, -36, 1, -132), CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, ScrollBarThickness = 3, ScrollBarImageColor3 = mc, ScrollingDirection = Enum.ScrollingDirection.Y, ZIndex = 902}, panel)
+	make("TextLabel", {BackgroundTransparency = 1, Size = UDim2.new(1, -10, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Font = Enum.Font.GothamMedium, RichText = true, Text = table.concat(parts, "\n\n"), TextSize = 13, TextColor3 = library.colors.elementText, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, ZIndex = 903}, scroller)
+	local closeButton = make("TextButton", {AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 18, 1, -16), Size = UDim2.new(1, -36, 0, 36), AutoButtonColor = false, BackgroundColor3 = library.colors.topGradient, BorderSizePixel = 0, Font = Enum.Font.GothamMedium, Text = "I understand", TextSize = 14, TextColor3 = library.colors.elementText, ZIndex = 903}, panel)
+	addCorner(closeButton, 6)
+	make("UIStroke", {Color = mc, Transparency = 0.5, Thickness = 1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border}, closeButton)
+	tween(root, 0.3, {BackgroundTransparency = 0.45})
+	tween(panel, 0.3, {GroupTransparency = 0})
+	tween(scale, 0.35, {Scale = 1})
+	local closing = false
+	function library.CloseTerms()
+		if closing then return end
+		closing = true
+		tween(root, 0.22, {BackgroundTransparency = 1})
+		tween(panel, 0.22, {GroupTransparency = 1})
+		tween(scale, 0.22, {Scale = 0.94})
+		task.delay(0.25, function() library.__TermsRoot = nil root:Destroy() end)
+	end
+	closeButton.Activated:Connect(library.CloseTerms)
+	return root
 end
 MobileUI = {}
 library.MobileUI = MobileUI
@@ -3077,6 +3142,8 @@ do
 			else
 				configSection:AddLabel({Text = "Your executor cannot save files."})
 			end
+			local infoSection = settingsTab:CreateSection({Name = "More Info"})
+			infoSection:AddButton({Name = "View Terms Of Use", Callback = function() library:ShowTerms() end})
 			local unloadSection = settingsTab:CreateSection({Name = "Menu"})
 			unloadSection:AddButton({Name = "Unload", Confirm = true, Tooltip = "Closes the menu and unloads everything.", Callback = function()
 				local terminate = library.__MobileTerminate

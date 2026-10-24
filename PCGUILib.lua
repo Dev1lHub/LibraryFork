@@ -1135,7 +1135,7 @@ function KeystrokesModule:Hide()
 end
 
 local library = {
-	Version = "0.86",
+	Version = "0.87",
 	WorkspaceName = "D3v1lHub Lib",
 	flags = {},
 	signals = {},
@@ -3454,6 +3454,183 @@ do
 			return PromptObj, ChoicePopup
 		end
 	end
+library.TermsSections = {
+	{"Copyright", "Copyright (c) 2026 D3v1lHub (GitHub: Dev1lHub). All rights reserved."},
+	{"1. Ownership", "D3v1lHub - the loader, the PC and Mobile libraries, the examples and the documentation - is the exclusive property of its owner."},
+	{"2. Permitted use", "You may run the script exactly as provided for personal, non-commercial use. This permission is revocable and gives you no rights to the source code."},
+	{"3. Prohibited", "Without written permission of the owner you may not copy, modify, adapt, translate, decompile, deobfuscate, extract, re-upload, redistribute, resell, host or create derivative works of this script or any part of it."},
+	{"4. Third-party code", "Parts of the libraries derive from Pepsi's UI Library (Apache License 2.0). Those parts stay under their original license."},
+	{"5. No warranty", "The script is provided \"as is\" without warranty of any kind. Use it at your own risk. The owner is not liable for any damage, loss or account action."},
+	{"6. Violations", "Any violation ends all permissions and may be reported, removed (e.g. DMCA takedown) and pursued legally."},
+	{"Acceptance", "By using this script you accept these terms."}
+}
+function library:ShowTerms()
+	if library.__TermsRoot and library.__TermsRoot.Parent then
+		return library.__TermsRoot
+	end
+	local parentGui = MainScreenGui or library.MainScreenGui
+	if not parentGui then
+		return nil
+	end
+	local mainColor = library.colors.main
+	local parts = {}
+	for _, entry in ipairs(library.TermsSections) do
+		parts[1 + #parts] = string.format('<font color="rgb(%d,%d,%d)"><b>%s</b></font>\n%s', math.floor(mainColor.R * 255), math.floor(mainColor.G * 255), math.floor(mainColor.B * 255), entry[1], entry[2])
+	end
+	local root = Instance_new("Frame")
+	root.Name = generateRandomName()
+	root.Size = UDim2.fromScale(1, 1)
+	root.BackgroundColor3 = Color3.new(0, 0, 0)
+	root.BackgroundTransparency = 1
+	root.BorderSizePixel = 0
+	root.Active = true
+	root.ZIndex = 900
+	root.Parent = parentGui
+	library.__TermsRoot = root
+	local okGroup, panel = pcall(Instance_new, "CanvasGroup")
+	if not okGroup or not panel then
+		panel = Instance_new("Frame")
+	end
+	panel.Name = generateRandomName()
+	panel.AnchorPoint = Vector2.new(0.5, 0.5)
+	panel.Position = UDim2.fromScale(0.5, 0.5)
+	panel.Size = UDim2.new(0.92, 0, 0.86, 0)
+	panel.BackgroundColor3 = library.colors.background
+	panel.BorderSizePixel = 0
+	panel.ZIndex = 901
+	panel.Parent = root
+	pcall(function()
+		panel.GroupTransparency = 1
+	end)
+	local limit = Instance_new("UISizeConstraint")
+	limit.MaxSize = Vector2.new(440, 410)
+	limit.MinSize = Vector2.new(240, 220)
+	limit.Parent = panel
+	local scale = Instance_new("UIScale")
+	scale.Scale = 0.94
+	scale.Parent = panel
+	addCorner(panel, 8)
+	local stroke = Instance_new("UIStroke")
+	stroke.Color = library.colors.outerBorder
+	stroke.Thickness = 1
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Parent = panel
+	local bar = Instance_new("Frame")
+	bar.Name = generateRandomName()
+	bar.Size = UDim2.new(1, 0, 0, 3)
+	bar.BackgroundColor3 = mainColor
+	bar.BorderSizePixel = 0
+	bar.ZIndex = 902
+	bar.Parent = panel
+	local function text(content, size, color, y, height)
+		local item = Instance_new("TextLabel")
+		item.Name = generateRandomName()
+		item.BackgroundTransparency = 1
+		item.Position = UDim2.new(0, 18, 0, y)
+		item.Size = UDim2.new(1, -36, 0, height)
+		item.Font = Enum.Font.Code
+		item.Text = content
+		item.TextSize = size
+		item.TextColor3 = color
+		item.TextXAlignment = Enum.TextXAlignment.Left
+		item.ZIndex = 902
+		item.Parent = panel
+		return item
+	end
+	text("Terms of Use", 18, library.colors.elementText, 14, 24)
+	text("D3v1lHub - Copyright & License", 12, library.colors.otherElementText, 38, 16)
+	local divider = Instance_new("Frame")
+	divider.Name = generateRandomName()
+	divider.Position = UDim2.new(0, 18, 0, 62)
+	divider.Size = UDim2.new(1, -36, 0, 1)
+	divider.BackgroundColor3 = library.colors.outerBorder
+	divider.BorderSizePixel = 0
+	divider.ZIndex = 902
+	divider.Parent = panel
+	local scroller = Instance_new("ScrollingFrame")
+	scroller.Name = generateRandomName()
+	scroller.BackgroundTransparency = 1
+	scroller.BorderSizePixel = 0
+	scroller.Position = UDim2.new(0, 18, 0, 72)
+	scroller.Size = UDim2.new(1, -36, 1, -132)
+	scroller.CanvasSize = UDim2.new()
+	scroller.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	scroller.ScrollBarThickness = 3
+	scroller.ScrollBarImageColor3 = mainColor
+	scroller.ScrollingDirection = Enum.ScrollingDirection.Y
+	scroller.ZIndex = 902
+	scroller.Parent = panel
+	local body = Instance_new("TextLabel")
+	body.Name = generateRandomName()
+	body.BackgroundTransparency = 1
+	body.Size = UDim2.new(1, -10, 0, 0)
+	body.AutomaticSize = Enum.AutomaticSize.Y
+	body.Font = Enum.Font.Code
+	body.RichText = true
+	body.Text = table.concat(parts, "\n\n")
+	body.TextSize = 13
+	body.TextColor3 = library.colors.elementText
+	body.TextWrapped = true
+	body.TextXAlignment = Enum.TextXAlignment.Left
+	body.TextYAlignment = Enum.TextYAlignment.Top
+	body.ZIndex = 903
+	body.Parent = scroller
+	local closeButton = Instance_new("TextButton")
+	closeButton.Name = generateRandomName()
+	closeButton.AnchorPoint = Vector2.new(0, 1)
+	closeButton.Position = UDim2.new(0, 18, 1, -16)
+	closeButton.Size = UDim2.new(1, -36, 0, 34)
+	closeButton.AutoButtonColor = false
+	closeButton.BackgroundColor3 = library.colors.topGradient
+	closeButton.BorderSizePixel = 0
+	closeButton.Font = Enum.Font.Code
+	closeButton.Text = "I understand"
+	closeButton.TextSize = 14
+	closeButton.TextColor3 = library.colors.elementText
+	closeButton.ZIndex = 903
+	closeButton.Parent = panel
+	addCorner(closeButton, 6)
+	local closeStroke = Instance_new("UIStroke")
+	closeStroke.Color = mainColor
+	closeStroke.Transparency = 0.5
+	closeStroke.Thickness = 1
+	closeStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	closeStroke.Parent = closeButton
+	local function tween(target, time, goal, style)
+		pcall(function()
+			tweenService:Create(target, TweenInfo.new(time, style or Enum.EasingStyle.Quint, Enum.EasingDirection.Out), goal):Play()
+		end)
+	end
+	tween(root, 0.3, {BackgroundTransparency = 0.45})
+	tween(panel, 0.3, {GroupTransparency = 0})
+	tween(scale, 0.35, {Scale = 1})
+	local closing = false
+	local function closeTerms()
+		if closing then
+			return
+		end
+		closing = true
+		tween(root, 0.22, {BackgroundTransparency = 1})
+		tween(panel, 0.22, {GroupTransparency = 1})
+		tween(scale, 0.22, {Scale = 0.94})
+		task.delay(0.25, function()
+			library.__TermsRoot = nil
+			root:Destroy()
+		end)
+	end
+	closeButton.MouseEnter:Connect(function()
+		tween(closeButton, 0.2, {BackgroundColor3 = darkenColor(mainColor, 2.2)})
+		tween(closeStroke, 0.2, {Transparency = 0})
+	end)
+	closeButton.MouseLeave:Connect(function()
+		tween(closeButton, 0.2, {BackgroundColor3 = library.colors.topGradient})
+		tween(closeStroke, 0.2, {Transparency = 0.5})
+	end)
+	closeButton.Activated:Connect(closeTerms)
+	library.CloseTerms = closeTerms
+	makeDraggable(panel, panel)
+	return root
+end
 	do
 		local Popups = Instance.new("Frame")
 		local UIListLayout = Instance.new("UIListLayout")
@@ -11353,6 +11530,12 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 				end
 			end
 		end
+		daaata[1 + #daaata] = {"AddButton", "__Designer.Button.TermsOfUse", detailssection, {
+			Name = "View Terms Of Use",
+			Callback = function()
+				library:ShowTerms()
+			end
+		}}
 		for _, v in next, daaata do
 			designerelements[v[2]] = v[3][v[1]](v[3], v[4])
 		end

@@ -9,7 +9,7 @@ local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Dev1l
 --   * Keybinds are ignored (AddKeybind / Keybind option / keybind modes are only placeholders).
 --   * VIP elements, tab badges, button Confirm / Cooldown and multiselect Select All / Clear work like on PC.
 --   * Notify is active (compact messages, max. 4 at once).
---   * The Settings tab (config: name, configs, Save/Load/Delete/Autoload, plus an Unload button) is added by "Themeable".
+--   * The Settings tab (config: name, configs, Save/Load/Delete/Autoload, plus an Unload button and "More Info" > "View Terms Of Use") is added by "Themeable".
 --
 -- Make the build slower/faster (BEFORE CreateWindow):
 --   library.MobileBuildBatch = 2      -- elements per pause

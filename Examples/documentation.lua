@@ -1,4 +1,4 @@
-D3v1lHub - Dokumentation (Library v0.86)
+D3v1lHub - Dokumentation (Library v0.87)
 
 DATEIEN
    D3v1lLoader.lua   Entry point. Detects the device (PC or phone/tablet), shows Yes/No + "Detected device" + HWID + loading bar
@@ -44,6 +44,8 @@ EXECUTOR CHECK (after the loader returned)
    library:CheckExecutor({"firesignal", ...}) -> same table format for the given function names
    library:SetVIP(State | nil) -> State // Unlocks / locks every element created with VIP = true (nil toggles)
    library:IsVIP() -> boolean
+   library:ShowTerms() // Opens the Terms Of Use / copyright window (also: Settings tab > More Info > "View Terms Of Use")
+   library.CloseTerms() // Closes it again
 
 MOBILE ONLY (set before CreateWindow)
    library.MobileBuildBatch = 2      -- elements per pause during the step-by-step build
@@ -61,7 +63,7 @@ GEMEINSAME ELEMENT-OPTIONEN (Toggle, Slider, Button, Label, Textbox, Dropdown, C
        -- Element is only visible while the condition holds (Dependency Box). An element object instead of a flag name is also allowed.
    Elements with SetLocked/Lock/Unlock additionally have SetDisabled/Disable/Enable (same function).
 
-Library v0.86 [
+Library v0.87 [
    CreateWindow: Function (
        (table | nil) Options [
            (string | nil) Name = "Window Name"

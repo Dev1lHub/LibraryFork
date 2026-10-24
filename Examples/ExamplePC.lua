@@ -63,7 +63,7 @@ library:ShowLoadingScreen({
             Name = "World"
         })
 
-        -- The Settings tab (configs, menu settings) is added automatically by "Themeable" above and is always the last tab.
+        -- The Settings tab (configs, menu settings) is added automatically by "Themeable" above and is always the last tab It also contains "More Info" > "View Terms Of Use" (library:ShowTerms()).
 
         local FarmingSection = MainTab:CreateSection({
             Name = "Farming"
