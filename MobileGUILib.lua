@@ -43,7 +43,7 @@ local function addCorner(instance, radius)
 	return nil
 end
 local library = {
-	Version = "0.89 Mobile",
+	Version = "0.91 Mobile",
 	WorkspaceName = "D3v1lHub Lib",
 	flags = {},
 	signals = {},
@@ -422,7 +422,6 @@ function library.unload()
 		end
 		if shared.libraries and (#shared.libraries == 0) then shared.libraries = nil end
 	end
-	warn("Unloaded")
 end
 library.Unload = library.unload
 local Instance_new = (syn and syn.protect_gui and function(...)
@@ -1846,7 +1845,7 @@ do
 		local main = new("Frame", {AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(480, 300), BackgroundColor3 = C("background"), BorderSizePixel = 0, Active = true}, gui)
 		local function copyFooter() return new("TextLabel", {AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 1, 4), Size = UDim2.new(1, 0, 0, 12), BackgroundTransparency = 1, Font = FONT_MEDIUM, Text = "\u{A9} 2026 D3v1lHub | All rights reserved", TextSize = 11, TextColor3 = C("otherElementText"), TextTransparency = 0.45, ZIndex = 50}, main) end
 		local copyLabel = copyFooter()
-		task.spawn(function() while wait_check(6) do if not copyLabel.Parent then copyLabel = copyFooter() end end end)
+		task.spawn(function() while wait_check(6) and library.objects do if not copyLabel.Parent then copyLabel = copyFooter() end end end)
 		corner(main, 10)
 		new("UIStroke", {Color = C("main"), Thickness = 1, Transparency = 0.25, ApplyStrokeMode = Enum.ApplyStrokeMode.Border}, main)
 		library.MobileMain = main

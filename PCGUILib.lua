@@ -1135,7 +1135,7 @@ function KeystrokesModule:Hide()
 end
 
 local library = {
-	Version = "0.89",
+	Version = "0.91",
 	WorkspaceName = "D3v1lHub Lib",
 	flags = {},
 	signals = {},
@@ -1832,7 +1832,6 @@ function library.unload()
 			shared.libraries = nil
 		end
 	end
-	warn("Unloaded")
 end
 library.Unload = library.unload
 local Instance_new = (syn and syn.protect_gui and function(...)
@@ -4842,7 +4841,7 @@ function library:CreateWindow(options, ...)
 		end
 		local footer = buildFooter()
 		task.spawn(function()
-			while wait_check(6) do
+			while wait_check(6) and library.objects do
 				if not footer or footer.Parent ~= main then
 					footer = buildFooter()
 				elseif footer.Text ~= copyText or not footer.Visible or footer.TextTransparency > 0.8 then
