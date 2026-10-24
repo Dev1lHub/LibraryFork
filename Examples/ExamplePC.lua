@@ -320,14 +320,6 @@ library:ShowLoadingScreen({
             end
         })
 
-        -- Color pickers always go at the very BOTTOM of the group
-        MiscSection:AddColorpicker({
-            Name = "Example color",
-            Flag = "MiscSection_ExampleColor",
-            Value = Color3.fromRGB(128, 0, 255),
-            Callback = print
-        })
-
         local FunSection = MainTab:CreateSection({
             Name = "Fun Cosmetics"
         })

@@ -137,14 +137,6 @@ library:ShowLoadingScreen({
         MiscSection:AddLabel({
             Name = "Labels simply display text."
         })
-
-        MiscSection:AddColorpicker({
-            Name = "Example color",
-            Flag = "Misc_ExampleColor",
-            Value = Color3.fromRGB(128, 0, 255),
-            Callback = print
-        })
-
         local ESPSection = VisualTab:CreateSection({
             Name = "ESP"
         })

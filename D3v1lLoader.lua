@@ -53,8 +53,14 @@ local function protectAndParentGui(gui, fallbackParent)
 		pcall(function()
 			gui.Parent = fallbackParent
 		end)
+		if gui.Parent then
+			return true
+		end
 	end
-	return false
+	pcall(function()
+		gui.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui", 5)
+	end)
+	return gui.Parent ~= nil
 end
 
 local library = {

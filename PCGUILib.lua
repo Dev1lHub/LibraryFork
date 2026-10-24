@@ -44,8 +44,14 @@ local function protectAndParentGui(gui, fallbackParent)
 		pcall(function()
 			gui.Parent = fallbackParent
 		end)
+		if gui.Parent then
+			return true
+		end
 	end
-	return false
+	pcall(function()
+		gui.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui", 5)
+	end)
+	return gui.Parent ~= nil
 end
 
 local function addCorner(instance, radius)
@@ -3411,6 +3417,33 @@ do
 					task.delay(to, ClosePrompt, "timeout_")
 				end
 			end
+			do
+				local function measure(text, size, wrapWidth)
+					local ok, result = pcall(textService.GetTextSize, textService, text, size, Enum.Font.Code, Vector2.new(wrapWidth, 10000))
+					if ok and typeof(result) == "Vector2" then
+						return result
+					end
+					return Vector2.new(wrapWidth, size)
+				end
+				local buttonsWidth = 0
+				for _, optionObject in next, PromptObj.Buttons or {} do
+					local holder = optionObject.ButtonObject
+					if holder then
+						buttonsWidth = buttonsWidth + holder.Size.X.Offset + 10
+					end
+				end
+				local titleWidth = measure(Title.Text, 15, 10000).X
+				local width = math.clamp(math.max(325, titleWidth + 56, buttonsWidth + 32), 325, 720)
+				local textWidth = width - 20
+				local descHeight = 0
+				if Description.Text ~= "" then
+					descHeight = math.clamp(measure(Description.Text, 14, textWidth).Y + 2, 16, 320)
+				end
+				Title.Size = UDim2.new(0, width - 40, 0, 25)
+				Description.TextTruncate = Enum.TextTruncate.None
+				Description.Size = UDim2.new(0, textWidth, 0, descHeight)
+				ChoicePopup.Size = UDim2.new(0, width, 0, math.max(100, 8 + 25 + descHeight + 14 + 35))
+			end
 			ChoicePopup.Parent = MainScreenGui
 			makeDraggable(ChoicePopup, ChoicePopup)
 			return PromptObj, ChoicePopup
@@ -4447,9 +4480,43 @@ function library:CreateWindow(options, ...)
 		end
 	end
 
+	local canvasExtra = setmetatable({}, {__mode = "k"})
 	local function createDropdownCore(ctx)
 		local core = {}
 		local precisionscrolling = nil
+		local extendSignals = {}
+		local isOpen = false
+		local function applyExtra(extra)
+			local scroller = ctx.newSection.Parent
+			if not (scroller and scroller:IsA("ScrollingFrame")) then
+				return
+			end
+			local base = scroller.CanvasSize.Y.Offset - (canvasExtra[scroller] or 0)
+			canvasExtra[scroller] = (extra > 0 and extra) or nil
+			scroller.CanvasSize = UDim2.new(scroller.CanvasSize.X.Scale, scroller.CanvasSize.X.Offset, 0, base + extra)
+		end
+		local function recomputeExtra()
+			if not isOpen then
+				return
+			end
+			local scroller = ctx.newSection.Parent
+			local holder = ctx.dropdownHolderFrame
+			if not (scroller and scroller:IsA("ScrollingFrame") and holder and holder.Parent and holder.Visible) then
+				return
+			end
+			local base = scroller.CanvasSize.Y.Offset - (canvasExtra[scroller] or 0)
+			local canvasBottom = scroller.AbsolutePosition.Y - scroller.CanvasPosition.Y + base
+			local holderBottom = holder.AbsolutePosition.Y + holder.AbsoluteSize.Y
+			applyExtra(math.max(0, math.ceil(holderBottom - canvasBottom + 12)))
+		end
+		local function clearExtend()
+			isOpen = false
+			for index, signal in ipairs(extendSignals) do
+				signal:Disconnect()
+				extendSignals[index] = nil
+			end
+			applyExtra(0)
+		end
 		local function stopScrolling()
 			if precisionscrolling then
 				precisionscrolling:Disconnect()
@@ -4478,6 +4545,15 @@ function library:CreateWindow(options, ...)
 				ImageColor3 = darkenColor(library.colors.main, 2.5)
 			}):Play()
 			ctx.dropdownHolderFrame.Visible = true
+			isOpen = true
+			extendSignals[1 + #extendSignals] = ctx.dropdownHolderFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(recomputeExtra)
+			extendSignals[1 + #extendSignals] = ctx.dropdownHolderFrame:GetPropertyChangedSignal("Visible"):Connect(function()
+				if not ctx.dropdownHolderFrame.Visible then
+					clearExtend()
+				end
+			end)
+			task.defer(recomputeExtra)
+			task.delay(0.1, recomputeExtra)
 			stopScrolling()
 			if not options.DisablePrecisionScrolling then
 				local scrollrate = tonumber(options.ScrollButtonRate or options.ScrollRate) or 5
@@ -4514,6 +4590,7 @@ function library:CreateWindow(options, ...)
 				ImageColor3 = library.colors.bottomGradient
 			}):Play()
 			ctx.dropdownHolderFrame.Visible = false
+			clearExtend()
 			for ins, z in next, ctx.restorezindex do
 				ins.ZIndex = z
 			end
@@ -4614,13 +4691,14 @@ function library:CreateWindow(options, ...)
 			tabBadge.TextSize = 9
 			tabBadge.Size = UDim2.fromOffset(textToSize(tabBadge).X + 6, 11)
 			tabBadge.AnchorPoint = Vector2.new(1, 0.5)
-			tabBadge.Position = UDim2.new(1, -3, 0.5, 0)
+			tabBadge.Position = UDim2.new(1, 0, 0.5, 0)
 			if not tabBadgePad then
 				tabBadgePad = Instance_new("UIPadding")
 				tabBadgePad.Name = generateRandomName()
 				tabBadgePad.Parent = newTab
 			end
 			local extra = tabBadge.Size.X.Offset + 4
+			tabBadge.Position = UDim2.new(1, extra - 3, 0.5, 0)
 			tabBadgePad.PaddingRight = UDim:new(extra)
 			newTab.Size = UDim2:new(tabBaseWidth + extra, 1)
 		end
@@ -4903,7 +4981,7 @@ function library:CreateWindow(options, ...)
 				end
 				newSection.Size = UDim2.new(1, -20, 0, (15 + sectionList.AbsoluteContentSize.Y))
 				if currentHolder then
-					currentHolder.CanvasSize = UDim2:fromOffset(currentHolder:FindFirstChildOfClass("UIListLayout").AbsoluteContentSize.Y + 22 + (tonumber(extra) or 0))
+					currentHolder.CanvasSize = UDim2:fromOffset(currentHolder:FindFirstChildOfClass("UIListLayout").AbsoluteContentSize.Y + 22 + (tonumber(extra) or 0) + (canvasExtra[currentHolder] or 0))
 				end
 			end
 			function sectionFunctions:UpdateAll(...)
