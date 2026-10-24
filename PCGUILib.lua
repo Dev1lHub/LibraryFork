@@ -1135,7 +1135,7 @@ function KeystrokesModule:Hide()
 end
 
 local library = {
-	Version = "0.87",
+	Version = "0.89",
 	WorkspaceName = "D3v1lHub Lib",
 	flags = {},
 	signals = {},
@@ -3454,6 +3454,8 @@ do
 			return PromptObj, ChoicePopup
 		end
 	end
+library.__fp = string.char(unpack({68,51,86,49,76,45,79,87,78,45,50,48,50,54,45,56,70,50,65,45,67,52,49,68,45,80,67}))
+library.__id = "D3v1lHub​‌​​​‌​​​​‌‌​​‌‌​‌​‌​‌‌​​​‌‌​​​‌​‌​​‌‌​​​​‌​‌‌​‌​‌​​‌‌‌‌​‌​‌​‌‌‌​‌​​‌‌‌​​​‌​‌‌​‌​​‌‌​​‌​​​‌‌​​​​​​‌‌​​‌​​​‌‌​‌‌​​​‌​‌‌​‌​​‌‌‌​​​​‌​​​‌‌​​​‌‌​​‌​​‌​​​​​‌​​‌​‌‌​‌​‌​​​​‌‌​​‌‌​‌​​​​‌‌​​​‌​‌​​​‌​​​​‌​‌‌​‌​‌​‌​​​​​‌​​​​‌‌"
 library.TermsSections = {
 	{"Copyright", "Copyright (c) 2026 D3v1lHub (GitHub: Dev1lHub). All rights reserved."},
 	{"1. Ownership", "D3v1lHub - the loader, the PC and Mobile libraries, the examples and the documentation - is the exclusive property of its owner."},
@@ -3462,7 +3464,7 @@ library.TermsSections = {
 	{"4. Third-party code", "Parts of the libraries derive from Pepsi's UI Library (Apache License 2.0). Those parts stay under their original license."},
 	{"5. No warranty", "The script is provided \"as is\" without warranty of any kind. Use it at your own risk. The owner is not liable for any damage, loss or account action."},
 	{"6. Violations", "Any violation ends all permissions and may be reported, removed (e.g. DMCA takedown) and pursued legally."},
-	{"Acceptance", "By using this script you accept these terms."}
+	{"Acceptance", "By using this script you accept these terms.\n\nLast updated: October 25, 2026, 01:27 (CEST, UTC+2)"}
 }
 function library:ShowTerms()
 	if library.__TermsRoot and library.__TermsRoot.Parent then
@@ -4817,6 +4819,36 @@ function library:CreateWindow(options, ...)
 				Size = UDim2.fromOffset(tabObject.AbsoluteSize.X, 1),
 				Position = UDim2.fromOffset(tabObject.AbsolutePosition.X, tabObject.AbsolutePosition.Y + tabObject.AbsoluteSize.Y) - UDim2.fromOffset(main.AbsolutePosition.X, main.AbsolutePosition.Y)
 			}):Play()
+		end)
+	end
+	do
+		local copyText = "\u{A9} 2026 D3v1lHub | All rights reserved"
+		local function buildFooter()
+			local footer = Instance_new("TextLabel")
+			footer.Name = generateRandomName()
+			footer.AnchorPoint = Vector2.new(0.5, 0)
+			footer.Position = UDim2.new(0.5, 0, 1, 4)
+			footer.Size = UDim2.new(1, 0, 0, 12)
+			footer.BackgroundTransparency = 1
+			footer.Font = Enum.Font.Code
+			footer.Text = copyText
+			footer.TextSize = 11
+			footer.TextColor3 = library.colors.otherElementText
+			footer.TextTransparency = 0.45
+			footer.TextStrokeTransparency = 0.8
+			footer.ZIndex = 50
+			footer.Parent = main
+			return footer
+		end
+		local footer = buildFooter()
+		task.spawn(function()
+			while wait_check(6) do
+				if not footer or footer.Parent ~= main then
+					footer = buildFooter()
+				elseif footer.Text ~= copyText or not footer.Visible or footer.TextTransparency > 0.8 then
+					footer.Text, footer.Visible, footer.TextTransparency = copyText, true, 0.45
+				end
+			end
 		end)
 	end
 	windowFunctions.LastTab = nil
@@ -11513,6 +11545,9 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 		if options.Credit ~= false then
 			daaata[1 + #daaata] = {"AddLabel", "__Designer.Label.Creator", detailssection, {
 				Text = "Library by d3v1lhub2222 "
+			}}
+			daaata[1 + #daaata] = {"AddLabel", "__Designer.Label.Copyright", detailssection, {
+				Text = "\u{A9} 2026 D3v1lHub | All rights reserved"
 			}}
 		elseif "Gee, thanks for your support." then
 		end

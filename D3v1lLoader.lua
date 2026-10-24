@@ -1091,6 +1091,8 @@ loadedLibrary.CheckExecutor = function(self, list)
 	end
 	return ExecutorCheck.Run(list)
 end
+loadedLibrary.__ld = string.char(unpack({68,51,86,49,76,45,79,87,78,45,50,48,50,54,45,56,70,50,65,45,67,52,49,68,45,76,68}))
+loadedLibrary.__ldid = "D3v1lHub​‌​​​‌​​​​‌‌​​‌‌​‌​‌​‌‌​​​‌‌​​​‌​‌​​‌‌​​​​‌​‌‌​‌​‌​​‌‌‌‌​‌​‌​‌‌‌​‌​​‌‌‌​​​‌​‌‌​‌​​‌‌​​‌​​​‌‌​​​​​​‌‌​​‌​​​‌‌​‌‌​​​‌​‌‌​‌​​‌‌‌​​​​‌​​​‌‌​​​‌‌​​‌​​‌​​​​​‌​​‌​‌‌​‌​‌​​​​‌‌​​‌‌​‌​​​​‌‌​​​‌​‌​​​‌​​​​‌​‌‌​‌​‌​​‌‌​​​‌​​​‌​​"
 loadedLibrary.IsMobile = isMobile
 loadedLibrary.LoadedVersion = isMobile and "Mobile" or "PC"
 return loadedLibrary, loadedFlags, loadedSubs

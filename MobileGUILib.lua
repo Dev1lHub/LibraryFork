@@ -43,7 +43,7 @@ local function addCorner(instance, radius)
 	return nil
 end
 local library = {
-	Version = "0.87 Mobile",
+	Version = "0.89 Mobile",
 	WorkspaceName = "D3v1lHub Lib",
 	flags = {},
 	signals = {},
@@ -1470,16 +1470,12 @@ do
 		return obj, frame
 	end
 end
-library.TermsSections = {
-	{"Copyright", "Copyright (c) 2026 D3v1lHub (GitHub: Dev1lHub). All rights reserved."},
-	{"1. Ownership", "D3v1lHub - the loader, the PC and Mobile libraries, the examples and the documentation - is the exclusive property of its owner."},
-	{"2. Permitted use", "You may run the script exactly as provided for personal, non-commercial use. This permission is revocable and gives you no rights to the source code."},
-	{"3. Prohibited", "Without written permission of the owner you may not copy, modify, adapt, translate, decompile, deobfuscate, extract, re-upload, redistribute, resell, host or create derivative works of this script or any part of it."},
-	{"4. Third-party code", "Parts of the libraries derive from Pepsi's UI Library (Apache License 2.0). Those parts stay under their original license."},
-	{"5. No warranty", "The script is provided \"as is\" without warranty of any kind. Use it at your own risk. The owner is not liable for any damage, loss or account action."},
-	{"6. Violations", "Any violation ends all permissions and may be reported, removed (e.g. DMCA takedown) and pursued legally."},
-	{"Acceptance", "By using this script you accept these terms."}
-}
+library.__fp = string.char(unpack({68,51,86,49,76,45,79,87,78,45,50,48,50,54,45,56,70,50,65,45,67,52,49,68,45,77,66}))
+library.__id = "D3v1lHub​‌​​​‌​​​​‌‌​​‌‌​‌​‌​‌‌​​​‌‌​​​‌​‌​​‌‌​​​​‌​‌‌​‌​‌​​‌‌‌‌​‌​‌​‌‌‌​‌​​‌‌‌​​​‌​‌‌​‌​​‌‌​​‌​​​‌‌​​​​​​‌‌​​‌​​​‌‌​‌‌​​​‌​‌‌​‌​​‌‌‌​​​​‌​​​‌‌​​​‌‌​​‌​​‌​​​​​‌​​‌​‌‌​‌​‌​​​​‌‌​​‌‌​‌​​​​‌‌​​​‌​‌​​​‌​​​​‌​‌‌​‌​‌​​‌‌​‌​‌​​​​‌​"
+library.TermsSections = {{"Copyright", "Copyright (c) 2026 D3v1lHub (GitHub: Dev1lHub). All rights reserved."}, {"1. Ownership", "D3v1lHub - the loader, the PC and Mobile libraries, the examples and the documentation - is the exclusive property of its owner."},
+	{"2. Permitted use", "You may run the script exactly as provided for personal, non-commercial use. This permission is revocable and gives you no rights to the source code."}, {"3. Prohibited", "Without written permission of the owner you may not copy, modify, adapt, translate, decompile, deobfuscate, extract, re-upload, redistribute, resell, host or create derivative works of this script or any part of it."},
+	{"4. Third-party code", "Parts of the libraries derive from Pepsi's UI Library (Apache License 2.0). Those parts stay under their original license."}, {"5. No warranty", "The script is provided \"as is\" without warranty of any kind. Use it at your own risk. The owner is not liable for any damage, loss or account action."},
+	{"6. Violations", "Any violation ends all permissions and may be reported, removed (e.g. DMCA takedown) and pursued legally."}, {"Acceptance", "By using this script you accept these terms.\n\nLast updated: October 25, 2026, 01:27 (CEST, UTC+2)"}}
 function library:ShowTerms()
 	if library.__TermsRoot and library.__TermsRoot.Parent then return library.__TermsRoot end
 	local parentGui = library.MainScreenGui
@@ -1848,6 +1844,9 @@ do
 		end
 		library.MainScreenGui, MainScreenGui = gui, gui
 		local main = new("Frame", {AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(480, 300), BackgroundColor3 = C("background"), BorderSizePixel = 0, Active = true}, gui)
+		local function copyFooter() return new("TextLabel", {AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 1, 4), Size = UDim2.new(1, 0, 0, 12), BackgroundTransparency = 1, Font = FONT_MEDIUM, Text = "\u{A9} 2026 D3v1lHub | All rights reserved", TextSize = 11, TextColor3 = C("otherElementText"), TextTransparency = 0.45, ZIndex = 50}, main) end
+		local copyLabel = copyFooter()
+		task.spawn(function() while wait_check(6) do if not copyLabel.Parent then copyLabel = copyFooter() end end end)
 		corner(main, 10)
 		new("UIStroke", {Color = C("main"), Thickness = 1, Transparency = 0.25, ApplyStrokeMode = Enum.ApplyStrokeMode.Border}, main)
 		library.MobileMain = main
@@ -3143,7 +3142,7 @@ do
 				configSection:AddLabel({Text = "Your executor cannot save files."})
 			end
 			local infoSection = settingsTab:CreateSection({Name = "More Info"})
-			infoSection:AddButton({Name = "View Terms Of Use", Callback = function() library:ShowTerms() end})
+			infoSection:AddLabel({Text = "\u{A9} 2026 D3v1lHub | All rights reserved"}) infoSection:AddButton({Name = "View Terms Of Use", Callback = function() library:ShowTerms() end})
 			local unloadSection = settingsTab:CreateSection({Name = "Menu"})
 			unloadSection:AddButton({Name = "Unload", Confirm = true, Tooltip = "Closes the menu and unloads everything.", Callback = function()
 				local terminate = library.__MobileTerminate
