@@ -1,4 +1,4 @@
-D3v1lHub - Dokumentation (Library v0.94)
+D3v1lHub - Dokumentation (Library v0.95)
 
 DATEIEN
    D3v1lLoader.lua   Entry point. Detects the device (PC or phone/tablet), shows Yes/No + "Detected device" + HWID + loading bar
@@ -63,7 +63,7 @@ GEMEINSAME ELEMENT-OPTIONEN (Toggle, Slider, Button, Label, Textbox, Dropdown, C
        -- Element is only visible while the condition holds (Dependency Box). An element object instead of a flag name is also allowed.
    Elements with SetLocked/Lock/Unlock additionally have SetDisabled/Disable/Enable (same function).
 
-Library v0.94 [
+Library v0.95 [
    CreateWindow: Function (
        (table | nil) Options [
            (string | nil) Name = "Window Name"

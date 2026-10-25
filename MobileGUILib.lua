@@ -43,7 +43,7 @@ local function addCorner(instance, radius)
 	return nil
 end
 local library = {
-	Version = "0.94 Mobile",
+	Version = "0.95 Mobile",
 	WorkspaceName = "D3v1lHub Lib",
 	flags = {},
 	signals = {},
@@ -751,51 +751,30 @@ function library:ShowLoadingScreen(options)
 		if type(backgroundAsset) == "string" and backgroundAsset ~= "" then
 			local BgAsset = Instance.new("ImageLabel")
 			BgAsset.Name = generateRandomName()
-			BgAsset.BackgroundTransparency = 1
-			BgAsset.ImageTransparency = backgroundTransparency
-			BgAsset.Image = backgroundAsset
-			BgAsset.Size = UDim2.new(1, 0, 1, 0)
-			BgAsset.ScaleType = Enum.ScaleType.Crop
-			BgAsset.ZIndex = 302
+			BgAsset.BackgroundTransparency, BgAsset.ImageTransparency, BgAsset.Image, BgAsset.Size = 1, backgroundTransparency, backgroundAsset, UDim2.new(1, 0, 1, 0)
+			BgAsset.ScaleType, BgAsset.ZIndex = Enum.ScaleType.Crop, 302
 			BgAsset.Parent = parentFrame
 		end
 	end
 	local ScreenGui = Instance.new("ScreenGui")
 	ScreenGui.Name = generateRandomName()
-	ScreenGui.IgnoreGuiInset = true
-	ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	ScreenGui.ResetOnSpawn = false
+	ScreenGui.IgnoreGuiInset, ScreenGui.ZIndexBehavior, ScreenGui.ResetOnSpawn = true, Enum.ZIndexBehavior.Sibling, false
 	if not protectAndParentGui(ScreenGui, library.gui_parent) then ScreenGui.Parent = library.gui_parent end
 	local Outer = Instance.new("Frame")
 	Outer.Name = generateRandomName()
-	Outer.BackgroundColor3 = Color3.new(0, 0, 0)
-	Outer.BorderColor3 = Color3.new(0, 0, 0)
-	Outer.BorderSizePixel = 1
-	Outer.AnchorPoint = Vector2.new(0.5, 0.5)
-	Outer.Position = UDim2.new(0.5, 0, 0.5, 0)
-	Outer.Size = UDim2.new(0, 0, 0, 0)
-	Outer.BackgroundTransparency = 1
-	Outer.ClipsDescendants = true
+	Outer.BackgroundColor3, Outer.BorderColor3, Outer.BorderSizePixel, Outer.AnchorPoint = Color3.new(0, 0, 0), Color3.new(0, 0, 0), 1, Vector2.new(0.5, 0.5)
+	Outer.Position, Outer.Size, Outer.BackgroundTransparency, Outer.ClipsDescendants = UDim2.new(0.5, 0, 0.5, 0), UDim2.new(0, 0, 0, 0), 1, true
 	Outer.ZIndex = 300
 	Outer.Parent = ScreenGui
 	local Inner = Instance.new("Frame")
 	Inner.Name = generateRandomName()
-	Inner.BackgroundColor3 = MainColor
-	Inner.BorderColor3 = Color3.new(0, 0, 0)
-	Inner.BorderSizePixel = 1
-	Inner.BorderMode = Enum.BorderMode.Inset
-	Inner.Size = UDim2.new(1, 0, 1, 0)
-	Inner.ClipsDescendants = true
-	Inner.ZIndex = 301
+	Inner.BackgroundColor3, Inner.BorderColor3, Inner.BorderSizePixel, Inner.BorderMode = MainColor, Color3.new(0, 0, 0), 1, Enum.BorderMode.Inset
+	Inner.Size, Inner.ClipsDescendants, Inner.ZIndex = UDim2.new(1, 0, 1, 0), true, 301
 	Inner.Parent = Outer
 	local InnerFrame = Instance.new("Frame")
 	InnerFrame.Name = generateRandomName()
-	InnerFrame.BackgroundColor3 = Color3.new(1, 1, 1)
-	InnerFrame.BorderSizePixel = 0
-	InnerFrame.Position = UDim2.new(0, 1, 0, 1)
-	InnerFrame.Size = UDim2.new(1, -2, 1, -2)
-	InnerFrame.ClipsDescendants = true
-	InnerFrame.ZIndex = 302
+	InnerFrame.BackgroundColor3, InnerFrame.BorderSizePixel, InnerFrame.Position, InnerFrame.Size = Color3.new(1, 1, 1), 0, UDim2.new(0, 1, 0, 1), UDim2.new(1, -2, 1, -2)
+	InnerFrame.ClipsDescendants, InnerFrame.ZIndex = true, 302
 	InnerFrame.Parent = Inner
 	applyBackground(InnerFrame)
 	local Gradient = Instance.new("UIGradient")
@@ -807,77 +786,43 @@ function library:ShowLoadingScreen(options)
 	Gradient.Parent = InnerFrame
 	local TitleContainer = Instance.new("Frame")
 	TitleContainer.Name = generateRandomName()
-	TitleContainer.BackgroundTransparency = 1
-	TitleContainer.AnchorPoint = Vector2.new(0.5, 0)
-	TitleContainer.Position = UDim2.new(0.5, 0, 0, 55)
-	TitleContainer.Size = UDim2.new(0, 0, 0, 25)
+	TitleContainer.BackgroundTransparency, TitleContainer.AnchorPoint, TitleContainer.Position, TitleContainer.Size = 1, Vector2.new(0.5, 0), UDim2.new(0.5, 0, 0, 55), UDim2.new(0, 0, 0, 25)
 	TitleContainer.ZIndex = 303
 	TitleContainer.Parent = InnerFrame
 	local TitleLayout = Instance.new("UIListLayout")
-	TitleLayout.FillDirection = Enum.FillDirection.Horizontal
-	TitleLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	TitleLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	TitleLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+	TitleLayout.FillDirection, TitleLayout.SortOrder, TitleLayout.HorizontalAlignment, TitleLayout.VerticalAlignment = Enum.FillDirection.Horizontal, Enum.SortOrder.LayoutOrder, Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Center
 	TitleLayout.Parent = TitleContainer
 	local TitlePart1Label = Instance.new("TextLabel")
 	TitlePart1Label.Name = generateRandomName()
-	TitlePart1Label.BackgroundTransparency = 1
-	TitlePart1Label.Size = UDim2.new(0, 0, 1, 0)
-	TitlePart1Label.AutomaticSize = Enum.AutomaticSize.X
-	TitlePart1Label.Font = Enum.Font.Code
-	TitlePart1Label.TextColor3 = Color3.new(1, 1, 1)
-	TitlePart1Label.TextSize = 15
-	TitlePart1Label.ZIndex = 303
-	TitlePart1Label.Text = titlePart1
+	TitlePart1Label.BackgroundTransparency, TitlePart1Label.Size, TitlePart1Label.AutomaticSize, TitlePart1Label.Font = 1, UDim2.new(0, 0, 1, 0), Enum.AutomaticSize.X, Enum.Font.Code
+	TitlePart1Label.TextColor3, TitlePart1Label.TextSize, TitlePart1Label.ZIndex, TitlePart1Label.Text = Color3.new(1, 1, 1), 15, 303, titlePart1
 	TitlePart1Label.LayoutOrder = 1
 	TitlePart1Label.Parent = TitleContainer
 	addTextStroke(TitlePart1Label)
 	local TitlePart2Label = Instance.new("TextLabel")
 	TitlePart2Label.Name = generateRandomName()
-	TitlePart2Label.BackgroundTransparency = 1
-	TitlePart2Label.Size = UDim2.new(0, 0, 1, 0)
-	TitlePart2Label.AutomaticSize = Enum.AutomaticSize.X
-	TitlePart2Label.Font = Enum.Font.Code
-	TitlePart2Label.TextColor3 = MainColor
-	TitlePart2Label.TextSize = 15
-	TitlePart2Label.ZIndex = 303
-	TitlePart2Label.Text = titlePart2
+	TitlePart2Label.BackgroundTransparency, TitlePart2Label.Size, TitlePart2Label.AutomaticSize, TitlePart2Label.Font = 1, UDim2.new(0, 0, 1, 0), Enum.AutomaticSize.X, Enum.Font.Code
+	TitlePart2Label.TextColor3, TitlePart2Label.TextSize, TitlePart2Label.ZIndex, TitlePart2Label.Text = MainColor, 15, 303, titlePart2
 	TitlePart2Label.LayoutOrder = 2
 	TitlePart2Label.Parent = TitleContainer
 	addTextStroke(TitlePart2Label)
 	local SubLabel = Instance.new("TextLabel")
 	SubLabel.Name = generateRandomName()
-	SubLabel.BackgroundTransparency = 1
-	SubLabel.Position = UDim2.new(0, 20, 0, 85)
-	SubLabel.Size = UDim2.new(1, -40, 0, 25)
-	SubLabel.Font = Enum.Font.Code
-	SubLabel.TextColor3 = Color3.fromRGB(200, 190, 220)
-	SubLabel.TextSize = 14
-	SubLabel.TextXAlignment = Enum.TextXAlignment.Center
-	SubLabel.ZIndex = 303
+	SubLabel.BackgroundTransparency, SubLabel.Position, SubLabel.Size, SubLabel.Font = 1, UDim2.new(0, 20, 0, 85), UDim2.new(1, -40, 0, 25), Enum.Font.Code
+	SubLabel.TextColor3, SubLabel.TextSize, SubLabel.TextXAlignment, SubLabel.ZIndex = Color3.fromRGB(200, 190, 220), 14, Enum.TextXAlignment.Center, 303
 	SubLabel.Text = confirmText
 	SubLabel.Parent = InnerFrame
 	addTextStroke(SubLabel)
 	local function createButton(text, posX)
 		local btnOuter = Instance.new("TextButton")
 		btnOuter.Name = generateRandomName()
-		btnOuter.AutoButtonColor = false
-		btnOuter.BackgroundColor3 = MainColor
-		btnOuter.BorderColor3 = Color3.new(0, 0, 0)
-		btnOuter.BorderSizePixel = 1
-		btnOuter.BorderMode = Enum.BorderMode.Inset
-		btnOuter.Position = UDim2.new(0, posX, 0, 265)
-		btnOuter.Size = UDim2.new(0, 153, 0, 34)
-		btnOuter.Text = ""
-		btnOuter.ClipsDescendants = true
-		btnOuter.ZIndex = 303
+		btnOuter.AutoButtonColor, btnOuter.BackgroundColor3, btnOuter.BorderColor3, btnOuter.BorderSizePixel = false, MainColor, Color3.new(0, 0, 0), 1
+		btnOuter.BorderMode, btnOuter.Position, btnOuter.Size, btnOuter.Text = Enum.BorderMode.Inset, UDim2.new(0, posX, 0, 265), UDim2.new(0, 153, 0, 34), ""
+		btnOuter.ClipsDescendants, btnOuter.ZIndex = true, 303
 		btnOuter.Parent = InnerFrame
 		local btnInner = Instance.new("Frame")
 		btnInner.Name = generateRandomName()
-		btnInner.BackgroundColor3 = library.colors.topGradient
-		btnInner.BorderSizePixel = 0
-		btnInner.Position = UDim2.new(0, 1, 0, 1)
-		btnInner.Size = UDim2.new(1, -2, 1, -2)
+		btnInner.BackgroundColor3, btnInner.BorderSizePixel, btnInner.Position, btnInner.Size = library.colors.topGradient, 0, UDim2.new(0, 1, 0, 1), UDim2.new(1, -2, 1, -2)
 		btnInner.ZIndex = 304
 		btnInner.Parent = btnOuter
 		local btnGrad = Instance.new("UIGradient")
@@ -889,13 +834,8 @@ function library:ShowLoadingScreen(options)
 		btnGrad.Parent = btnInner
 		local btnText = Instance.new("TextLabel")
 		btnText.Name = generateRandomName()
-		btnText.BackgroundTransparency = 1
-		btnText.Size = UDim2.new(1, 0, 1, 0)
-		btnText.Font = Enum.Font.Code
-		btnText.TextColor3 = Color3.fromRGB(200, 190, 220)
-		btnText.TextSize = 14
-		btnText.Text = text
-		btnText.ZIndex = 305
+		btnText.BackgroundTransparency, btnText.Size, btnText.Font, btnText.TextColor3 = 1, UDim2.new(1, 0, 1, 0), Enum.Font.Code, Color3.fromRGB(200, 190, 220)
+		btnText.TextSize, btnText.Text, btnText.ZIndex = 14, text, 305
 		btnText.Parent = btnInner
 		addTextStroke(btnText)
 		return btnOuter
@@ -913,40 +853,23 @@ function library:ShowLoadingScreen(options)
 		ScreenGui:Destroy()
 		local LoadGui = Instance.new("ScreenGui")
 		LoadGui.Name = generateRandomName()
-		LoadGui.IgnoreGuiInset = true
-		LoadGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-		LoadGui.ResetOnSpawn = false
+		LoadGui.IgnoreGuiInset, LoadGui.ZIndexBehavior, LoadGui.ResetOnSpawn = true, Enum.ZIndexBehavior.Sibling, false
 		if not protectAndParentGui(LoadGui, library.gui_parent) then LoadGui.Parent = library.gui_parent end
 		local LoadOuter = Instance.new("Frame")
 		LoadOuter.Name = generateRandomName()
-		LoadOuter.BackgroundColor3 = Color3.new(0, 0, 0)
-		LoadOuter.BorderColor3 = Color3.new(0, 0, 0)
-		LoadOuter.BorderSizePixel = 1
-		LoadOuter.AnchorPoint = Vector2.new(0.5, 0.5)
-		LoadOuter.Position = UDim2.new(0.5, 0, 0.5, 0)
-		LoadOuter.Size = UDim2.new(0, 0, 0, 0)
-		LoadOuter.BackgroundTransparency = 1
-		LoadOuter.ClipsDescendants = true
+		LoadOuter.BackgroundColor3, LoadOuter.BorderColor3, LoadOuter.BorderSizePixel, LoadOuter.AnchorPoint = Color3.new(0, 0, 0), Color3.new(0, 0, 0), 1, Vector2.new(0.5, 0.5)
+		LoadOuter.Position, LoadOuter.Size, LoadOuter.BackgroundTransparency, LoadOuter.ClipsDescendants = UDim2.new(0.5, 0, 0.5, 0), UDim2.new(0, 0, 0, 0), 1, true
 		LoadOuter.ZIndex = 300
 		LoadOuter.Parent = LoadGui
 		local LoadInner = Instance.new("Frame")
 		LoadInner.Name = generateRandomName()
-		LoadInner.BackgroundColor3 = MainColor
-		LoadInner.BorderColor3 = Color3.new(0, 0, 0)
-		LoadInner.BorderSizePixel = 1
-		LoadInner.BorderMode = Enum.BorderMode.Inset
-		LoadInner.Size = UDim2.new(1, 0, 1, 0)
-		LoadInner.ClipsDescendants = true
-		LoadInner.ZIndex = 301
+		LoadInner.BackgroundColor3, LoadInner.BorderColor3, LoadInner.BorderSizePixel, LoadInner.BorderMode = MainColor, Color3.new(0, 0, 0), 1, Enum.BorderMode.Inset
+		LoadInner.Size, LoadInner.ClipsDescendants, LoadInner.ZIndex = UDim2.new(1, 0, 1, 0), true, 301
 		LoadInner.Parent = LoadOuter
 		local LoadInnerFrame = Instance.new("Frame")
 		LoadInnerFrame.Name = generateRandomName()
-		LoadInnerFrame.BackgroundColor3 = Color3.new(1, 1, 1)
-		LoadInnerFrame.BorderSizePixel = 0
-		LoadInnerFrame.Position = UDim2.new(0, 1, 0, 1)
-		LoadInnerFrame.Size = UDim2.new(1, -2, 1, -2)
-		LoadInnerFrame.ClipsDescendants = true
-		LoadInnerFrame.ZIndex = 302
+		LoadInnerFrame.BackgroundColor3, LoadInnerFrame.BorderSizePixel, LoadInnerFrame.Position, LoadInnerFrame.Size = Color3.new(1, 1, 1), 0, UDim2.new(0, 1, 0, 1), UDim2.new(1, -2, 1, -2)
+		LoadInnerFrame.ClipsDescendants, LoadInnerFrame.ZIndex = true, 302
 		LoadInnerFrame.Parent = LoadInner
 		local LoadGrad = Instance.new("UIGradient")
 		LoadGrad.Color = ColorSequence.new({
@@ -958,35 +881,20 @@ function library:ShowLoadingScreen(options)
 		applyBackground(LoadInnerFrame)
 		local AvatarImage = Instance.new("ImageLabel")
 		AvatarImage.Name = generateRandomName()
-		AvatarImage.BackgroundTransparency = 1
-		AvatarImage.ImageTransparency = 1
-		AvatarImage.Position = UDim2.new(0, -50, 0, 15)
-		AvatarImage.Size = UDim2.new(0, 48, 0, 48)
+		AvatarImage.BackgroundTransparency, AvatarImage.ImageTransparency, AvatarImage.Position, AvatarImage.Size = 1, 1, UDim2.new(0, -50, 0, 15), UDim2.new(0, 48, 0, 48)
 		AvatarImage.ZIndex = 303
 		AvatarImage.Parent = LoadInnerFrame
 		local LoadTitle = Instance.new("TextLabel")
 		LoadTitle.Name = generateRandomName()
-		LoadTitle.BackgroundTransparency = 1
-		LoadTitle.Position = UDim2.new(0, 15, 0, 16)
-		LoadTitle.Size = UDim2.new(1, -30, 0, 20)
-		LoadTitle.Font = Enum.Font.Code
-		LoadTitle.TextColor3 = MainColor
-		LoadTitle.TextSize = 14
-		LoadTitle.TextXAlignment = Enum.TextXAlignment.Left
-		LoadTitle.ZIndex = 303
+		LoadTitle.BackgroundTransparency, LoadTitle.Position, LoadTitle.Size, LoadTitle.Font = 1, UDim2.new(0, 15, 0, 16), UDim2.new(1, -30, 0, 20), Enum.Font.Code
+		LoadTitle.TextColor3, LoadTitle.TextSize, LoadTitle.TextXAlignment, LoadTitle.ZIndex = MainColor, 14, Enum.TextXAlignment.Left, 303
 		LoadTitle.Text = loadingTitle
 		LoadTitle.Parent = LoadInnerFrame
 		addTextStroke(LoadTitle)
 		local LoadSub = Instance.new("TextLabel")
 		LoadSub.Name = generateRandomName()
-		LoadSub.BackgroundTransparency = 1
-		LoadSub.Position = UDim2.new(0, 15, 0, 42)
-		LoadSub.Size = UDim2.new(1, -30, 0, 20)
-		LoadSub.Font = Enum.Font.Code
-		LoadSub.TextColor3 = Color3.fromRGB(200, 190, 220)
-		LoadSub.TextSize = 13
-		LoadSub.TextXAlignment = Enum.TextXAlignment.Left
-		LoadSub.ZIndex = 303
+		LoadSub.BackgroundTransparency, LoadSub.Position, LoadSub.Size, LoadSub.Font = 1, UDim2.new(0, 15, 0, 42), UDim2.new(1, -30, 0, 20), Enum.Font.Code
+		LoadSub.TextColor3, LoadSub.TextSize, LoadSub.TextXAlignment, LoadSub.ZIndex = Color3.fromRGB(200, 190, 220), 13, Enum.TextXAlignment.Left, 303
 		LoadSub.Text = loadingSubText
 		LoadSub.Parent = LoadInnerFrame
 		addTextStroke(LoadSub)
@@ -994,68 +902,38 @@ function library:ShowLoadingScreen(options)
 		if showHWID then
 			local HwidStaticLabel = Instance.new("TextLabel")
 			HwidStaticLabel.Name = generateRandomName()
-			HwidStaticLabel.BackgroundTransparency = 1
-			HwidStaticLabel.Position = UDim2.new(0, 75, 0, 64)
-			HwidStaticLabel.Size = UDim2.new(0, 85, 0, 20)
-			HwidStaticLabel.Font = Enum.Font.Code
-			HwidStaticLabel.TextColor3 = Color3.fromRGB(150, 140, 170)
-			HwidStaticLabel.TextSize = 12
-			HwidStaticLabel.TextXAlignment = Enum.TextXAlignment.Left
-			HwidStaticLabel.ZIndex = 303
+			HwidStaticLabel.BackgroundTransparency, HwidStaticLabel.Position, HwidStaticLabel.Size, HwidStaticLabel.Font = 1, UDim2.new(0, 75, 0, 64), UDim2.new(0, 85, 0, 20), Enum.Font.Code
+			HwidStaticLabel.TextColor3, HwidStaticLabel.TextSize, HwidStaticLabel.TextXAlignment, HwidStaticLabel.ZIndex = Color3.fromRGB(150, 140, 170), 12, Enum.TextXAlignment.Left, 303
 			HwidStaticLabel.Text = "Your HWID: "
 			HwidStaticLabel.Parent = LoadInnerFrame
 			addTextStroke(HwidStaticLabel, 1)
 			HwidContainer = Instance.new("Frame")
 			HwidContainer.Name = generateRandomName()
-			HwidContainer.BackgroundTransparency = 1
-			HwidContainer.Position = UDim2.new(0, 160, 0, 64)
-			HwidContainer.Size = UDim2.new(1, -175, 0, 20)
-			HwidContainer.ClipsDescendants = true
+			HwidContainer.BackgroundTransparency, HwidContainer.Position, HwidContainer.Size, HwidContainer.ClipsDescendants = 1, UDim2.new(0, 160, 0, 64), UDim2.new(1, -175, 0, 20), true
 			HwidContainer.ZIndex = 303
 			HwidContainer.Parent = LoadInnerFrame
 			HwidValueLabel = Instance.new("TextLabel")
 			HwidValueLabel.Name = generateRandomName()
-			HwidValueLabel.BackgroundTransparency = 1
-			HwidValueLabel.Size = UDim2.new(2, 0, 1, 0)
-			HwidValueLabel.Font = Enum.Font.Code
-			HwidValueLabel.TextColor3 = Color3.fromRGB(200, 180, 240)
-			HwidValueLabel.TextSize = 12
-			HwidValueLabel.TextXAlignment = Enum.TextXAlignment.Left
-			HwidValueLabel.ZIndex = 303
-			HwidValueLabel.Text = getHWID()
+			HwidValueLabel.BackgroundTransparency, HwidValueLabel.Size, HwidValueLabel.Font, HwidValueLabel.TextColor3 = 1, UDim2.new(2, 0, 1, 0), Enum.Font.Code, Color3.fromRGB(200, 180, 240)
+			HwidValueLabel.TextSize, HwidValueLabel.TextXAlignment, HwidValueLabel.ZIndex, HwidValueLabel.Text = 12, Enum.TextXAlignment.Left, 303, getHWID()
 			HwidValueLabel.Parent = HwidContainer
 			addTextStroke(HwidValueLabel, 1)
 			local HwidNoteLabel = Instance.new("TextLabel")
 			HwidNoteLabel.Name = generateRandomName()
-			HwidNoteLabel.BackgroundTransparency = 1
-			HwidNoteLabel.Position = UDim2.new(0, 75, 0, 82)
-			HwidNoteLabel.Size = UDim2.new(1, -90, 0, 14)
-			HwidNoteLabel.Font = Enum.Font.Code
-			HwidNoteLabel.TextColor3 = Color3.fromRGB(110, 100, 130)
-			HwidNoteLabel.TextSize = 9
-			HwidNoteLabel.TextXAlignment = Enum.TextXAlignment.Left
-			HwidNoteLabel.ZIndex = 303
+			HwidNoteLabel.BackgroundTransparency, HwidNoteLabel.Position, HwidNoteLabel.Size, HwidNoteLabel.Font = 1, UDim2.new(0, 75, 0, 82), UDim2.new(1, -90, 0, 14), Enum.Font.Code
+			HwidNoteLabel.TextColor3, HwidNoteLabel.TextSize, HwidNoteLabel.TextXAlignment, HwidNoteLabel.ZIndex = Color3.fromRGB(110, 100, 130), 9, Enum.TextXAlignment.Left, 303
 			HwidNoteLabel.Text = "HWID is used to identify the Owner."
 			HwidNoteLabel.Parent = LoadInnerFrame
 			addTextStroke(HwidNoteLabel, 1)
 		end
 		local BarBg = Instance.new("Frame")
 		BarBg.Name = generateRandomName()
-		BarBg.BackgroundColor3 = Color3.fromRGB(10, 8, 15)
-		BarBg.BorderColor3 = Color3.new(0, 0, 0)
-		BarBg.BorderSizePixel = 1
-		BarBg.BorderMode = Enum.BorderMode.Inset
-		BarBg.Position = UDim2.new(0, 15, 0, 102)
-		BarBg.Size = UDim2.new(1, -30, 0, 8)
-		BarBg.ClipsDescendants = true
-		BarBg.ZIndex = 303
+		BarBg.BackgroundColor3, BarBg.BorderColor3, BarBg.BorderSizePixel, BarBg.BorderMode = Color3.fromRGB(10, 8, 15), Color3.new(0, 0, 0), 1, Enum.BorderMode.Inset
+		BarBg.Position, BarBg.Size, BarBg.ClipsDescendants, BarBg.ZIndex = UDim2.new(0, 15, 0, 102), UDim2.new(1, -30, 0, 8), true, 303
 		BarBg.Parent = LoadInnerFrame
 		local BarFill = Instance.new("Frame")
 		BarFill.Name = generateRandomName()
-		BarFill.BackgroundColor3 = Color3.new(1, 1, 1)
-		BarFill.BorderSizePixel = 0
-		BarFill.Size = UDim2.new(0, 0, 1, 0)
-		BarFill.ZIndex = 304
+		BarFill.BackgroundColor3, BarFill.BorderSizePixel, BarFill.Size, BarFill.ZIndex = Color3.new(1, 1, 1), 0, UDim2.new(0, 0, 1, 0), 304
 		BarFill.Parent = BarBg
 		local BarGrad = Instance.new("UIGradient")
 		BarGrad.Color = ColorSequence.new({
@@ -1557,7 +1435,13 @@ do
 		props.TextSize = props.TextSize or 13
 		props.TextColor3 = props.TextColor3 or C("elementText")
 		if props.Text == nil then props.Text = "" end
-		return new("TextButton", props, parent)
+		local btn = new("TextButton", props, parent)
+		local squish = new("UIScale", {Scale = 1}, btn)
+		btn.InputBegan:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then tweenService:Create(squish, TweenInfo.new(0.08), {Scale = 0.95}):Play() end
+		end)
+		btn.InputEnded:Connect(function() tweenService:Create(squish, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play() end)
+		return btn
 	end
 	local function pickArg(obj, a, b)
 		if b == nil and a ~= obj then return a end
@@ -1837,7 +1721,14 @@ do
 		local copyLabel = copyFooter()
 		task.spawn(function() while wait_check(6) and library.objects do if not copyLabel.Parent then copyLabel = copyFooter() end end end)
 		corner(main, 10)
-		new("UIStroke", {Color = C("main"), Thickness = 1, Transparency = 0.25, ApplyStrokeMode = Enum.ApplyStrokeMode.Border}, main)
+		local rim = new("UIStroke", {Color = C("main"), Thickness = 1, Transparency = 0.25, ApplyStrokeMode = Enum.ApplyStrokeMode.Border}, main)
+		tweenService:Create(rim, TweenInfo.new(2.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {Transparency = 0.7}):Play()
+		local decal = options.BackgroundAsset
+		if decal == nil then decal = "rbxassetid://133158046147209" elseif type(decal) == "number" then decal = "rbxassetid://" .. tostring(decal) end
+		if type(decal) == "string" and decal ~= "" then
+			corner(new("ImageLabel", {BackgroundTransparency = 1, Image = decal, ScaleType = Enum.ScaleType.Crop, ImageTransparency = tonumber(options.BackgroundTransparency) or 0.5, Size = UDim2.fromScale(1, 1), ZIndex = 0}, main), 10)
+			corner(new("Frame", {BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.5, BorderSizePixel = 0, Size = UDim2.fromScale(1, 1), ZIndex = 0}, main), 10)
+		end
 		library.MobileMain = main
 		local mainPop = new("UIScale", {Scale = 1}, main)
 		library.signals[1 + #library.signals] = main:GetPropertyChangedSignal("Visible"):Connect(function()
@@ -2061,9 +1952,14 @@ do
 			for _, t in ipairs(tabs) do
 				local active = (t == tab)
 				t.Page.Visible = active
-				t.Button.BackgroundColor3 = active and darkenColor(C("main"), 2.2) or C("topGradient")
-				t.Button.TextColor3 = active and C("elementText") or C("tabText")
+				tweenService:Create(t.Button, TweenInfo.new(0.2), {BackgroundColor3 = active and darkenColor(C("main"), 2.2) or C("topGradient"), TextColor3 = active and C("elementText") or C("tabText")}):Play()
 				t.Accent.Visible = active
+				if active then
+					t.Accent.Size = UDim2.new(0, 3, 0, 0)
+					tweenService:Create(t.Accent, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 3, 1, -14)}):Play()
+					t.Page.Position = t.Base + UDim2.fromOffset(20, 0)
+					tweenService:Create(t.Page, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Position = t.Base}):Play()
+				end
 			end
 			selectedTab = tab
 			windowFunctions.LastTab = tab.Functions
@@ -2104,7 +2000,7 @@ do
 				setBadge(text, color)
 			end
 			if tabOptions.Badge then setBadge(tabOptions.Badge, tabOptions.BadgeColor) end
-			local tabEntry = {Button = tabButton, Accent = accent, Page = page, Functions = tabFunctions}
+			local tabEntry = {Button = tabButton, Accent = accent, Page = page, Functions = tabFunctions, Base = page.Position}
 			tabs[1 + #tabs] = tabEntry
 			tabButton.Activated:Connect(function() selectTab(tabEntry) end)
 			function tabFunctions:Select() selectTab(tabEntry) end
@@ -2120,7 +2016,7 @@ do
 				pcall(DebugLog.Mark, DebugLog, "Mobile-Section: " .. tostring(sectionName))
 				pace(2)
 				sectionCount = sectionCount + 1
-				local sectionFrame = new("Frame", {Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = C("sectionBackground"), BorderSizePixel = 0, LayoutOrder = sectionCount}, page)
+				local sectionFrame = new("Frame", {Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = C("sectionBackground"), BackgroundTransparency = 0.2, BorderSizePixel = 0, LayoutOrder = sectionCount}, page)
 				corner(sectionFrame, 8)
 				new("UIPadding", {PaddingTop = UDim.new(0, 8), PaddingBottom = UDim.new(0, 8), PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8)}, sectionFrame)
 				new("UIListLayout", {Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder}, sectionFrame)

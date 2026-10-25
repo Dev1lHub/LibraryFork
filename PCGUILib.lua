@@ -1135,7 +1135,7 @@ function KeystrokesModule:Hide()
 end
 
 local library = {
-	Version = "0.94",
+	Version = "0.95",
 	WorkspaceName = "D3v1lHub Lib",
 	flags = {},
 	signals = {},
