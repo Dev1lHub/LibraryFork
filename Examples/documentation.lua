@@ -1,4 +1,4 @@
-D3v1lHub - Dokumentation (Library v0.93)
+D3v1lHub - Dokumentation (Library v0.94)
 
 DATEIEN
    D3v1lLoader.lua   Entry point. Detects the device (PC or phone/tablet), shows Yes/No + "Detected device" + HWID + loading bar
@@ -63,7 +63,7 @@ GEMEINSAME ELEMENT-OPTIONEN (Toggle, Slider, Button, Label, Textbox, Dropdown, C
        -- Element is only visible while the condition holds (Dependency Box). An element object instead of a flag name is also allowed.
    Elements with SetLocked/Lock/Unlock additionally have SetDisabled/Disable/Enable (same function).
 
-Library v0.93 [
+Library v0.94 [
    CreateWindow: Function (
        (table | nil) Options [
            (string | nil) Name = "Window Name"
@@ -74,7 +74,7 @@ Library v0.93 [
                (string | table | nil) Info = "Extra info displayed in designer" | Lines ["line 1", "line 2", "line 3", "and so on..."]
 (string | number | table | nil) Background/Backdrop/Grahpic = "rbxassetid://13337" | 13337 | Options [
 (string | number | nil) 1/Asset = "rbxassetid://13337" | 13337
-(number | nil) 2/Transparency = 0.5 | 50 // Both examples will make the backdrop half visible
+(number | nil) 2/Transparency = 0.5 | 50 // Both examples will make the backdrop half visible (PC: the menu shows the decal by default, darkened by a 55% black layer so buttons stay readable)
 (boolean | number | nil) 3/Visible = true or false | 1 or 0 // 1: true, 0: false
 ]
            ]

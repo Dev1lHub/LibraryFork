@@ -1135,7 +1135,7 @@ function KeystrokesModule:Hide()
 end
 
 local library = {
-	Version = "0.93",
+	Version = "0.94",
 	WorkspaceName = "D3v1lHub Lib",
 	flags = {},
 	signals = {},
@@ -4222,10 +4222,20 @@ function library:CreateWindow(options, ...)
 	innerBackdrop.BackgroundTransparency = 1
 	innerBackdrop.Size = UDim2.fromScale(1, 1)
 	innerBackdrop.ZIndex = -1
-	innerBackdrop.Visible = library_flags["__Designer.Background.UseBackgroundImage"] and true
+	innerBackdrop.Visible = library_flags["__Designer.Background.UseBackgroundImage"] ~= false
 	innerBackdrop.ImageColor3 = library_flags["__Designer.Background.ImageColor"] or Color3.new(1, 1, 1)
-	innerBackdrop.ImageTransparency = (library_flags["__Designer.Background.ImageTransparency"] or 95) / 100
-	innerBackdrop.Image = resolveid(library_flags["__Designer.Background.ImageAssetID"], "__Designer.Background.ImageAssetID") or ""
+	innerBackdrop.ImageTransparency = (library_flags["__Designer.Background.ImageTransparency"] or 50) / 100
+	innerBackdrop.ScaleType = Enum.ScaleType.Crop
+	innerBackdrop.Image = resolveid(library_flags["__Designer.Background.ImageAssetID"], "__Designer.Background.ImageAssetID") or "rbxassetid://133158046147209"
+	addCorner(innerBackdrop, 6)
+	do
+		local dim = Instance_new("Frame")
+		dim.Name = generateRandomName()
+		dim.BackgroundColor3, dim.BackgroundTransparency, dim.BorderSizePixel = Color3.new(0, 0, 0), 0.55, 0
+		dim.Size = UDim2.fromScale(1, 1)
+		addCorner(dim, 6)
+		dim.Parent = innerBackdrop
+	end
 	library.Backdrop = innerBackdrop
 
 	local function terminateGui()

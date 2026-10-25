@@ -43,7 +43,7 @@ local function addCorner(instance, radius)
 	return nil
 end
 local library = {
-	Version = "0.93 Mobile",
+	Version = "0.94 Mobile",
 	WorkspaceName = "D3v1lHub Lib",
 	flags = {},
 	signals = {},
