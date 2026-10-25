@@ -21,8 +21,7 @@ local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Dev1l
 --   getgenv().D3v1lLoaderOptions = {
 --       RequiredFunctions = { "hookfunction", getconnections = "used by my auto farm" },
 --       KnownUnsupported = { xeno = { "hookmetamethod" } },   -- your own list per executor name
---       ExecutorWarning = false,                              -- turn the warning off
---       AntiTamper = "block"                                   -- recommended: warns on hooked loadstring/HttpGet, closes the GUI if they change later ("off" | "warn" | "block" | "strict")
+--       ExecutorWarning = false                                -- turn the warning off
 --   }
 --   After loading: library.Executor.Name / .Missing / .Supported, library:CheckExecutor({"firesignal"})
 --

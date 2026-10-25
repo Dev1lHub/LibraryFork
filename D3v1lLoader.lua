@@ -770,53 +770,6 @@ do
 	isMobile = (ok and result == true) and true or false
 end
 
-local AntiTamper = {Mode = "block", Suspicious = {}}
-do
-	local userOptions = genv.D3v1lLoaderOptions
-	local mode = type(userOptions) == "table" and userOptions.AntiTamper
-	if mode == false then
-		mode = "off"
-	end
-	if mode == "off" or mode == "warn" or mode == "block" or mode == "strict" then
-		AntiTamper.Mode = mode
-	end
-	local baseLoadstring = loadstring
-	local baseHttpGet = nil
-	pcall(function()
-		baseHttpGet = game.HttpGet
-	end)
-	local function looksHooked(fn)
-		if type(fn) ~= "function" then
-			return false
-		end
-		local okL, isLua = pcall(function()
-			return typeof(islclosure) == "function" and islclosure(fn)
-		end)
-		if not (okL and isLua == true) then
-			return false
-		end
-		local okS, src = pcall(debug.info, fn, "s")
-		return okS and src ~= "[C]"
-	end
-	if AntiTamper.Mode ~= "off" then
-		if looksHooked(baseLoadstring) then
-			AntiTamper.Suspicious[1 + #AntiTamper.Suspicious] = "loadstring"
-		end
-		if looksHooked(baseHttpGet) then
-			AntiTamper.Suspicious[1 + #AntiTamper.Suspicious] = "HttpGet"
-		end
-	end
-	function AntiTamper.Changed()
-		if not rawequal(loadstring, baseLoadstring) then
-			return true
-		end
-		local okH, current = pcall(function()
-			return game.HttpGet
-		end)
-		return okH and not rawequal(current, baseHttpGet)
-	end
-end
-
 local source, downloadError, downloadDone = nil, nil, false
 local function download(url)
 	local ok, res = pcall(function()
@@ -828,11 +781,6 @@ local function download(url)
 	return nil, "Download failed (" .. url .. "): " .. tostring(res)
 end
 task.spawn(function()
-	if AntiTamper.Mode == "strict" and #AntiTamper.Suspicious > 0 then
-		downloadError = "Blocked: script hooks detected (" .. table.concat(AntiTamper.Suspicious, ", ") .. ")"
-		downloadDone = true
-		return
-	end
 	source, downloadError = download(isMobile and MOBILE_URL or PC_URL)
 	if not source and not isMobile then
 
@@ -1065,10 +1013,6 @@ if loaderOptions.ExecutorWarning ~= false then
 else
 	loaderOptions.ExecutorWarningText = nil
 end
-if AntiTamper.Mode ~= "off" and #AntiTamper.Suspicious > 0 then
-	local hookText = "Possible script hooks detected on: " .. table.concat(AntiTamper.Suspicious, ", ") .. ". If you did not install a logger yourself, your executor may be modified."
-	loaderOptions.ExecutorWarningText = (loaderOptions.ExecutorWarningText and (loaderOptions.ExecutorWarningText .. "\n\n" .. hookText)) or hookText
-end
 if loaderOptions.MobileWarning == nil then
 	loaderOptions.MobileWarning = isMobile
 end
@@ -1146,23 +1090,6 @@ loadedLibrary.CheckExecutor = function(self, list)
 		list = self
 	end
 	return ExecutorCheck.Run(list)
-end
-if AntiTamper.Mode ~= "off" then
-	AntiTamper.OnTrip = function()
-		if AntiTamper.Mode == "warn" then
-			pcall(loadedLibrary.Notify, loadedLibrary, {Text = "Script hook detected (loadstring/HttpGet changed).", Type = "error", Time = 6})
-		else
-			local terminate = genv.D3v1lHub_ActiveTerminate
-			if type(terminate) == "function" then
-				pcall(terminate)
-			else
-				pcall(loadedLibrary.unload)
-			end
-		end
-	end
-	if AntiTamper.Tripped then
-		task.spawn(AntiTamper.OnTrip)
-	end
 end
 loadedLibrary.__ld = string.char(unpack({68,51,86,49,76,45,79,87,78,45,50,48,50,54,45,56,70,50,65,45,67,52,49,68,45,76,68}))
 loadedLibrary.__ldid = "D3v1lHub​‌​​​‌​​​​‌‌​​‌‌​‌​‌​‌‌​​​‌‌​​​‌​‌​​‌‌​​​​‌​‌‌​‌​‌​​‌‌‌‌​‌​‌​‌‌‌​‌​​‌‌‌​​​‌​‌‌​‌​​‌‌​​‌​​​‌‌​​​​​​‌‌​​‌​​​‌‌​‌‌​​​‌​‌‌​‌​​‌‌‌​​​​‌​​​‌‌​​​‌‌​​‌​​‌​​​​​‌​​‌​‌‌​‌​‌​​​​‌‌​​‌‌​‌​​​​‌‌​​​‌​‌​​​‌​​​​‌​‌‌​‌​‌​​‌‌​​​‌​​​‌​​"
