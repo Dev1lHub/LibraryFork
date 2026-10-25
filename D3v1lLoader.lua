@@ -1148,26 +1148,21 @@ loadedLibrary.CheckExecutor = function(self, list)
 	return ExecutorCheck.Run(list)
 end
 if AntiTamper.Mode ~= "off" then
-	task.spawn(function()
-		while task.wait(15) do
-			if loadedLibrary.LoadedVersion == nil then
-				break
-			end
-			if AntiTamper.Changed() then
-				if AntiTamper.Mode == "warn" then
-					pcall(loadedLibrary.Notify, loadedLibrary, {Text = "Script hook detected (loadstring/HttpGet changed).", Type = "error", Time = 6})
-				else
-					local terminate = genv.D3v1lHub_ActiveTerminate
-					if type(terminate) == "function" then
-						pcall(terminate)
-					else
-						pcall(loadedLibrary.unload)
-					end
-				end
-				break
+	AntiTamper.OnTrip = function()
+		if AntiTamper.Mode == "warn" then
+			pcall(loadedLibrary.Notify, loadedLibrary, {Text = "Script hook detected (loadstring/HttpGet changed).", Type = "error", Time = 6})
+		else
+			local terminate = genv.D3v1lHub_ActiveTerminate
+			if type(terminate) == "function" then
+				pcall(terminate)
+			else
+				pcall(loadedLibrary.unload)
 			end
 		end
-	end)
+	end
+	if AntiTamper.Tripped then
+		task.spawn(AntiTamper.OnTrip)
+	end
 end
 loadedLibrary.__ld = string.char(unpack({68,51,86,49,76,45,79,87,78,45,50,48,50,54,45,56,70,50,65,45,67,52,49,68,45,76,68}))
 loadedLibrary.__ldid = "D3v1lHub​‌​​​‌​​​​‌‌​​‌‌​‌​‌​‌‌​​​‌‌​​​‌​‌​​‌‌​​​​‌​‌‌​‌​‌​​‌‌‌‌​‌​‌​‌‌‌​‌​​‌‌‌​​​‌​‌‌​‌​​‌‌​​‌​​​‌‌​​​​​​‌‌​​‌​​​‌‌​‌‌​​​‌​‌‌​‌​​‌‌‌​​​​‌​​​‌‌​​​‌‌​​‌​​‌​​​​​‌​​‌​‌‌​‌​‌​​​​‌‌​​‌‌​‌​​​​‌‌​​​‌​‌​​​‌​​​​‌​‌‌​‌​‌​​‌‌​​​‌​​​‌​​"
