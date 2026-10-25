@@ -142,7 +142,7 @@ local function startAmbience()
 		for _, edge in ipairs({{UDim2.new(1, 0, 0.3, 0), UDim2.new(0, 0, 0, 0), 90}, {UDim2.new(1, 0, 0.3, 0), UDim2.new(0, 0, 0.7, 0), -90}, {UDim2.new(0.22, 0, 1, 0), UDim2.new(0, 0, 0, 0), 0}, {UDim2.new(0.22, 0, 1, 0), UDim2.new(0.78, 0, 0, 0), 180}}) do
 			local shade = Instance.new("Frame")
 			shade.Name = generateRandomName()
-			shade.BackgroundColor3 = Color3.new(0, 0, 0)
+			shade.BackgroundColor3 = dim.BackgroundColor3
 			shade.BorderSizePixel = 0
 			shade.Size, shade.Position = edge[1], edge[2]
 			local fade = Instance.new("UIGradient")
@@ -160,26 +160,43 @@ local function startAmbience()
 				return math.random(low, high)
 			end
 		}
+		local theme = (library.colors and library.colors.main) or Color3.fromRGB(170, 90, 255)
+		dim.BackgroundColor3 = theme:Lerp(Color3.new(0, 0, 0), 0.94)
+		local layers = {
+			{size = {2, 3}, tint = 0.1, alpha = 0.62, speed = 0.55, depth = 0.25, share = 0.4},
+			{size = {3, 5}, tint = 0.22, alpha = 0.4, speed = 1, depth = 0.6, share = 0.4},
+			{size = {6, 9}, tint = 0.4, alpha = 0.22, speed = 1.7, depth = 1.2, share = 0.2}
+		}
+		local total = UserInputService.TouchEnabled and 16 or 30
 		local flakes = {}
-		for i = 1, UserInputService.TouchEnabled and 16 or 30 do
-			local size = rng:NextInteger(2, 6)
-			local frame = Instance.new("Frame")
-			frame.Name = generateRandomName()
-			frame.BackgroundColor3 = Color3.new(1, 1, 1)
-			frame.BackgroundTransparency = math.clamp(0.78 - size * 0.1 + rng:NextNumber() * 0.15, 0.1, 0.85)
-			frame.BorderSizePixel = 0
-			frame.Size = UDim2.fromOffset(size, size)
-			frame.ZIndex = 2
-			local round = Instance.new("UICorner")
-			round.CornerRadius = UDim.new(1, 0)
-			round.Parent = frame
-			frame.Parent = gui
-			flakes[i] = {frame = frame, x = rng:NextNumber(), y = rng:NextNumber() * 720, depth = size / 6, speed = 28 + size * 13 + rng:NextNumber() * 14, amp = rng:NextNumber() * 18 + 6, freq = rng:NextNumber() * 1.2 + 0.6, phase = rng:NextNumber() * 6.28}
+		for _, layer in ipairs(layers) do
+			for i = 1, math.max(1, math.floor(total * layer.share + 0.5)) do
+				local size = rng:NextInteger(layer.size[1], layer.size[2])
+				local frame = Instance.new("Frame")
+				frame.Name = generateRandomName()
+				frame.BackgroundColor3 = Color3.new(1, 1, 1):Lerp(theme, layer.tint)
+				frame.BackgroundTransparency = layer.alpha + rng:NextNumber() * 0.12
+				frame.BorderSizePixel = 0
+				frame.Size = UDim2.fromOffset(size, size)
+				frame.ZIndex = 2
+				local round = Instance.new("UICorner")
+				round.CornerRadius = UDim.new(1, 0)
+				round.Parent = frame
+				if layer.depth > 1 then
+					local halo = Instance.new("UIStroke")
+					halo.Color = theme
+					halo.Thickness = 1.5
+					halo.Transparency = 0.65
+					halo.Parent = frame
+				end
+				frame.Parent = gui
+				flakes[1 + #flakes] = {frame = frame, x = rng:NextNumber(), y = rng:NextNumber() * 720, depth = layer.depth, speed = (28 + size * 9 + rng:NextNumber() * 14) * layer.speed, amp = (rng:NextNumber() * 14 + 5) * layer.depth, freq = rng:NextNumber() * 1.2 + 0.6, phase = rng:NextNumber() * 6.28}
+			end
 		end
 		local clock = 0
 		local conn = runService.Heartbeat:Connect(function(dt)
 			clock = clock + dt
-			local wind = math.sin(clock * 0.35) * 40
+			local wind = math.sin(clock * 0.35) * 40 + math.sin(clock * 1.3) * 12
 			local area = gui.AbsoluteSize
 			if area.X < 10 then
 				area = Vector2.new(1280, 720)
@@ -571,6 +588,31 @@ function library:ShowLoadingScreen(options)
 		end)
 		btnOuter.MouseButton1Down:Connect(function()
 			ease(0.94, Color3.new(1, 1, 1), hoverBorder, 0.08)
+			pcall(function()
+				local mouse = UserInputService:GetMouseLocation()
+				local origin = btnOuter.AbsolutePosition
+				local size = btnOuter.AbsoluteSize
+				local px = math.clamp(mouse.X - origin.X, 0, size.X)
+				local py = math.clamp(mouse.Y - origin.Y, 0, size.Y)
+				local ripple = Instance.new("Frame")
+				ripple.Name = generateRandomName()
+				ripple.AnchorPoint = Vector2.new(0.5, 0.5)
+				ripple.BackgroundColor3 = Color3.new(1, 1, 1)
+				ripple.BackgroundTransparency = 0.6
+				ripple.BorderSizePixel = 0
+				ripple.Position = UDim2.fromOffset(px, py)
+				ripple.Size = UDim2.fromOffset(0, 0)
+				ripple.ZIndex = zb + 3
+				local round = Instance.new("UICorner")
+				round.CornerRadius = UDim.new(1, 0)
+				round.Parent = ripple
+				ripple.Parent = btnOuter
+				local reach = math.max(size.X, size.Y) * 2.2
+				tweenService:Create(ripple, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.fromOffset(reach, reach), BackgroundTransparency = 1}):Play()
+				task.delay(0.55, function()
+					ripple:Destroy()
+				end)
+			end)
 		end)
 		btnOuter.MouseButton1Up:Connect(function()
 			ease(1.05, Color3.new(1, 1, 1), hoverBorder, 0.12)
@@ -592,6 +634,18 @@ function library:ShowLoadingScreen(options)
 		glow.Transparency = 0.8
 		glow.Parent = Outer
 		tweenService:Create(glow, TweenInfo.new(1.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {Transparency = 0.2}):Play()
+		local sweep = Instance.new("UIGradient")
+		sweep.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, MainColor),
+			ColorSequenceKeypoint.new(0.5, MainColor:Lerp(Color3.new(1, 1, 1), 0.7)),
+			ColorSequenceKeypoint.new(1, MainColor)
+		})
+		sweep.Parent = glow
+		tweenService:Create(sweep, TweenInfo.new(5, Enum.EasingStyle.Linear, Enum.EasingDirection.In, -1), {Rotation = 360}):Play()
+		task.wait(0.5)
+		if Outer.Parent then
+			tweenService:Create(Outer, TweenInfo.new(2.4, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {Position = UDim2.new(0.5, 0, 0.5, -4)}):Play()
+		end
 	end)
 
 	local function startLoadingSequence()
@@ -810,7 +864,11 @@ function library:ShowLoadingScreen(options)
 			local loadTween = tweenService:Create(BarFill, TweenInfo.new(1.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Size = UDim2.new(1, 0, 1, 0)})
 			loadTween:Play()
 			local percentConn = runService.Heartbeat:Connect(function()
-				PercentLabel.Text = math.floor(BarFill.Size.X.Scale * 100 + 0.5) .. "%"
+				local percent = math.floor(BarFill.Size.X.Scale * 100 + 0.5)
+				PercentLabel.Text = percent .. "%"
+				if not options.LoadingSubText then
+					LoadSub.Text = (percent < 35 and "Preparing environment...") or (percent < 75 and "Loading scripts and assets...") or "Almost done..."
+				end
 			end)
 			loadTween.Completed:Wait()
 			percentConn:Disconnect()
