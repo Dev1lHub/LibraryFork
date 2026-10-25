@@ -138,6 +138,20 @@ local function startAmbience()
 		dim.Active = true
 		dim.Parent = gui
 		tweenService:Create(dim, TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = 0.22}):Play()
+		local edges = {}
+		for _, edge in ipairs({{UDim2.new(1, 0, 0.3, 0), UDim2.new(0, 0, 0, 0), 90}, {UDim2.new(1, 0, 0.3, 0), UDim2.new(0, 0, 0.7, 0), -90}, {UDim2.new(0.22, 0, 1, 0), UDim2.new(0, 0, 0, 0), 0}, {UDim2.new(0.22, 0, 1, 0), UDim2.new(0.78, 0, 0, 0), 180}}) do
+			local shade = Instance.new("Frame")
+			shade.Name = generateRandomName()
+			shade.BackgroundColor3 = Color3.new(0, 0, 0)
+			shade.BorderSizePixel = 0
+			shade.Size, shade.Position = edge[1], edge[2]
+			local fade = Instance.new("UIGradient")
+			fade.Rotation = edge[3]
+			fade.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0.35), NumberSequenceKeypoint.new(1, 1)})
+			fade.Parent = shade
+			shade.Parent = gui
+			edges[1 + #edges] = shade
+		end
 		local rng = (typeof(Random) == "table" or typeof(Random) == "userdata") and Random.new() or {
 			NextNumber = function()
 				return math.random()
@@ -152,7 +166,7 @@ local function startAmbience()
 			local frame = Instance.new("Frame")
 			frame.Name = generateRandomName()
 			frame.BackgroundColor3 = Color3.new(1, 1, 1)
-			frame.BackgroundTransparency = 0.2 + rng:NextNumber() * 0.5
+			frame.BackgroundTransparency = math.clamp(0.78 - size * 0.1 + rng:NextNumber() * 0.15, 0.1, 0.85)
 			frame.BorderSizePixel = 0
 			frame.Size = UDim2.fromOffset(size, size)
 			frame.ZIndex = 2
@@ -160,11 +174,12 @@ local function startAmbience()
 			round.CornerRadius = UDim.new(1, 0)
 			round.Parent = frame
 			frame.Parent = gui
-			flakes[i] = {frame = frame, x = rng:NextNumber(), y = rng:NextNumber() * 720, speed = 28 + size * 13 + rng:NextNumber() * 14, amp = rng:NextNumber() * 18 + 6, freq = rng:NextNumber() * 1.2 + 0.6, phase = rng:NextNumber() * 6.28}
+			flakes[i] = {frame = frame, x = rng:NextNumber(), y = rng:NextNumber() * 720, depth = size / 6, speed = 28 + size * 13 + rng:NextNumber() * 14, amp = rng:NextNumber() * 18 + 6, freq = rng:NextNumber() * 1.2 + 0.6, phase = rng:NextNumber() * 6.28}
 		end
 		local clock = 0
 		local conn = runService.Heartbeat:Connect(function(dt)
 			clock = clock + dt
+			local wind = math.sin(clock * 0.35) * 40
 			local area = gui.AbsoluteSize
 			if area.X < 10 then
 				area = Vector2.new(1280, 720)
@@ -174,7 +189,7 @@ local function startAmbience()
 				if flake.y > area.Y + 10 then
 					flake.y, flake.x = -10, rng:NextNumber()
 				end
-				flake.frame.Position = UDim2.fromOffset(flake.x * area.X + math.sin(clock * flake.freq + flake.phase) * flake.amp, flake.y)
+				flake.frame.Position = UDim2.fromOffset(flake.x * area.X + math.sin(clock * flake.freq + flake.phase) * flake.amp + wind * flake.depth, flake.y)
 			end
 		end)
 		local stopped = false
@@ -184,6 +199,11 @@ local function startAmbience()
 			end
 			stopped = true
 			conn:Disconnect()
+			for _, shade in ipairs(edges) do
+				pcall(function()
+					shade:Destroy()
+				end)
+			end
 			tweenService:Create(dim, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {BackgroundTransparency = 1}):Play()
 			for _, flake in ipairs(flakes) do
 				tweenService:Create(flake.frame, TweenInfo.new(0.4), {BackgroundTransparency = 1}):Play()
@@ -459,6 +479,31 @@ function library:ShowLoadingScreen(options)
 		end
 	end
 
+	task.spawn(function()
+		local shine = Instance.new("UIGradient")
+		shine.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, MainColor),
+			ColorSequenceKeypoint.new(0.5, MainColor:Lerp(Color3.new(1, 1, 1), 0.8)),
+			ColorSequenceKeypoint.new(1, MainColor)
+		})
+		shine.Offset = Vector2.new(-1, 0)
+		TitlePart2Label.TextColor3 = Color3.new(1, 1, 1)
+		shine.Parent = TitlePart2Label
+		tweenService:Create(shine, TweenInfo.new(1.4, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, false, 1.6), {Offset = Vector2.new(1, 0)}):Play()
+		local full = SubLabel.Text
+		SubLabel.Text = ""
+		task.wait(0.35)
+		local total = utf8.len(full) or #full
+		for i = 1, total do
+			if not SubLabel.Parent then
+				return
+			end
+			SubLabel.Text = string.sub(full, 1, (utf8.offset(full, i + 1) or (#full + 1)) - 1)
+			task.wait(0.018)
+		end
+		SubLabel.Text = full
+	end)
+
 	local function createButton(text, posX, parent, zb)
 		zb = zb or 303
 		local btnOuter = Instance.new("TextButton")
@@ -726,6 +771,33 @@ function library:ShowLoadingScreen(options)
 		BarGrad.Rotation = 90
 		BarGrad.Parent = BarFill
 
+		local PercentLabel = Instance.new("TextLabel")
+		PercentLabel.Name = generateRandomName()
+		PercentLabel.BackgroundTransparency = 1
+		PercentLabel.AnchorPoint = Vector2.new(1, 0)
+		PercentLabel.Position = UDim2.new(1, -15, 0, 84)
+		PercentLabel.Size = UDim2.new(0, 50, 0, 14)
+		PercentLabel.Font = Enum.Font.Code
+		PercentLabel.TextColor3 = Color3.fromRGB(200, 190, 220)
+		PercentLabel.TextSize = 11
+		PercentLabel.TextXAlignment = Enum.TextXAlignment.Right
+		PercentLabel.ZIndex = 303
+		PercentLabel.Text = "0%"
+		PercentLabel.Parent = LoadInnerFrame
+
+		local BarShine = Instance.new("Frame")
+		BarShine.Name = generateRandomName()
+		BarShine.BackgroundColor3 = Color3.new(1, 1, 1)
+		BarShine.BorderSizePixel = 0
+		BarShine.Position = UDim2.new(-0.25, 0, 0, 0)
+		BarShine.Size = UDim2.new(0.25, 0, 1, 0)
+		BarShine.ZIndex = 305
+		BarShine.Parent = BarBg
+		local ShineGrad = Instance.new("UIGradient")
+		ShineGrad.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.5, 0.55), NumberSequenceKeypoint.new(1, 1)})
+		ShineGrad.Parent = BarShine
+		tweenService:Create(BarShine, TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1), {Position = UDim2.new(1, 0, 0, 0)}):Play()
+
 		task.spawn(function()
 			local openLoad = tweenService:Create(LoadOuter, TweenInfo.new(0.45, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(0, 380, 0, 138)})
 			openLoad:Play()
@@ -737,7 +809,12 @@ function library:ShowLoadingScreen(options)
 
 			local loadTween = tweenService:Create(BarFill, TweenInfo.new(1.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Size = UDim2.new(1, 0, 1, 0)})
 			loadTween:Play()
+			local percentConn = runService.Heartbeat:Connect(function()
+				PercentLabel.Text = math.floor(BarFill.Size.X.Scale * 100 + 0.5) .. "%"
+			end)
 			loadTween.Completed:Wait()
+			percentConn:Disconnect()
+			PercentLabel.Text = "100%"
 
 			if options.WaitUntil then
 				options.WaitUntil(LoadSub)
@@ -751,6 +828,8 @@ function library:ShowLoadingScreen(options)
 				tweenService:Create(BarBg, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(0, 75, 0, 102), Size = UDim2.new(1, -90, 0, 8)}):Play()
 			end
 
+			PercentLabel:Destroy()
+			BarShine:Destroy()
 			LoadTitle.Text = "Welcome, " .. LP.Name .. "!"
 			LoadSub.Text = welcomeSubText
 
