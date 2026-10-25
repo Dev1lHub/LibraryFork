@@ -5,6 +5,7 @@ local MOBILE_URL = BASE_URL .. "MobileGUILib.lua"
 local playersservice = game:GetService("Players")
 local tweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local runService = game:GetService("RunService")
 local LP = playersservice.LocalPlayer
 local genv = (typeof(getgenv) == "function" and getgenv()) or {}
 
@@ -116,10 +117,105 @@ local function DetectMobile()
 	return touchEnabled and not mouseEnabled
 end
 
+local function startAmbience()
+	local amb = {Stop = function() end}
+	pcall(function()
+		local gui = Instance.new("ScreenGui")
+		gui.Name = generateRandomName()
+		gui.IgnoreGuiInset = true
+		gui.DisplayOrder = 0
+		gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+		gui.ResetOnSpawn = false
+		if not protectAndParentGui(gui, library.gui_parent) then
+			gui.Parent = library.gui_parent
+		end
+		local dim = Instance.new("Frame")
+		dim.Name = generateRandomName()
+		dim.BackgroundColor3 = Color3.fromRGB(4, 3, 10)
+		dim.BackgroundTransparency = 1
+		dim.BorderSizePixel = 0
+		dim.Size = UDim2.new(1, 0, 1, 0)
+		dim.Active = true
+		dim.Parent = gui
+		tweenService:Create(dim, TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = 0.22}):Play()
+		local rng = (typeof(Random) == "table" or typeof(Random) == "userdata") and Random.new() or {
+			NextNumber = function()
+				return math.random()
+			end,
+			NextInteger = function(_, low, high)
+				return math.random(low, high)
+			end
+		}
+		local flakes = {}
+		for i = 1, UserInputService.TouchEnabled and 16 or 30 do
+			local size = rng:NextInteger(2, 6)
+			local frame = Instance.new("Frame")
+			frame.Name = generateRandomName()
+			frame.BackgroundColor3 = Color3.new(1, 1, 1)
+			frame.BackgroundTransparency = 0.2 + rng:NextNumber() * 0.5
+			frame.BorderSizePixel = 0
+			frame.Size = UDim2.fromOffset(size, size)
+			frame.ZIndex = 2
+			local round = Instance.new("UICorner")
+			round.CornerRadius = UDim.new(1, 0)
+			round.Parent = frame
+			frame.Parent = gui
+			flakes[i] = {frame = frame, x = rng:NextNumber(), y = rng:NextNumber() * 720, speed = 28 + size * 13 + rng:NextNumber() * 14, amp = rng:NextNumber() * 18 + 6, freq = rng:NextNumber() * 1.2 + 0.6, phase = rng:NextNumber() * 6.28}
+		end
+		local clock = 0
+		local conn = runService.Heartbeat:Connect(function(dt)
+			clock = clock + dt
+			local area = gui.AbsoluteSize
+			if area.X < 10 then
+				area = Vector2.new(1280, 720)
+			end
+			for _, flake in ipairs(flakes) do
+				flake.y = flake.y + flake.speed * dt
+				if flake.y > area.Y + 10 then
+					flake.y, flake.x = -10, rng:NextNumber()
+				end
+				flake.frame.Position = UDim2.fromOffset(flake.x * area.X + math.sin(clock * flake.freq + flake.phase) * flake.amp, flake.y)
+			end
+		end)
+		local stopped = false
+		amb.Stop = function()
+			if stopped then
+				return
+			end
+			stopped = true
+			conn:Disconnect()
+			tweenService:Create(dim, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {BackgroundTransparency = 1}):Play()
+			for _, flake in ipairs(flakes) do
+				tweenService:Create(flake.frame, TweenInfo.new(0.4), {BackgroundTransparency = 1}):Play()
+			end
+			task.delay(0.7, function()
+				pcall(function()
+					gui:Destroy()
+				end)
+			end)
+		end
+	end)
+	return amb
+end
+
 function library:ShowLoadingScreen(options)
 	options = options or {}
 	local onAccept = options.OnAccept or options.Callback
 	local onDecline = options.OnDecline
+	local ambience = startAmbience()
+	local rawAccept, rawDecline = onAccept, onDecline
+	onAccept = function()
+		ambience.Stop()
+		if rawAccept then
+			rawAccept()
+		end
+	end
+	onDecline = function()
+		ambience.Stop()
+		if rawDecline then
+			rawDecline()
+		end
+	end
 	local soundService = game:GetService("SoundService")
 
 	local backgroundTransparency = tonumber(options.BackgroundTransparency)
@@ -200,6 +296,7 @@ function library:ShowLoadingScreen(options)
 	local ScreenGui = Instance.new("ScreenGui")
 	ScreenGui.Name = generateRandomName()
 	ScreenGui.IgnoreGuiInset = true
+	ScreenGui.DisplayOrder = 1
 	ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	ScreenGui.ResetOnSpawn = false
 	if not protectAndParentGui(ScreenGui, library.gui_parent) then
@@ -407,6 +504,33 @@ function library:ShowLoadingScreen(options)
 		btnText.Parent = btnInner
 		addTextStroke(btnText)
 
+		local pop = Instance.new("UIScale")
+		pop.Scale = 0.6
+		pop.Parent = btnOuter
+		btnOuter.Visible = false
+		task.delay(0.3 + posX / 1500, function()
+			btnOuter.Visible = true
+			tweenService:Create(pop, TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+		end)
+		local function ease(scale, textColor, borderColor, dur)
+			tweenService:Create(pop, TweenInfo.new(dur, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Scale = scale}):Play()
+			tweenService:Create(btnText, TweenInfo.new(dur), {TextColor3 = textColor}):Play()
+			tweenService:Create(btnOuter, TweenInfo.new(dur), {BackgroundColor3 = borderColor}):Play()
+		end
+		local hoverBorder = MainColor:Lerp(Color3.new(1, 1, 1), 0.35)
+		btnOuter.MouseEnter:Connect(function()
+			ease(1.05, Color3.new(1, 1, 1), hoverBorder, 0.15)
+		end)
+		btnOuter.MouseLeave:Connect(function()
+			ease(1, Color3.fromRGB(200, 190, 220), MainColor, 0.2)
+		end)
+		btnOuter.MouseButton1Down:Connect(function()
+			ease(0.94, Color3.new(1, 1, 1), hoverBorder, 0.08)
+		end)
+		btnOuter.MouseButton1Up:Connect(function()
+			ease(1.05, Color3.new(1, 1, 1), hoverBorder, 0.12)
+		end)
+
 		return btnOuter
 	end
 
@@ -415,7 +539,14 @@ function library:ShowLoadingScreen(options)
 
 	task.spawn(function()
 		playSound(openSoundId)
-		tweenService:Create(Outer, TweenInfo.new(0.45, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(0, 360, 0, 360)}):Play()
+		tweenService:Create(Outer, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 360, 0, 360)}):Play()
+		task.wait(0.3)
+		local glow = Instance.new("UIStroke")
+		glow.Color = MainColor
+		glow.Thickness = 1.5
+		glow.Transparency = 0.8
+		glow.Parent = Outer
+		tweenService:Create(glow, TweenInfo.new(1.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {Transparency = 0.2}):Play()
 	end)
 
 	local function startLoadingSequence()
@@ -427,6 +558,7 @@ function library:ShowLoadingScreen(options)
 		local LoadGui = Instance.new("ScreenGui")
 		LoadGui.Name = generateRandomName()
 		LoadGui.IgnoreGuiInset = true
+		LoadGui.DisplayOrder = 1
 		LoadGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 		LoadGui.ResetOnSpawn = false
 		if not protectAndParentGui(LoadGui, library.gui_parent) then
