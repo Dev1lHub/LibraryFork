@@ -43,7 +43,7 @@ local function addCorner(instance, radius)
 	return nil
 end
 local library = {
-	Version = "0.92 Mobile",
+	Version = "0.93 Mobile",
 	WorkspaceName = "D3v1lHub Lib",
 	flags = {},
 	signals = {},
@@ -1309,21 +1309,22 @@ do
 		if not MainScreenGui then return nil end
 		holder = Instance_new("Frame")
 		holder.Name = generateRandomName()
-		holder.BackgroundTransparency = 1
-		holder.AnchorPoint = Vector2.new(1, 0)
-		holder.Position = UDim2.new(1, -8, 0, 8)
-		holder.Size = UDim2.new(0, 230, 1, -16)
-		holder.ZIndex = 50
+		holder.BackgroundTransparency, holder.AnchorPoint, holder.Position, holder.Size, holder.ZIndex = 1, Vector2.new(1, 0), UDim2.new(1, -8, 0, 8), UDim2.new(0, 230, 1, -16), 50
 		holder.Parent = MainScreenGui
 		library.NotificationsFrame = holder
 		library.NotifyLayout = holder
 		return holder
 	end
 	local pool, counter = {}, 0
+	local function glide(slot, pos, fade, dur, style)
+		if slot.tween then slot.tween:Cancel() end
+		slot.tween = tweenService:Create(slot.frame, TweenInfo.new(dur, style or Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Position = pos, GroupTransparency = fade})
+		slot.tween:Play()
+	end
 	local function release(slot, obj)
 		if slot.obj ~= obj or not obj.Active then return end
 		obj.Active, slot.obj = false, nil
-		slot.frame.Position = slot.hidden
+		glide(slot, slot.hidden, 1, 0.28)
 		local i = table.find(alive, obj)
 		if i then table.remove(alive, i) end
 		pcall(DebugLog.Mark, DebugLog, "Notify hidden")
@@ -1341,28 +1342,24 @@ do
 		for _, s in ipairs(pool) do if not s.obj then slot = s break end end
 		if not slot and #pool < 4 then
 			slot = {}
-			slot.frame = Instance_new("Frame")
+			slot.frame = Instance_new("CanvasGroup")
 			slot.frame.Name = generateRandomName()
-			slot.frame.BackgroundColor3 = library.colors.background
-			slot.frame.BorderSizePixel = 0
-			slot.shown, slot.hidden = UDim2.fromOffset(0, #pool * 45), UDim2.fromOffset(600, #pool * 45)
-			slot.frame.Position = slot.hidden
-			slot.frame.Size = UDim2.new(1, 0, 0, 40)
-			addCorner(slot.frame, 6)
-			slot.bar = Instance_new("Frame")
-			slot.bar.Name = generateRandomName()
-			slot.bar.BorderSizePixel = 0
-			slot.bar.Size, slot.bar.Position = UDim2.new(0, 3, 1, -10), UDim2.new(0, 4, 0, 5)
-			slot.bar.Parent = slot.frame
-			slot.lbl = Instance_new("TextLabel")
-			slot.lbl.Name = generateRandomName()
-			slot.lbl.BackgroundTransparency = 1
-			slot.lbl.Position, slot.lbl.Size = UDim2.new(0, 14, 0, 0), UDim2.new(1, -20, 1, 0)
-			slot.lbl.Font = Enum.Font.GothamMedium
-			slot.lbl.TextSize, slot.lbl.TextWrapped = 12, true
-			slot.lbl.TextXAlignment = Enum.TextXAlignment.Left
-			slot.lbl.TextColor3 = library.colors.elementText
-			slot.lbl.Parent = slot.frame
+			slot.frame.BackgroundColor3, slot.frame.BorderSizePixel = library.colors.background, 0
+			slot.shown, slot.hidden = UDim2.fromOffset(0, #pool * 45), UDim2.fromOffset(260, #pool * 45)
+			slot.frame.Position, slot.frame.Size = slot.hidden, UDim2.new(1, 0, 0, 40)
+			addCorner(slot.frame, 8)
+			local function part(class, props)
+				local o = Instance_new(class)
+				o.Name = generateRandomName()
+				for k, v in next, props do o[k] = v end
+				o.Parent = slot.frame
+				return o
+			end
+			slot.stroke = part("UIStroke", {Thickness = 1, Transparency = 0.7, ApplyStrokeMode = Enum.ApplyStrokeMode.Border})
+			slot.bar = part("Frame", {BorderSizePixel = 0, Size = UDim2.new(0, 3, 1, -12), Position = UDim2.new(0, 6, 0, 6)})
+			addCorner(slot.bar, 2)
+			slot.prog = part("Frame", {BorderSizePixel = 0, BackgroundTransparency = 0.5, AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 0, 1, 0)})
+			slot.lbl = part("TextLabel", {BackgroundTransparency = 1, Position = UDim2.new(0, 18, 0, 0), Size = UDim2.new(1, -24, 1, -2), Font = Enum.Font.GothamMedium, TextSize = 12, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = library.colors.elementText})
 			slot.frame.Parent = parent
 			pool[1 + #pool] = slot
 		end
@@ -1373,10 +1370,15 @@ do
 		end
 		counter = counter + 1
 		local kind = data.Type
-		slot.bar.BackgroundColor3 = (kind == "success" and Color3.fromRGB(80, 200, 120)) or (kind == "error" and Color3.fromRGB(220, 80, 80)) or library.colors.main
+		local accent = (kind == "success" and Color3.fromRGB(80, 200, 120)) or (kind == "error" and Color3.fromRGB(220, 80, 80)) or (kind == "warning" and Color3.fromRGB(240, 180, 60)) or library.colors.main
+		slot.bar.BackgroundColor3, slot.prog.BackgroundColor3, slot.stroke.Color = accent, accent, accent
 		slot.lbl.Text = text
 		slot.stamp, slot.obj = counter, obj
-		slot.frame.Position = slot.shown
+		local life = tonumber(data.Time) or 4
+		slot.frame.GroupTransparency, slot.frame.Position = 1, UDim2.fromOffset(260, slot.shown.Y.Offset)
+		glide(slot, slot.shown, 0, 0.4)
+		slot.prog.Size = UDim2.new(1, 0, 0, 2)
+		tweenService:Create(slot.prog, TweenInfo.new(life, Enum.EasingStyle.Linear), {Size = UDim2.new(0, 0, 0, 2)}):Play()
 		alive[1 + #alive] = obj
 		obj.Object, obj.TextLabel = slot.frame, slot.lbl
 		function obj.SetText(a, b)
@@ -1385,7 +1387,7 @@ do
 			if slot.obj == obj then slot.lbl.Text = obj.Text end
 		end
 		function obj.Destroy() release(slot, obj) end
-		task.delay(tonumber(data.Time) or 4, obj.Destroy)
+		task.delay(life, obj.Destroy)
 		return obj, slot.frame, slot.lbl
 	end
 	function library.Prompt(self, data, ...)
@@ -1396,13 +1398,8 @@ do
 		if not MainScreenGui then return obj end
 		local frame = Instance_new("Frame")
 		frame.Name = generateRandomName()
-		frame.AnchorPoint = Vector2.new(0.5, 0.5)
-		frame.Position = UDim2.new(0.5, 0, 0.5, 0)
-		frame.Size = UDim2.new(0, 260, 0, 0)
-		frame.AutomaticSize = Enum.AutomaticSize.Y
-		frame.BackgroundColor3 = library.colors.background
-		frame.BorderSizePixel = 0
-		frame.ZIndex = 60
+		frame.AnchorPoint, frame.Position, frame.Size, frame.AutomaticSize = Vector2.new(0.5, 0.5), UDim2.new(0.5, 0, 0.5, 0), UDim2.new(0, 260, 0, 0), Enum.AutomaticSize.Y
+		frame.BackgroundColor3, frame.BorderSizePixel, frame.ZIndex = library.colors.background, 0, 60
 		frame.Parent = MainScreenGui
 		addCorner(frame, 8)
 		local layout = Instance_new("UIListLayout")
@@ -1445,16 +1442,9 @@ do
 			order += 1
 			local b = Instance_new("TextButton")
 			b.Name = generateRandomName()
-			b.Size = UDim2.new(1, 0, 0, 30)
-			b.LayoutOrder = order
-			b.AutoButtonColor = false
-			b.BackgroundColor3 = library.colors.selectedOption
-			b.BorderSizePixel = 0
-			b.Font = Enum.Font.GothamMedium
-			b.TextSize = 13
-			b.TextColor3 = library.colors.elementText
-			b.Text = tostring(opt.Name or opt.Text or key)
-			b.ZIndex = 61
+			b.Size, b.LayoutOrder, b.AutoButtonColor = UDim2.new(1, 0, 0, 30), order, false
+			b.BackgroundColor3, b.BorderSizePixel, b.Font, b.TextSize = library.colors.selectedOption, 0, Enum.Font.GothamMedium, 13
+			b.TextColor3, b.Text, b.ZIndex = library.colors.elementText, tostring(opt.Name or opt.Text or key), 61
 			b.Parent = frame
 			addCorner(b, 6)
 			obj.Buttons[key] = {Name = b.Text, Callback = opt.Callback, ButtonObject = b}
@@ -1849,6 +1839,10 @@ do
 		corner(main, 10)
 		new("UIStroke", {Color = C("main"), Thickness = 1, Transparency = 0.25, ApplyStrokeMode = Enum.ApplyStrokeMode.Border}, main)
 		library.MobileMain = main
+		local mainPop = new("UIScale", {Scale = 1}, main)
+		library.signals[1 + #library.signals] = main:GetPropertyChangedSignal("Visible"):Connect(function()
+			if main.Visible then mainPop.Scale = 0.9 tweenService:Create(mainPop, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play() end
+		end)
 		local topBar = new("Frame", {Size = UDim2.new(1, 0, 0, 36), BackgroundColor3 = C("sectionBackground"), BorderSizePixel = 0, Active = true}, main)
 		corner(topBar, 10)
 		new("Frame", {Position = UDim2.new(0, 0, 1, -10), Size = UDim2.new(1, 0, 0, 10), BackgroundColor3 = C("sectionBackground"), BorderSizePixel = 0}, topBar)
@@ -1958,10 +1952,7 @@ do
 			end)
 		end
 		local toggleGui = Instance_new("ScreenGui")
-		toggleGui.Name = generateRandomName()
-		toggleGui.ResetOnSpawn = false
-		toggleGui.DisplayOrder = 11
-		toggleGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+		toggleGui.Name, toggleGui.ResetOnSpawn, toggleGui.DisplayOrder, toggleGui.ZIndexBehavior = generateRandomName(), false, 11, Enum.ZIndexBehavior.Sibling
 		if not protectAndParentGui(toggleGui, library.gui_parent) then
 			pcall(function() toggleGui.Parent = library.gui_parent end)
 		end
@@ -1974,6 +1965,17 @@ do
 			corner(toggleButton, "full")
 			new("UIStroke", {ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Thickness = 2, Color = C("main")}, toggleButton)
 			library.MobileToggleButton = toggleButton
+			local pop = new("UIScale", {Scale = 1}, toggleButton)
+			local ring = toggleButton:FindFirstChildOfClass("UIStroke")
+			local function springTo(scale, dur, style)
+				tweenService:Create(pop, TweenInfo.new(dur, style or Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = scale}):Play()
+			end
+			local function stateFx(open)
+				tweenService:Create(ring, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {Color = open and library.colors.main or Color3.fromRGB(110, 110, 120), Thickness = open and 2 or 1}):Play()
+				toggleButton.Rotation = open and -25 or 25
+				tweenService:Create(toggleButton, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Rotation = 0, ImageTransparency = open and 0 or 0.35}):Play()
+			end
+			library.signals[1 + #library.signals] = main:GetPropertyChangedSignal("Visible"):Connect(function() stateFx(main.Visible) end)
 			local dragInput, dragStart, buttonStart, moved = nil, nil, nil, false
 			library.signals[1 + #library.signals] = toggleButton.InputBegan:Connect(function(input)
 				if dragInput then
@@ -1983,7 +1985,7 @@ do
 				end
 				if isPress(input) then
 					dragInput, dragStart, buttonStart, moved = input, input.Position, toggleButton.AbsolutePosition, false
-					toggleButton.ImageTransparency = 0.25
+					springTo(0.86, 0.12, Enum.EasingStyle.Quad)
 				end
 			end)
 			library.signals[1 + #library.signals] = userInputService.InputChanged:Connect(function(input)
@@ -1993,11 +1995,8 @@ do
 				local delta = input.Position - dragStart
 				if not moved and (math.abs(delta.X) > 8 or math.abs(delta.Y) > 8) then moved = true end
 				if moved then
-					local area = toggleGui.AbsoluteSize
-					local size = toggleButton.AbsoluteSize
-					local x = math.clamp(buttonStart.X + delta.X - toggleGui.AbsolutePosition.X, 0, math.max(0, area.X - size.X))
-					local y = math.clamp(buttonStart.Y + delta.Y - toggleGui.AbsolutePosition.Y, 0, math.max(0, area.Y - size.Y))
-					toggleButton.Position = UDim2.fromOffset(x, y)
+					local area, size = toggleGui.AbsoluteSize, toggleButton.AbsoluteSize
+					toggleButton.Position = UDim2.fromOffset(math.clamp(buttonStart.X + delta.X - toggleGui.AbsolutePosition.X, 0, math.max(0, area.X - size.X)), math.clamp(buttonStart.Y + delta.Y - toggleGui.AbsolutePosition.Y, 0, math.max(0, area.Y - size.Y)))
 				end
 			end)
 			library.signals[1 + #library.signals] = userInputService.InputEnded:Connect(function(input)
@@ -2005,7 +2004,7 @@ do
 				local same = (input == dragInput) or (dragInput.UserInputType == Enum.UserInputType.MouseButton1 and input.UserInputType == Enum.UserInputType.MouseButton1)
 				if not same then return end
 				dragInput = nil
-				toggleButton.ImageTransparency = 0
+				springTo(1, 0.4)
 				if not moved then main.Visible = not main.Visible end
 			end)
 		end

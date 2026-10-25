@@ -1,4 +1,4 @@
-D3v1lHub - Dokumentation (Library v0.92)
+D3v1lHub - Dokumentation (Library v0.93)
 
 DATEIEN
    D3v1lLoader.lua   Entry point. Detects the device (PC or phone/tablet), shows Yes/No + "Detected device" + HWID + loading bar
@@ -63,7 +63,7 @@ GEMEINSAME ELEMENT-OPTIONEN (Toggle, Slider, Button, Label, Textbox, Dropdown, C
        -- Element is only visible while the condition holds (Dependency Box). An element object instead of a flag name is also allowed.
    Elements with SetLocked/Lock/Unlock additionally have SetDisabled/Disable/Enable (same function).
 
-Library v0.92 [
+Library v0.93 [
    CreateWindow: Function (
        (table | nil) Options [
            (string | nil) Name = "Window Name"
@@ -530,7 +530,7 @@ GetJSON: Function (Func) // Gets the json, and passes it as the first argument o
        (table) Options [
            (string) Text/Message/String/Value = "Nachricht"
            (number | nil) Time = 6 // seconds
-           (string | nil) Type = "success" or "error" // colors the border
+           (string | nil) Type = "success", "error" or "warning" // colors the accent bar and progress line (Mobile)
        ]
    ) -> Notification [ Text, Active, SetText: Function (NewText), Destroy: Function ]
    Prompt: Function (
