@@ -84,13 +84,9 @@ Library v0.95 [
            (table | nil) Options [
                (string | nil) Name = "Tab Name"
                (string | number | nil) Image = "rbxassetid://133337" | 133337
-               (string | nil) Badge = "NEW" // Small label on the tab
-               (Color3 | nil) BadgeColor = Color3.fromRGB(128, 0, 255)
            ]
        ) -> Tab [
-           SetBadge: Function (Text, Color) // nil or "" removes the badge
-           ClearBadge: Function
-           GetBadge: Function -> Text | nil
+           SetBadge / ClearBadge / GetBadge: tab badges were removed - still callable as no-ops, Badge / BadgeColor options are ignored
            CreateSection: Function (
                (table) Options [
                    (string | nil) Name = "Section Name"

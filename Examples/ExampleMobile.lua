@@ -7,7 +7,7 @@ local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Dev1l
 --   * Only MobileGUILib.lua is loaded (slim touch menu).
 --   * The menu builds itself step by step (no freezing on start).
 --   * Keybinds are ignored (AddKeybind / Keybind option / keybind modes are only placeholders).
---   * VIP elements, tab badges, button Confirm / Cooldown and multiselect Select All / Clear work like on PC.
+--   * VIP elements, button Confirm / Cooldown and multiselect Select All / Clear work like on PC.
 --   * Notify is active (compact messages, max. 4 at once).
 --   * The Settings tab (config: name, configs, Save/Load/Delete/Autoload, plus an Unload button and "More Info" > "View Terms Of Use") is added by "Themeable".
 --
@@ -37,8 +37,7 @@ library:ShowLoadingScreen({
         })
 
         local MainTab = Window:CreateTab({
-            Name = "Main",
-            Badge = "NEW"
+            Name = "Main"
         })
 
         local VisualTab = Window:CreateTab({

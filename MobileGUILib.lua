@@ -1981,25 +1981,10 @@ do
 			new("UIPadding", {PaddingRight = UDim.new(0, 8), PaddingBottom = UDim.new(0, 8)}, page)
 			local sectionCount = 0
 			local tabFunctions = {Flags = {}, Name = tabName}
-			local badge = nil
-			local function setBadge(text, color)
-				text = (text ~= nil and text ~= "") and tostring(text) or nil
-				if not text then
-					if badge then badge.Visible = false end
-					return
-				end
-				if not badge then
-					badge = label(tabButton, {AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -5, 0.5, 0), TextSize = 9, Font = FONT_BOLD, TextXAlignment = Enum.TextXAlignment.Center, TextColor3 = Color3.new(1, 1, 1), ZIndex = 3})
-					badge.BackgroundTransparency = 0
-					corner(badge, "full")
-				end
-				badge.Text, badge.Size, badge.BackgroundColor3, badge.Visible = text, UDim2.fromOffset(math.max(24, 6 * #text + 10), 14), color or C("main"), true
-			end
-			function tabFunctions.SetBadge(t, text, color)
-				if type(t) ~= "table" then text, color = t, text end
-				setBadge(text, color)
-			end
-			if tabOptions.Badge then setBadge(tabOptions.Badge, tabOptions.BadgeColor) end
+			-- Tab badges were removed; these stay as no-ops so older scripts keep working
+			function tabFunctions.SetBadge() end
+			function tabFunctions.ClearBadge() end
+			function tabFunctions.GetBadge() return nil end
 			local tabEntry = {Button = tabButton, Accent = accent, Page = page, Functions = tabFunctions, Base = page.Position}
 			tabs[1 + #tabs] = tabEntry
 			tabButton.Activated:Connect(function() selectTab(tabEntry) end)

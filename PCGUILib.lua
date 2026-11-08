@@ -4901,42 +4901,6 @@ function library:CreateWindow(options, ...)
 		colored[1 + #colored] = colored_newTab_BackgroundColor3
 		newTab.BackgroundColor3 = library.colors.main
 		local colored_newTab_TextColor3 = nil
-		local tabBadge, tabBadgePad, tabBaseWidth = nil, nil, nil
-		local function applyTabBadge(text, color, textColor)
-			if text == nil or text == "" then
-				if tabBadge then
-					tabBadge:Destroy()
-					tabBadge = nil
-				end
-				if tabBadgePad then
-					tabBadgePad.PaddingRight = UDim:new(0)
-				end
-				if tabBaseWidth then
-					newTab.Size = UDim2:new(tabBaseWidth, 1)
-				end
-				return
-			end
-			if not tabBaseWidth then
-				return
-			end
-			if tabBadge then
-				tabBadge:Destroy()
-			end
-			tabBadge = createBadge(newTab, text, color, textColor)
-			tabBadge.TextSize = 9
-			tabBadge.Size = UDim2.fromOffset(textToSize(tabBadge).X + 6, 11)
-			tabBadge.AnchorPoint = Vector2.new(1, 0.5)
-			tabBadge.Position = UDim2.new(1, 0, 0.5, 0)
-			if not tabBadgePad then
-				tabBadgePad = Instance_new("UIPadding")
-				tabBadgePad.Name = generateRandomName()
-				tabBadgePad.Parent = newTab
-			end
-			local extra = tabBadge.Size.X.Offset + 4
-			tabBadge.Position = UDim2.new(1, extra - 3, 0.5, 0)
-			tabBadgePad.PaddingRight = UDim:new(extra)
-			newTab.Size = UDim2:new(tabBaseWidth + extra, 1)
-		end
 		if image then
 			newTab.Image = image
 			newTab.ImageColor3 = options.ImageColor or options.Color or Color3.new(1, 1, 1)
@@ -4956,7 +4920,6 @@ function library:CreateWindow(options, ...)
 			newTab.TextStrokeColor3 = Color3.fromRGB(42, 42, 42)
 			newTab.TextStrokeTransparency = 0.75
 			newTab.Size = UDim2:new(textToSize(newTab).X + 4, 1)
-			tabBaseWidth = textToSize(newTab).X + 4
 		end
 		if windowFunctions.tabCount > 1 then
 
@@ -5008,9 +4971,6 @@ function library:CreateWindow(options, ...)
 				windowFunctions.selected.holder.Visible = true
 				windowFunctions.LastTab = colored_newTab_TextColor3
 			end
-		end
-		if options.Badge ~= nil then
-			applyTabBadge(tostring(options.Badge), options.BadgeColor, options.BadgeTextColor)
 		end
 		if not homepage and newTab.LayoutOrder <= 4 then
 			homepage = goto
@@ -5091,19 +5051,11 @@ function library:CreateWindow(options, ...)
 				end
 			end,
 			Select = goto,
-			SetBadge = function(t, text, color, textColor)
-				if type(t) ~= "table" then
-					text, color, textColor = t, text, color
-				end
-				applyTabBadge(text, color, textColor)
-				windowFunctions:UpdateAll()
-			end,
-			ClearBadge = function()
-				applyTabBadge(nil)
-				windowFunctions:UpdateAll()
-			end,
+			-- Tab badges were removed; these stay as no-ops so older scripts keep working
+			SetBadge = function() end,
+			ClearBadge = function() end,
 			GetBadge = function()
-				return tabBadge and tabBadge.Text or nil
+				return nil
 			end
 		}
 		function tabFunctions:CreateSection(options, ...)

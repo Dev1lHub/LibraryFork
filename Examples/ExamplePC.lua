@@ -33,7 +33,7 @@ local Wait = library.subs.Wait
 
 library:ShowLoadingScreen({
     OnAccept = function()
-        local PepsisWorld = library:CreateWindow({
+        local D3v1lsWorld = library:CreateWindow({
             Name = "D3v1lHub",
             Themeable = {
                 Info = "Discord Server: CODE"
@@ -47,23 +47,19 @@ library:ShowLoadingScreen({
             Type = "success"
         })
 
-        -- Tab badges: small label on the tab (Badge / BadgeColor), change later with tab:SetBadge("text") / tab:ClearBadge()
-        local MainTab = PepsisWorld:CreateTab({
-            Name = "Main",
-            Badge = "NEW"
+        local MainTab = D3v1lsWorld:CreateTab({
+            Name = "Main"
         })
 
-        local ESPTab = PepsisWorld:CreateTab({
-            Name = "ESP",
-            Badge = "SOON",
-            BadgeColor = Color3.fromRGB(128, 0, 255)
+        local ESPTab = D3v1lsWorld:CreateTab({
+            Name = "ESP"
         })
 
-        local WorldTab = PepsisWorld:CreateTab({
+        local WorldTab = D3v1lsWorld:CreateTab({
             Name = "World"
         })
 
-        -- The Settings tab (configs, menu settings) is added automatically by "Themeable" above and is always the last tab It also contains "More Info" > "View Terms Of Use" (library:ShowTerms()).
+        -- The Settings tab (configs, menu settings) is added automatically by "Themeable" above and is always the last tab. It also contains "More Info" > "View Terms Of Use" (library:ShowTerms()).
 
         local FarmingSection = MainTab:CreateSection({
             Name = "Farming"
