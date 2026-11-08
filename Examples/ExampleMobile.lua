@@ -113,13 +113,6 @@ library:ShowLoadingScreen({
             end
         })
 
-        MiscSection:AddButton({
-            Name = "Terms Of Use",
-            Callback = function()
-                library:ShowTerms()
-            end
-        })
-
         MiscSection:AddToggle({
             Name = "Auto Farm Pro",
             Flag = "Misc_AutoFarmPro",
