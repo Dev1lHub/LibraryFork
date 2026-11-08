@@ -11313,6 +11313,12 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 		local function hideNameValues()
 			return tostring(library_flags["__Designer.HideName.Display"] or ""), tostring(library_flags["__Designer.HideName.Username"] or "")
 		end
+		local function hideNameReset()
+			pcall(function()
+				designerelements["__Designer.Textbox.HideNameDisplay"]:Set(hideNameDefault)
+				designerelements["__Designer.Textbox.HideNameUsername"]:Set(hideNameDefault)
+			end)
+		end
 		local daaata = {{"AddTextbox", "__Designer.Textbox.ImageAssetID", backgroundsection, {
 			Name = "Image Asset ID",
 			Placeholder = "rbxassetid://133158046147209",
@@ -11407,8 +11413,18 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 			Name = "Hide Name",
 			Flag = "__Designer.HideName.Enabled",
 			Value = false,
-			-- UI test only, no function yet
-			Callback = function() end
+			-- UI test only: turning it off restores the defaults (real function comes later)
+			Callback = function(value, old)
+				if value == false and old == true then
+					hideNameReset()
+					library:Notify({
+						Title = "Hide Name",
+						Text = "Hide Name disabled - Display and Username restored to the default: " .. hideNameDefault,
+						Time = 5,
+						Type = "success"
+					})
+				end
+			end
 		}}, {"AddTextbox", "__Designer.Textbox.HideNameDisplay", moresettingssection, {
 			Name = "Display",
 			Flag = "__Designer.HideName.Display",
@@ -11440,10 +11456,7 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 			Name = "Reset",
 			DependsOn = "__Designer.HideName.Enabled",
 			Callback = function()
-				pcall(function()
-					designerelements["__Designer.Textbox.HideNameDisplay"]:Set(hideNameDefault)
-					designerelements["__Designer.Textbox.HideNameUsername"]:Set(hideNameDefault)
-				end)
+				hideNameReset()
 				library:Notify({
 					Title = "Hide Name",
 					Text = "Name reset - Display and Username are back to the default: " .. hideNameDefault,
