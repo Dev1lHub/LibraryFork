@@ -1770,7 +1770,7 @@ library.NameHider = (function()
 	local HIDDEN_USER = "[Hidden]"
 	local FALLBACK = "Hidden"
 	local MAX_LEFT_ENTRIES = 150
-	local CHUNK = 300
+	local BUDGET = 0.003 -- seconds of work per frame while scanning
 
 	local state = {armed = false, hideName = false, hideOthers = false, fakeDisplay = FALLBACK, fakeUser = FALLBACK}
 	local others = {}
@@ -1925,13 +1925,15 @@ library.NameHider = (function()
 			if not ok then
 				return
 			end
+			local t = os.clock()
 			for i = 1, #list do
 				if gen ~= scanGen or not active then
 					return
 				end
 				process(list[i])
-				if i % CHUNK == 0 then
+				if os.clock() - t > BUDGET then
 					task.wait()
+					t = os.clock()
 				end
 			end
 		end)
@@ -1946,11 +1948,16 @@ library.NameHider = (function()
 		charConns[char] = conn
 		local gen = scanGen
 		task.spawn(function()
+			local t = os.clock()
 			for _, d in ipairs(char:GetDescendants()) do
 				if gen ~= scanGen or not active then
 					return
 				end
 				process(d)
+				if os.clock() - t > BUDGET then
+					task.wait()
+					t = os.clock()
+				end
 			end
 		end)
 	end
@@ -2018,6 +2025,7 @@ library.NameHider = (function()
 			list[n] = obj
 		end
 		task.spawn(function()
+			local t = os.clock()
 			for i = 1, n do
 				if gen ~= applyGen or not active then
 					return
@@ -2026,8 +2034,9 @@ library.NameHider = (function()
 				if obj.Parent then
 					pcall(applyObj, obj)
 				end
-				if i % CHUNK == 0 then
+				if os.clock() - t > BUDGET then
 					task.wait()
+					t = os.clock()
 				end
 			end
 		end)
