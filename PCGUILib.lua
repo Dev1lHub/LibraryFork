@@ -11309,6 +11309,10 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 			Workspace = library.WorkspaceName or "Unnamed Workspace",
 			Desginer = true
 		}
+		local hideNameDefault = "D3v1lHub がトップに"
+		local function hideNameValues()
+			return tostring(library_flags["__Designer.HideName.Display"] or ""), tostring(library_flags["__Designer.HideName.Username"] or "")
+		end
 		local daaata = {{"AddTextbox", "__Designer.Textbox.ImageAssetID", backgroundsection, {
 			Name = "Image Asset ID",
 			Placeholder = "rbxassetid://133158046147209",
@@ -11409,24 +11413,44 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 			Name = "Display",
 			Flag = "__Designer.HideName.Display",
 			Placeholder = "Display name...",
-			Value = "",
+			Value = hideNameDefault,
 			DependsOn = "__Designer.HideName.Enabled",
 			Callback = function() end
 		}}, {"AddTextbox", "__Designer.Textbox.HideNameUsername", moresettingssection, {
 			Name = "Username",
 			Flag = "__Designer.HideName.Username",
 			Placeholder = "Username...",
-			Value = "",
+			Value = hideNameDefault,
 			DependsOn = "__Designer.HideName.Enabled",
 			Callback = function() end
 		}}, {"AddButton", "__Designer.Button.HideNameButtons", moresettingssection, {{
 			Name = "Apply",
 			DependsOn = "__Designer.HideName.Enabled",
-			Callback = function() end
+			-- UI test only: no real rename, just a confirmation
+			Callback = function()
+				local display, username = hideNameValues()
+				library:Notify({
+					Title = "Hide Name",
+					Text = "Name applied - Display: " .. display .. " | Username: " .. username,
+					Time = 5,
+					Type = "success"
+				})
+			end
 		}, {
 			Name = "Reset",
 			DependsOn = "__Designer.HideName.Enabled",
-			Callback = function() end
+			Callback = function()
+				pcall(function()
+					designerelements["__Designer.Textbox.HideNameDisplay"]:Set(hideNameDefault)
+					designerelements["__Designer.Textbox.HideNameUsername"]:Set(hideNameDefault)
+				end)
+				library:Notify({
+					Title = "Hide Name",
+					Text = "Name reset - Display and Username are back to the default: " .. hideNameDefault,
+					Time = 5,
+					Type = "success"
+				})
+			end
 		}}}, {"AddPersistence", "__Designer.Persistence.ThemeFile", filessection, {
 			Name = "Theme Profile",
 			Flag = "__Designer.Files.ThemeFile",
