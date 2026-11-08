@@ -9533,7 +9533,7 @@ function library:CreateWindow(options, ...)
 
 											local lateJob = autoloadJob
 											task.delay(1, function()
-												if library.IsGuiValid() then
+												if (library.IsGuiValid and library.IsGuiValid()) then
 													local okJob, errJob = pcall(lateJob.Run)
 													if not okJob then
 														warn("[Config] Autoload error:", errJob)
@@ -9555,7 +9555,7 @@ function library:CreateWindow(options, ...)
 									local lastCount, stableSince = countElements(), os.clock()
 									while os.clock() - started < 15 do
 										task.wait(0.25)
-										if not library.IsGuiValid() then
+										if not (library.IsGuiValid and library.IsGuiValid()) then
 											return
 										end
 										local nowCount = countElements()
@@ -9565,7 +9565,7 @@ function library:CreateWindow(options, ...)
 											break
 										end
 									end
-									if not library.IsGuiValid() then
+									if not (library.IsGuiValid and library.IsGuiValid()) then
 										return
 									end
 									local jobs = library.__AutoloadJobs or {}
