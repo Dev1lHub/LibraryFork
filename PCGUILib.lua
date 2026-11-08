@@ -9,7 +9,9 @@ local function generateRandomName()
 	return name
 end
 
+local ownGuis = setmetatable({}, {__mode = "k"})
 local function protectAndParentGui(gui, fallbackParent)
+	ownGuis[gui] = true
 	local CoreGui = game:GetService("CoreGui")
 	local syn = (typeof(getgenv) == "function" and getgenv().syn) or nil
 	local gethui = (typeof(gethui) == "function" and gethui) or nil
@@ -1756,7 +1758,528 @@ function SeverAllConnections(t, cache)
 	end
 end
 library.Subs.SeverAllConnections = SeverAllConnections
+-- Name Hider (client side only): replaces your own and/or other players' names in GUIs, chat,
+-- leaderboard and overhead names. Nothing is hooked while it is not needed.
+library.NameHider = (function()
+	local M = {}
+	local Players = game:GetService("Players")
+	local CoreGui = game:GetService("CoreGui")
+	local LP = Players.LocalPlayer
+	local REAL_DISPLAY, REAL_USER = LP.DisplayName, LP.Name
+	local HIDDEN_DISPLAY = "[UserNotFound]"
+	local HIDDEN_USER = "[Hidden]"
+	local FALLBACK = "Hidden"
+	local MAX_LEFT_ENTRIES = 150
+	local CHUNK = 300
+
+	local state = {armed = false, hideName = false, hideOthers = false, fakeDisplay = FALLBACK, fakeUser = FALLBACK}
+	local others = {}
+	local leftOrder = {}
+	local tracked = setmetatable({}, {__mode = "k"})
+	local orig = setmetatable({}, {__mode = "k"})
+	local lastSet = setmetatable({}, {__mode = "k"})
+	local origHum = setmetatable({}, {__mode = "k"})
+	local charConns = setmetatable({}, {__mode = "k"})
+	local rootConns = {}
+	local playerConns = {}
+	local perPlayer = {}
+	local map = {}
+	local active = false
+	local playerHooksOn = false
+	local scanGen = 0
+	local applyGen = 0
+	local refreshQueued = false
+
+	local function esc(s)
+		return (string.gsub(s, "[%^%$%(%)%%%.%[%]%*%+%-%?]", "%%%0"))
+	end
+	local function escRep(s)
+		return (string.gsub(s, "%%", "%%%%"))
+	end
+
+	local function buildMap()
+		local list, seen = {}, {}
+		local function add(old, new)
+			if type(old) ~= "string" or #old < 1 or seen[old] then
+				return
+			end
+			seen[old] = true
+			list[#list + 1] = {old = old, pat = esc(old), rep = escRep(new)}
+		end
+		local function addPair(display, user, fakeDisplay, fakeUser)
+			if display == user then
+				add("@" .. user, "@" .. fakeUser)
+			end
+			add(display, fakeDisplay)
+			add(user, fakeUser)
+		end
+		if state.armed and state.hideName then
+			addPair(REAL_DISPLAY, REAL_USER, state.fakeDisplay, state.fakeUser)
+		end
+		if state.armed and state.hideOthers then
+			for _, e in next, others do
+				addPair(e.display, e.user, HIDDEN_DISPLAY, HIDDEN_USER)
+			end
+		end
+		table.sort(list, function(a, b)
+			if #a.old ~= #b.old then
+				return #a.old > #b.old
+			end
+			return a.old < b.old
+		end)
+		for i, p in ipairs(list) do
+			p.token = "\1" .. i .. "\2"
+		end
+		return list
+	end
+
+	-- plain-find prefilter, one pass with tokens so replaced text is never replaced again
+	local function transform(text)
+		local new, used = text, nil
+		for i = 1, #map do
+			local p = map[i]
+			if string.find(new, p.old, 1, true) then
+				new = string.gsub(new, p.pat, p.token)
+				used = used or {}
+				used[#used + 1] = p
+			end
+		end
+		if used then
+			for _, p in ipairs(used) do
+				new = string.gsub(new, p.token, p.rep)
+			end
+		end
+		return new
+	end
+
+	local function applyObj(obj)
+		local cur = obj.Text
+		local o = orig[obj]
+		local base = cur
+		if o ~= nil and lastSet[obj] == cur then
+			base = o
+		end
+		local new = base
+		if #map > 0 and base ~= "" then
+			new = transform(base)
+		end
+		if new ~= base then
+			orig[obj] = base
+			lastSet[obj] = new
+			if cur ~= new then
+				obj.Text = new
+			end
+		elseif o ~= nil and lastSet[obj] == cur then
+			orig[obj] = nil
+			lastSet[obj] = nil
+			obj.Text = base
+		end
+	end
+
+	local function onText(obj)
+		local cur = obj.Text
+		if lastSet[obj] ~= nil and cur == lastSet[obj] then
+			return
+		end
+		orig[obj] = nil
+		lastSet[obj] = nil
+		if #map > 0 then
+			applyObj(obj)
+		end
+	end
+
+	local function isOwn(obj)
+		local sg = obj:FindFirstAncestorWhichIsA("ScreenGui")
+		return sg ~= nil and ownGuis[sg] == true
+	end
+
+	local function track(obj)
+		if tracked[obj] then
+			return
+		end
+		local ref = setmetatable({obj}, {__mode = "v"})
+		tracked[obj] = obj:GetPropertyChangedSignal("Text"):Connect(function()
+			local o = ref[1]
+			if o then
+				onText(o)
+			end
+		end)
+		applyObj(obj)
+	end
+
+	local function process(obj)
+		local c = obj.ClassName
+		if (c == "TextLabel" or c == "TextButton") and not tracked[obj] and not isOwn(obj) then
+			track(obj)
+		end
+	end
+
+	local function hookRoot(root)
+		if not root or rootConns[root] then
+			return
+		end
+		rootConns[root] = root.DescendantAdded:Connect(process)
+		local gen = scanGen
+		task.spawn(function()
+			local ok, list = pcall(root.GetDescendants, root)
+			if not ok then
+				return
+			end
+			for i = 1, #list do
+				if gen ~= scanGen or not active then
+					return
+				end
+				process(list[i])
+				if i % CHUNK == 0 then
+					task.wait()
+				end
+			end
+		end)
+	end
+
+	local function hookCharacter(char)
+		if not char or charConns[char] then
+			return
+		end
+		charConns[char] = true
+		local conn = char.DescendantAdded:Connect(process)
+		charConns[char] = conn
+		local gen = scanGen
+		task.spawn(function()
+			for _, d in ipairs(char:GetDescendants()) do
+				if gen ~= scanGen or not active then
+					return
+				end
+				process(d)
+			end
+		end)
+	end
+
+	local function applyHumanoid(plr)
+		local char = plr.Character
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		if not hum then
+			return
+		end
+		local desired
+		if plr == LP then
+			if state.armed and state.hideName then
+				desired = state.fakeDisplay
+			end
+		elseif state.armed and state.hideOthers then
+			desired = HIDDEN_DISPLAY
+		end
+		if desired then
+			if origHum[hum] == nil then
+				origHum[hum] = hum.DisplayName
+			end
+			if hum.DisplayName ~= desired then
+				hum.DisplayName = desired
+			end
+		elseif origHum[hum] ~= nil then
+			hum.DisplayName = origHum[hum]
+			origHum[hum] = nil
+		end
+		if plr == LP then
+			local want = (state.armed and state.hideName) and state.fakeDisplay or REAL_DISPLAY
+			if LP.DisplayName ~= want then
+				pcall(function()
+					LP.DisplayName = want
+				end)
+			end
+		end
+	end
+
+	local function applyAllHumanoids()
+		for _, plr in ipairs(Players:GetPlayers()) do
+			pcall(applyHumanoid, plr)
+		end
+	end
+
+	local function restoreAll()
+		for obj in next, orig do
+			local o = orig[obj]
+			orig[obj] = nil
+			lastSet[obj] = nil
+			if o ~= nil then
+				pcall(function()
+					obj.Text = o
+				end)
+			end
+		end
+	end
+
+	local function reapplyAll()
+		applyGen = applyGen + 1
+		local gen = applyGen
+		local list, n = {}, 0
+		for obj in next, tracked do
+			n = n + 1
+			list[n] = obj
+		end
+		task.spawn(function()
+			for i = 1, n do
+				if gen ~= applyGen or not active then
+					return
+				end
+				local obj = list[i]
+				if obj.Parent then
+					pcall(applyObj, obj)
+				end
+				if i % CHUNK == 0 then
+					task.wait()
+				end
+			end
+		end)
+	end
+
+	local function activate()
+		active = true
+		scanGen = scanGen + 1
+		pcall(hookRoot, CoreGui)
+		pcall(function()
+			hookRoot(LP:FindFirstChildOfClass("PlayerGui") or LP:WaitForChild("PlayerGui", 10))
+		end)
+		for _, plr in ipairs(Players:GetPlayers()) do
+			if plr.Character then
+				hookCharacter(plr.Character)
+			end
+		end
+	end
+
+	local function deactivate()
+		active = false
+		scanGen = scanGen + 1
+		restoreAll()
+		for root, c in next, rootConns do
+			pcall(function()
+				c:Disconnect()
+			end)
+			rootConns[root] = nil
+		end
+		for char, c in next, charConns do
+			if typeof(c) == "RBXScriptConnection" then
+				pcall(function()
+					c:Disconnect()
+				end)
+			end
+			charConns[char] = nil
+		end
+		for obj, c in next, tracked do
+			pcall(function()
+				c:Disconnect()
+			end)
+			tracked[obj] = nil
+		end
+	end
+
+	local function refresh()
+		map = buildMap()
+		local want = #map > 0
+		if want and not active then
+			activate()
+		elseif not want and active then
+			deactivate()
+		elseif active then
+			reapplyAll()
+			for _, plr in ipairs(Players:GetPlayers()) do
+				if plr.Character then
+					hookCharacter(plr.Character)
+				end
+			end
+		end
+		applyAllHumanoids()
+	end
+
+	-- several joins/leaves in the same frame only cause one refresh
+	local function queueRefresh()
+		if refreshQueued then
+			return
+		end
+		refreshQueued = true
+		task.defer(function()
+			refreshQueued = false
+			if playerHooksOn then
+				refresh()
+			end
+		end)
+	end
+
+	-- returns true if the list of names changed (new player, renamed or rejoined)
+	local function rememberOther(plr)
+		if plr == LP then
+			return false
+		end
+		local e = others[plr.UserId]
+		if e then
+			local changed = (e.display ~= plr.DisplayName) or (e.user ~= plr.Name)
+			e.display, e.user, e.left = plr.DisplayName, plr.Name, false
+			return changed
+		end
+		others[plr.UserId] = {display = plr.DisplayName, user = plr.Name, left = false}
+		return true
+	end
+
+	local function pruneLeft(all)
+		local keep = {}
+		for _, uid in ipairs(leftOrder) do
+			local e = others[uid]
+			if e and e.left then
+				keep[#keep + 1] = uid
+			end
+		end
+		leftOrder = keep
+		while #leftOrder > (all and 0 or MAX_LEFT_ENTRIES) do
+			others[table.remove(leftOrder, 1)] = nil
+		end
+	end
+
+	local function hookPlayer(plr)
+		if perPlayer[plr] then
+			return
+		end
+		perPlayer[plr] = plr.CharacterAdded:Connect(function(char)
+			if not (state.armed and (state.hideName or state.hideOthers)) then
+				return
+			end
+			char:WaitForChild("Humanoid", 10)
+			if not playerHooksOn then
+				return
+			end
+			if active then
+				hookCharacter(char)
+			end
+			pcall(applyHumanoid, plr)
+		end)
+	end
+
+	local function startPlayerHooks()
+		if playerHooksOn then
+			return
+		end
+		playerHooksOn = true
+		for _, plr in ipairs(Players:GetPlayers()) do
+			rememberOther(plr)
+			hookPlayer(plr)
+		end
+		playerConns[#playerConns + 1] = Players.PlayerAdded:Connect(function(plr)
+			local changed = rememberOther(plr)
+			hookPlayer(plr)
+			if changed and state.armed and state.hideOthers then
+				queueRefresh()
+			end
+		end)
+		playerConns[#playerConns + 1] = Players.PlayerRemoving:Connect(function(plr)
+			local c = perPlayer[plr]
+			if c then
+				pcall(function()
+					c:Disconnect()
+				end)
+				perPlayer[plr] = nil
+			end
+			local e = others[plr.UserId]
+			if e and plr ~= LP then
+				-- keep the entry so leftover chat lines / leaderboard rows stay hidden
+				e.left = true
+				leftOrder[#leftOrder + 1] = plr.UserId
+				pruneLeft(false)
+			end
+		end)
+	end
+
+	local function stopPlayerHooks()
+		playerHooksOn = false
+		for _, c in ipairs(playerConns) do
+			pcall(function()
+				c:Disconnect()
+			end)
+		end
+		playerConns = {}
+		for plr, c in next, perPlayer do
+			pcall(function()
+				c:Disconnect()
+			end)
+			perPlayer[plr] = nil
+		end
+	end
+
+	function M.SetArmed(value)
+		value = value and true or false
+		if state.armed == value then
+			return
+		end
+		state.armed = value
+		if value then
+			startPlayerHooks()
+		else
+			state.hideName = false
+		end
+		refresh()
+		if not value then
+			-- drop remembered leavers, everything is back to normal
+			pruneLeft(true)
+		end
+	end
+
+	function M.SetHideOthers(value)
+		value = value and true or false
+		if state.hideOthers == value then
+			return
+		end
+		state.hideOthers = value
+		if value then
+			startPlayerHooks()
+			for _, plr in ipairs(Players:GetPlayers()) do
+				rememberOther(plr)
+			end
+		else
+			pruneLeft(true)
+		end
+		refresh()
+	end
+
+	function M.Apply(display, username)
+		if not state.armed then
+			return false
+		end
+		display, username = tostring(display or ""), tostring(username or "")
+		display = string.gsub(string.gsub(display, "^%s+", ""), "%s+$", "")
+		username = string.gsub(string.gsub(username, "^%s+", ""), "%s+$", "")
+		state.fakeDisplay = display ~= "" and display or FALLBACK
+		state.fakeUser = username ~= "" and username or FALLBACK
+		state.hideName = true
+		refresh()
+		return state.fakeDisplay, state.fakeUser
+	end
+
+	function M.ResetName()
+		state.hideName = false
+		refresh()
+	end
+
+	function M.IsArmed()
+		return state.armed
+	end
+
+	function M.Unload()
+		state.armed, state.hideName, state.hideOthers = false, false, false
+		pcall(function()
+			map = {}
+			if active then
+				deactivate()
+			end
+			applyAllHumanoids()
+		end)
+		stopPlayerHooks()
+		others, leftOrder = {}, {}
+	end
+
+	return M
+end)()
 local function hardunload(library)
+	if library.NameHider then
+		pcall(library.NameHider.Unload)
+	end
 	if library.UnloadCallback and (type(library.UnloadCallback) == "function") then
 		local x, e = pcall(library.UnloadCallback)
 		if not x and e then
@@ -11313,6 +11836,7 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 		local function hideNameValues()
 			return tostring(library_flags["__Designer.HideName.Display"] or ""), tostring(library_flags["__Designer.HideName.Username"] or "")
 		end
+		local NameHider = library.NameHider
 		local function hideNameReset()
 			pcall(function()
 				designerelements["__Designer.Textbox.HideNameDisplay"]:Set(hideNameDefault)
@@ -11419,13 +11943,17 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 			Name = "Hide Name",
 			Flag = "__Designer.HideName.Enabled",
 			Value = false,
-			-- UI test only: turning it off restores the defaults (real function comes later)
+			-- main switch: nothing is hooked or replaced while it is off; turning it off restores everything
 			Callback = function(value, old)
+				local okArm, errArm = pcall(NameHider.SetArmed, value)
+				if not okArm then
+					warn("[NameHider] " .. tostring(errArm))
+				end
 				if value == false and old == true then
 					hideNameToggleOff()
 					library:Notify({
 						Title = "Hide Name",
-						Text = "Hide Name disabled - Display and Username restored to the default: " .. hideNameDefault,
+						Text = "Hide Name disabled - real names restored, Display and Username back to the default: " .. hideNameDefault,
 						Time = 5,
 						Type = "success"
 					})
@@ -11448,24 +11976,37 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 		}}, {"AddButton", "__Designer.Button.HideNameButtons", moresettingssection, {{
 			Name = "Apply",
 			DependsOn = "__Designer.HideName.Enabled",
-			-- UI test only: no real rename, just a confirmation
 			Callback = function()
 				local display, username = hideNameValues()
-				library:Notify({
-					Title = "Hide Name",
-					Text = "Name applied - Display: " .. display .. " | Username: " .. username,
-					Time = 5,
-					Type = "success"
-				})
+				local ok, fakeDisplay, fakeUser = pcall(NameHider.Apply, display, username)
+				if ok and fakeDisplay then
+					library:Notify({
+						Title = "Hide Name",
+						Text = "Name applied - Display: " .. fakeDisplay .. " | Username: " .. fakeUser,
+						Time = 5,
+						Type = "success"
+					})
+				else
+					if not ok then
+						warn("[NameHider] " .. tostring(fakeDisplay))
+					end
+					library:Notify({
+						Title = "Hide Name",
+						Text = "Could not apply the name - turn Hide Name on first.",
+						Time = 5,
+						Type = "error"
+					})
+				end
 			end
 		}, {
 			Name = "Reset",
 			DependsOn = "__Designer.HideName.Enabled",
 			Callback = function()
+				pcall(NameHider.ResetName)
 				hideNameReset()
 				library:Notify({
 					Title = "Hide Name",
-					Text = "Name reset - Display and Username are back to the default: " .. hideNameDefault,
+					Text = "Name reset - your real name is visible again, Display and Username back to the default: " .. hideNameDefault,
 					Time = 5,
 					Type = "success"
 				})
@@ -11475,8 +12016,20 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 			Flag = "__Designer.HideName.HideOthers",
 			Value = false,
 			DependsOn = "__Designer.HideName.Enabled",
-			-- UI test only, no function yet
-			Callback = function() end
+			Callback = function(value)
+				local ok, err = pcall(NameHider.SetHideOthers, value)
+				if not ok then
+					warn("[NameHider] " .. tostring(err))
+				end
+				if NameHider.IsArmed() then
+					library:Notify({
+						Title = "Hide Name",
+						Text = value and "Other players' names are hidden." or "Other players' names are visible again.",
+						Time = 4,
+						Type = "success"
+					})
+				end
+			end
 		}}, {"AddPersistence", "__Designer.Persistence.ThemeFile", filessection, {
 			Name = "Theme Profile",
 			Flag = "__Designer.Files.ThemeFile",
