@@ -11263,6 +11263,10 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 		local colorsection = designer:CreateSection({
 			Name = "Colors"
 		})
+		local moresettingssection = designer:CreateSection({
+			Name = "More Settings",
+			Side = "right"
+		})
 		local backgroundsection = designer:CreateSection({
 			Name = "Background",
 			Side = "right"
@@ -11331,7 +11335,7 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 			Flag = "__Designer.Background.UseBackgroundImage",
 			Value = true,
 			Callback = updatecolorsnotween
-		}}, {"AddToggle", "__Designer.Toggle.CursorToggle", backgroundsection, {
+		}}, {"AddToggle", "__Designer.Toggle.CursorToggle", moresettingssection, {
 			Name = "Custom Cursor",
 			Flag = "__Designer.Cursor.Enabled",
 			Value = true,
@@ -11342,7 +11346,7 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 					CursorModule:Disable()
 				end
 			end
-		}}, {"AddToggle", "__Designer.Toggle.KeystrokesToggle", backgroundsection, {
+		}}, {"AddToggle", "__Designer.Toggle.KeystrokesToggle", moresettingssection, {
 			Name = "Show Keystrokes",
 			Flag = "__Designer.Keystrokes.Enabled",
 			Value = false,
@@ -11357,7 +11361,7 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 					end)
 				end
 			end
-		}}, {"AddToggle", "__Designer.Toggle.WatermarkToggle", backgroundsection, {
+		}}, {"AddToggle", "__Designer.Toggle.WatermarkToggle", moresettingssection, {
 			Name = "Show Watermark",
 			Flag = "__Designer.Watermark.Enabled",
 			Value = true,
@@ -11380,7 +11384,7 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 					end
 				end
 			end
-		}}, {"AddToggle", "__Designer.Toggle.KeybindsListToggle", backgroundsection, {
+		}}, {"AddToggle", "__Designer.Toggle.KeybindsListToggle", moresettingssection, {
 			Name = "Show Keybinds List",
 			Flag = "__Designer.KeybindsList.Enabled",
 			Value = true,
@@ -11590,6 +11594,10 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 			end
 			if backgroundsection then
 				backgroundsection.Remove()
+				dorlod = true
+			end
+			if moresettingssection then
+				moresettingssection.Remove()
 				dorlod = true
 			end
 			if designerelements then
