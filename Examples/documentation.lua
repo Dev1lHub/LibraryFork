@@ -124,7 +124,7 @@ Update: Function -> CurrentText // Same function as Get, exists for compat.
                        (any) UnloadValue = UnloadValue
                        (function | nil) UnloadFunc = Function
                        (boolean | nil) Locked = true or false
-                       (boolean | string | nil) VIP = true | "Badge text" // Shows a gold badge and stays locked until library:SetVIP(true)
+                       (boolean | string | nil) VIP = true // Stays locked until library:SetVIP(true) (no badge is shown; a string value is accepted but ignored)
                        (function | nil) VIPCheck = Function -> boolean // Alternative unlock check, VIP is unlocked if library.VIP or this returns true
                        (table | boolean | EnumItem | nil) Keybind/Key/KeyBind = Keybind [
                            (string | nil) Mode/KeybindMode = "Dynamic" | "Hold" | "Toggle" // Click the small D/H/T letter next to the key to change it
@@ -252,7 +252,7 @@ RawSet: Function (NewValue) -> NewValue // Sets the flag without firing the call
 (function | nil) Condition = Function (NumPresses) // Will only allow the button to be pressed, if this function returns true
 (boolean | string | nil) Confirm = true | "Confirm text" // First click asks, second click within 3 seconds runs the callback
 (number | nil) Cooldown = 10 // Seconds the button is blocked after a press, shows a countdown
-(boolean | string | nil) VIP = true | "Badge text" // Gold badge, locked until library:SetVIP(true)
+(boolean | string | nil) VIP = true // Locked until library:SetVIP(true) (no badge is shown)
 (function | nil) VIPCheck = Function -> boolean
                    ]
                    (table | nil) Options ...

@@ -269,7 +269,7 @@ library:ShowLoadingScreen({
             end
         })
 
-        -- VIP elements: gold badge, locked until library:SetVIP(true) or until VIPCheck returns true
+        -- VIP elements: locked (greyed out) until library:SetVIP(true) or until VIPCheck returns true
         MiscSection:AddToggle({
             Name = "Auto Farm Pro",
             Flag = "MiscSection_AutoFarmPro",

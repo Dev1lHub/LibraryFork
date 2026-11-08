@@ -4063,27 +4063,6 @@ local function vipDenied()
 		library:Notify({Text = "VIP only feature", Time = 3, Type = "error"})
 	end)
 end
-local function vipBadgeText(options)
-	if not options.VIP then
-		return nil
-	end
-	return (type(options.VIP) == "string" and options.VIP) or "VIP"
-end
-local function createBadge(parent, text, color, textColor)
-	local badge = Instance_new("TextLabel")
-	badge.Name = generateRandomName()
-	badge.BackgroundColor3 = color or Color3.fromRGB(255, 196, 61)
-	badge.BorderSizePixel = 0
-	badge.Font = Enum.Font.Code
-	badge.Text = tostring(text)
-	badge.TextColor3 = textColor or Color3.fromRGB(40, 26, 0)
-	badge.TextSize = 10
-	badge.ZIndex = 8
-	addCorner(badge, 3)
-	badge.Size = UDim2.fromOffset(textToSize(badge).X + 8, 12)
-	badge.Parent = parent
-	return badge
-end
 function library:CreateWindow(options, ...)
 	options = (options and type(options) == "string" and resolvevararg("Window", options, ...)) or options
 	local homepage = nil
@@ -5289,12 +5268,6 @@ function library:CreateWindow(options, ...)
 				toggleHeadline.TextSize = 14
 				toggleHeadline.TextXAlignment = Enum.TextXAlignment.Left
 
-				if isVIP then
-					local vipBadge = createBadge(newToggle, vipBadgeText(options))
-					vipBadge.AnchorPoint = Vector2.new(0, 0.5)
-					vipBadge.Position = UDim2.new(0, 22 + math.min(textToSize(toggleHeadline).X, 150) + 4, 0.5, 0)
-					vipBadge.ZIndex = 3
-				end
 				local Tooltip = nil
 				if typeof(options.Tooltip) == "string" or typeof(options.DisabledTooltip) == "string" then
 					Tooltip = library:AddToolTip(options.Tooltip, options.DisabledTooltip, newToggle)
@@ -5967,7 +5940,7 @@ function library:CreateWindow(options, ...)
 					if isVIP and type(options.DisabledTooltip) ~= "string" then
 						options.DisabledTooltip = "VIP only feature"
 					end
-					local badgeLabel, extra = nil, 0
+					local extra = 0
 					local realButton = Instance_new("TextButton")
 					realButton.Name = generateRandomName()
 					realButton.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -5980,11 +5953,6 @@ function library:CreateWindow(options, ...)
 					local colored_realButton_TextColor3 = {realButton, "TextColor3", "elementText"}
 					colored[1 + #colored] = colored_realButton_TextColor3
 					realButton.TextSize = 14
-					if isVIP then
-						badgeLabel = createBadge(nil, vipBadgeText(options))
-						extra = badgeLabel.Size.X.Offset + 4
-						realButton.Size = UDim2.new(1, -extra, 1, 0)
-					end
 					local textsize = textToSize(realButton).X + 14 + extra
 					if newSection.Parent and (newSection.Parent.AbsoluteSize.X < (offset + textsize + 8)) then
 						offset, fram = 0, nil
@@ -6051,11 +6019,6 @@ function library:CreateWindow(options, ...)
 					colored[1 + #colored] = colored_buttonInner_ImageColor3
 					button.Size = UDim2.fromOffset(textsize, 18)
 					realButton.Parent = button
-					if badgeLabel then
-						badgeLabel.AnchorPoint = Vector2.new(1, 0.5)
-						badgeLabel.Position = UDim2.new(1, -4, 0.5, 0)
-						badgeLabel.Parent = button
-					end
 					offset = offset + textsize + 6
 					sectionFunctions:Update()
 

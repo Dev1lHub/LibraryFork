@@ -1663,13 +1663,9 @@ do
 	end
 	local function addVIP(o, parent, element, onChange, x)
 		if not o.VIP then return function() return false end end
-		local badge = label(parent, {AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, x, 0.5, 0), Size = UDim2.fromOffset(34, 16), BackgroundColor3 = Color3.fromRGB(255, 200, 60), TextColor3 = Color3.fromRGB(40, 28, 0), Text = (type(o.VIP) == "string" and o.VIP) or "VIP", TextSize = 10, Font = FONT_BOLD, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 3})
-		badge.BackgroundTransparency = 0
-		corner(badge, "full")
 		local locked = not vipUnlocked(o)
 		local function refresh()
 			locked = not vipUnlocked(o)
-			badge.BackgroundTransparency = locked and 0.35 or 0
 			onChange()
 		end
 		vipRefresh[1 + #vipRefresh] = refresh
@@ -1677,11 +1673,9 @@ do
 		element.SetVIPLocked = function(t, state)
 			if type(t) ~= "table" then state = t end
 			locked = state and true or false
-			badge.BackgroundTransparency = locked and 0.35 or 0
 			onChange()
 			return locked
 		end
-		badge.BackgroundTransparency = locked and 0.35 or 0
 		return function(silent)
 			if locked and not silent then notify("VIP only feature", "error") end
 			return locked
