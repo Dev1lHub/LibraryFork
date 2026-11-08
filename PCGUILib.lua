@@ -11319,6 +11319,12 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 				designerelements["__Designer.Textbox.HideNameUsername"]:Set(hideNameDefault)
 			end)
 		end
+		local function hideNameToggleOff()
+			hideNameReset()
+			pcall(function()
+				designerelements["__Designer.Toggle.HideOtherNames"]:Set(false)
+			end)
+		end
 		local daaata = {{"AddTextbox", "__Designer.Textbox.ImageAssetID", backgroundsection, {
 			Name = "Image Asset ID",
 			Placeholder = "rbxassetid://133158046147209",
@@ -11416,7 +11422,7 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 			-- UI test only: turning it off restores the defaults (real function comes later)
 			Callback = function(value, old)
 				if value == false and old == true then
-					hideNameReset()
+					hideNameToggleOff()
 					library:Notify({
 						Title = "Hide Name",
 						Text = "Hide Name disabled - Display and Username restored to the default: " .. hideNameDefault,
@@ -11464,8 +11470,10 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 					Type = "success"
 				})
 			end
-		}}}, {"AddButton", "__Designer.Button.HideOtherNames", moresettingssection, {
+		}}}, {"AddToggle", "__Designer.Toggle.HideOtherNames", moresettingssection, {
 			Name = "Hide other names",
+			Flag = "__Designer.HideName.HideOthers",
+			Value = false,
 			DependsOn = "__Designer.HideName.Enabled",
 			-- UI test only, no function yet
 			Callback = function() end
