@@ -11464,7 +11464,12 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 					Type = "success"
 				})
 			end
-		}}}, {"AddPersistence", "__Designer.Persistence.ThemeFile", filessection, {
+		}}}, {"AddButton", "__Designer.Button.HideOtherNames", moresettingssection, {
+			Name = "Hide other names",
+			DependsOn = "__Designer.HideName.Enabled",
+			-- UI test only, no function yet
+			Callback = function() end
+		}}, {"AddPersistence", "__Designer.Persistence.ThemeFile", filessection, {
 			Name = "Theme Profile",
 			Flag = "__Designer.Files.ThemeFile",
 			Workspace = "D3v1lHub Lib Themes",
