@@ -11399,7 +11399,35 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 					end)
 				end
 			end
-		}}, {"AddPersistence", "__Designer.Persistence.ThemeFile", filessection, {
+		}}, {"AddToggle", "__Designer.Toggle.HideNameToggle", moresettingssection, {
+			Name = "Hide Name",
+			Flag = "__Designer.HideName.Enabled",
+			Value = false,
+			-- UI test only, no function yet
+			Callback = function() end
+		}}, {"AddTextbox", "__Designer.Textbox.HideNameDisplay", moresettingssection, {
+			Name = "Display",
+			Flag = "__Designer.HideName.Display",
+			Placeholder = "Display name...",
+			Value = "",
+			DependsOn = "__Designer.HideName.Enabled",
+			Callback = function() end
+		}}, {"AddTextbox", "__Designer.Textbox.HideNameUsername", moresettingssection, {
+			Name = "Username",
+			Flag = "__Designer.HideName.Username",
+			Placeholder = "Username...",
+			Value = "",
+			DependsOn = "__Designer.HideName.Enabled",
+			Callback = function() end
+		}}, {"AddButton", "__Designer.Button.HideNameButtons", moresettingssection, {{
+			Name = "Apply",
+			DependsOn = "__Designer.HideName.Enabled",
+			Callback = function() end
+		}, {
+			Name = "Reset",
+			DependsOn = "__Designer.HideName.Enabled",
+			Callback = function() end
+		}}}, {"AddPersistence", "__Designer.Persistence.ThemeFile", filessection, {
 			Name = "Theme Profile",
 			Flag = "__Designer.Files.ThemeFile",
 			Workspace = "D3v1lHub Lib Themes",
