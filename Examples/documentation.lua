@@ -53,6 +53,7 @@ NEW (PC library)
    Dropdowns never show "table: 0x..." anymore - a table value is displayed as "a, b, c"; dropdown:Set(nil) no longer stores the element itself.
    Staggered building (PC): elements are built one after another - after each Add* call the build pauses one frame once library.configuration.buildBudgetMs (default 4) ms are used up, so the FPS stays stable while loading. library.configuration.staggerBuild = false turns it off. The fade-in cover stays until the menu is built.
    Load-in + tab animation (PC): after loading the columns slide into place and their sections appear one after another (left column top to bottom, then the right column). Switching tabs works like turning a page: the old tab slides out while the new one slides in (the right column follows slightly later). library.configuration.tabAnimation = false turns the tab animation off.
+   Open/close animation (PC): closing/opening the menu (hide keybind, window:Show() / Hide() / Visibility()) fades and softly scales it. library.configuration.toggleAnimation = false turns it off.
    library.configuration (set before CreateWindow): lazyTabs = false (true: tabs are attached to the menu when opened the first time, experimental), maxNotifications = 5, fadeIn = true (fade-in animation when the menu is created)
    library:ShowTerms() // Opens the Terms Of Use / copyright window (also: Settings tab > More Info > "View Terms Of Use")
    library.CloseTerms() // Closes it again
