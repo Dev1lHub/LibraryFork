@@ -4817,13 +4817,13 @@ function library:CreateWindow(options, ...)
 			spinner.BorderSizePixel = 0
 			spinner.ZIndex = 100001
 			addCorner(spinner, 18)
-			-- full ring in the menu color + a bright (whitened menu color) piece running around it
+			-- white spinner: a faint full ring + a bright white piece running around it
 			local trackStroke = Instance_new("UIStroke")
 			trackStroke.Name = generateRandomName()
 			trackStroke.Parent = spinner
 			trackStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 			trackStroke.Thickness = 3
-			trackStroke.Color = library.colors.main
+			trackStroke.Color = Color3.new(1, 1, 1)
 			trackStroke.Transparency = 1
 			local runner = Instance_new("Frame")
 			runner.Name = generateRandomName()
@@ -4838,7 +4838,7 @@ function library:CreateWindow(options, ...)
 			spinnerStroke.Parent = runner
 			spinnerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 			spinnerStroke.Thickness = 3
-			spinnerStroke.Color = library.colors.main:Lerp(Color3.new(1, 1, 1), 0.7)
+			spinnerStroke.Color = Color3.new(1, 1, 1)
 			local spinnerGradient = Instance_new("UIGradient")
 			spinnerGradient.Name = generateRandomName()
 			spinnerGradient.Parent = spinnerStroke
@@ -4859,7 +4859,7 @@ function library:CreateWindow(options, ...)
 				Transparency = 0
 			}):Play()
 			tweenService:Create(trackStroke, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-				Transparency = 0.72
+				Transparency = 0.86
 			}):Play()
 			tweenService:Create(spinnerGradient, TweenInfo.new(1.1, Enum.EasingStyle.Linear, Enum.EasingDirection.In, -1), {
 				Rotation = 360
