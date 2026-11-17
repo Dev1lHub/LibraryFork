@@ -4817,13 +4817,13 @@ function library:CreateWindow(options, ...)
 			spinner.BorderSizePixel = 0
 			spinner.ZIndex = 100001
 			addCorner(spinner, 18)
-			-- white spinner: a faint full ring + a bright white piece running around it
+			-- spinner: a full ring in the menu color + ONE short white piece running around it
 			local trackStroke = Instance_new("UIStroke")
 			trackStroke.Name = generateRandomName()
 			trackStroke.Parent = spinner
 			trackStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 			trackStroke.Thickness = 3
-			trackStroke.Color = Color3.new(1, 1, 1)
+			trackStroke.Color = library.colors.main
 			trackStroke.Transparency = 1
 			local runner = Instance_new("Frame")
 			runner.Name = generateRandomName()
@@ -4845,13 +4845,12 @@ function library:CreateWindow(options, ...)
 			-- comet: the tail fades out smoothly, the head ends softly
 			spinnerGradient.Transparency = NumberSequence.new({
 				NumberSequenceKeypoint.new(0, 1),
-				NumberSequenceKeypoint.new(0.12, 0.92),
-				NumberSequenceKeypoint.new(0.25, 0.72),
-				NumberSequenceKeypoint.new(0.38, 0.4),
-				NumberSequenceKeypoint.new(0.47, 0.1),
-				NumberSequenceKeypoint.new(0.5, 0),
-				NumberSequenceKeypoint.new(0.54, 0.6),
-				NumberSequenceKeypoint.new(0.58, 1),
+				NumberSequenceKeypoint.new(0.07, 1),
+				NumberSequenceKeypoint.new(0.14, 0.75),
+				NumberSequenceKeypoint.new(0.2, 0.3),
+				NumberSequenceKeypoint.new(0.25, 0),
+				NumberSequenceKeypoint.new(0.28, 0.6),
+				NumberSequenceKeypoint.new(0.31, 1),
 				NumberSequenceKeypoint.new(1, 1)
 			})
 			spinnerStroke.Transparency = 1
@@ -4859,7 +4858,7 @@ function library:CreateWindow(options, ...)
 				Transparency = 0
 			}):Play()
 			tweenService:Create(trackStroke, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-				Transparency = 0.86
+				Transparency = 0.35
 			}):Play()
 			tweenService:Create(spinnerGradient, TweenInfo.new(1.1, Enum.EasingStyle.Linear, Enum.EasingDirection.In, -1), {
 				Rotation = 360
