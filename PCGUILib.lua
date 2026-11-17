@@ -10367,6 +10367,19 @@ function library:CreateWindow(options, ...)
 							return tostring(res)
 						end
 					end
+					if type(v) == "table" then
+						-- never show "table: 0x..." - lists are shown as "a, b, c"
+						local parts = {}
+						for _, item in ipairs(v) do
+							if type(item) ~= "table" then
+								parts[1 + #parts] = tostring(item)
+							end
+						end
+						if #parts > 0 then
+							return table.concat(parts, ", ")
+						end
+						return tostring(blankstring or "Select Item(s)")
+					end
 					return tostring(v)
 				end
 
@@ -10678,7 +10691,7 @@ local resolvelist = getresolver(listt, options.Filter, options.Method)
 					end
 					return selectedOption
 				end) or function(t, str)
-					if nil == str and t ~= nil then
+					if nil == str and t ~= nil and not (type(t) == "table" and t.Flag == flagName and type(t.Set) == "function") then
 						str = t
 					end
 					local last_v = library_flags[flagName]
@@ -12050,6 +12063,18 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 			Workspace = library.WorkspaceName or "Unnamed Workspace",
 			Desginer = true
 		}
+		local uiScaleToken = 0
+		local mainUIScale = nil
+		function library.SetUIScale(scale)
+			scale = math.clamp(tonumber(scale) or 1, 0.5, 1.5)
+			if not mainUIScale or not mainUIScale.Parent then
+				mainUIScale = Instance_new("UIScale")
+				mainUIScale.Name = generateRandomName()
+				mainUIScale.Parent = main
+			end
+			mainUIScale.Scale = scale
+			return scale
+		end
 		local hideNameDefault = "D3v1lHub がトップに"
 		local function hideNameValues()
 			return tostring(library_flags["__Designer.HideName.Display"] or ""), tostring(library_flags["__Designer.HideName.Username"] or "")
@@ -12093,6 +12118,24 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 			Flag = "__Designer.Background.UseBackgroundImage",
 			Value = true,
 			Callback = updatecolorsnotween
+		}}, {"AddSlider", "__Designer.Slider.UIScale", moresettingssection, {
+			Name = "UI Scale",
+			Flag = "__Designer.UIScale",
+			Value = 100,
+			Min = 60,
+			Max = 140,
+			Format = "UI Scale: %s%%",
+			Callback = function(value)
+				-- applied shortly after the last change, so dragging the slider does not jitter while the menu resizes
+				uiScaleToken = uiScaleToken + 1
+				local token = uiScaleToken
+				task.delay(0.25, function()
+					if token ~= uiScaleToken then
+						return
+					end
+					pcall(library.SetUIScale, (tonumber(value) or 100) / 100)
+				end)
+			end
 		}}, {"AddToggle", "__Designer.Toggle.CursorToggle", moresettingssection, {
 			Name = "Custom Cursor",
 			Flag = "__Designer.Cursor.Enabled",
