@@ -4812,19 +4812,12 @@ function library:CreateWindow(options, ...)
 			spinner.Parent = cover
 			spinner.AnchorPoint = Vector2.new(0.5, 0.5)
 			spinner.Position = UDim2.fromScale(0.5, 0.5)
-			spinner.Size = UDim2.fromOffset(36, 36)
+			spinner.Size = UDim2.fromOffset(44, 44)
 			spinner.BackgroundTransparency = 1
 			spinner.BorderSizePixel = 0
 			spinner.ZIndex = 100001
-			addCorner(spinner, 18)
-			-- spinner: a full ring in the menu color + ONE short white piece running around it
-			local trackStroke = Instance_new("UIStroke")
-			trackStroke.Name = generateRandomName()
-			trackStroke.Parent = spinner
-			trackStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-			trackStroke.Thickness = 3
-			trackStroke.Color = library.colors.main
-			trackStroke.Transparency = 1
+			addCorner(spinner, 22)
+			-- spinner: ONE white piece with a fading tail running around in a circle
 			local runner = Instance_new("Frame")
 			runner.Name = generateRandomName()
 			runner.Parent = spinner
@@ -4832,7 +4825,7 @@ function library:CreateWindow(options, ...)
 			runner.BackgroundTransparency = 1
 			runner.BorderSizePixel = 0
 			runner.ZIndex = 100002
-			addCorner(runner, 18)
+			addCorner(runner, 22)
 			local spinnerStroke = Instance_new("UIStroke")
 			spinnerStroke.Name = generateRandomName()
 			spinnerStroke.Parent = runner
@@ -4845,31 +4838,21 @@ function library:CreateWindow(options, ...)
 			-- comet: the tail fades out smoothly, the head ends softly
 			spinnerGradient.Transparency = NumberSequence.new({
 				NumberSequenceKeypoint.new(0, 1),
-				NumberSequenceKeypoint.new(0.07, 1),
-				NumberSequenceKeypoint.new(0.14, 0.75),
-				NumberSequenceKeypoint.new(0.2, 0.3),
-				NumberSequenceKeypoint.new(0.25, 0),
-				NumberSequenceKeypoint.new(0.28, 0.6),
-				NumberSequenceKeypoint.new(0.31, 1),
+				NumberSequenceKeypoint.new(0.05, 1),
+				NumberSequenceKeypoint.new(0.15, 0.85),
+				NumberSequenceKeypoint.new(0.27, 0.55),
+				NumberSequenceKeypoint.new(0.38, 0.2),
+				NumberSequenceKeypoint.new(0.45, 0),
+				NumberSequenceKeypoint.new(0.47, 0.5),
+				NumberSequenceKeypoint.new(0.5, 1),
 				NumberSequenceKeypoint.new(1, 1)
 			})
 			spinnerStroke.Transparency = 1
 			tweenService:Create(spinnerStroke, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 				Transparency = 0
 			}):Play()
-			tweenService:Create(trackStroke, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-				Transparency = 0.35
-			}):Play()
 			tweenService:Create(spinnerGradient, TweenInfo.new(1.1, Enum.EasingStyle.Linear, Enum.EasingDirection.In, -1), {
 				Rotation = 360
-			}):Play()
-			-- gentle breathing so it never looks frozen
-			local spinnerScale = Instance_new("UIScale")
-			spinnerScale.Name = generateRandomName()
-			spinnerScale.Parent = spinner
-			spinnerScale.Scale = 0.85
-			tweenService:Create(spinnerScale, TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
-				Scale = 1
 			}):Play()
 			task.delay(0.15, function()
 				-- wait until the menu is built (no new element for 0.3 s, max. 8 s), then fade out
@@ -4891,9 +4874,6 @@ function library:CreateWindow(options, ...)
 						BackgroundTransparency = 1
 					}):Play()
 					tweenService:Create(spinnerStroke, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-						Transparency = 1
-					}):Play()
-					tweenService:Create(trackStroke, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						Transparency = 1
 					}):Play()
 				end)
