@@ -4816,7 +4816,7 @@ function library:CreateWindow(options, ...)
 					local holder = library.__GetSelectedHolder and library.__GetSelectedHolder()
 					local reveal = holder and library.__TabReveal and library.__TabReveal[holder]
 					if reveal then
-						reveal(0.07)
+						reveal(0.07, true)
 					end
 				end)
 				pcall(function()
@@ -5653,33 +5653,54 @@ function library:CreateWindow(options, ...)
 		-- Lazy tabs (library.configuration.lazyTabs = true): the holder of a tab is only attached to the menu when the tab is opened for the first time.
 		local lazyPending = false
 		-- Reveal: the sections of the tab appear one after another - the left column from top to bottom, then the right column
-		local function revealSections(step)
-			local list = {}
-			for _, side in ipairs({left, right}) do
+		local function revealSections(step, slide)
+			local sides = {left, right}
+			local homes = {UDim2.new(0, 0, 0, 0), UDim2.new(0.5, 0, 0, 0)}
+			local perSide, all = {}, {}
+			for i, side in ipairs(sides) do
+				perSide[i] = {}
 				for _, c in ipairs(side:GetChildren()) do
 					if c:IsA("Frame") then
-						list[1 + #list] = c
+						perSide[i][1 + #perSide[i]] = c
+						all[1 + #all] = c
 					end
 				end
 			end
 			local hold = library.__SectionHold
-			for _, c in ipairs(list) do
+			for _, c in ipairs(all) do
 				hold[c] = true
 				c.Visible = false
 			end
+			if slide then
+				for i, side in ipairs(sides) do
+					side.Position = homes[i] + UDim2.fromOffset(0, -14)
+				end
+			end
 			task.spawn(function()
-				for _, c in ipairs(list) do
-					if newTabHolder.Visible and newTabHolder.Parent then
-						hold[c] = nil
-						c.Visible = true
-						task.wait(step)
-					else
-						break
+				local alive = true
+				for i, side in ipairs(sides) do
+					if slide and #perSide[i] > 0 then
+						tweenService:Create(side, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+							Position = homes[i]
+						}):Play()
+					end
+					for _, c in ipairs(perSide[i]) do
+						if alive and newTabHolder.Visible and newTabHolder.Parent then
+							hold[c] = nil
+							c.Visible = true
+							task.wait(step)
+						else
+							alive = false
+							break
+						end
 					end
 				end
-				for _, c in ipairs(list) do
+				for _, c in ipairs(all) do
 					hold[c] = nil
 					c.Visible = true
+				end
+				for i, side in ipairs(sides) do
+					side.Position = homes[i]
 				end
 			end)
 		end
@@ -5726,7 +5747,10 @@ function library:CreateWindow(options, ...)
 				if colored_newTab_TextColor3 then
 					colored_newTab_TextColor3[4] = nil
 				end
-				windowFunctions.selected.holder.Visible = false
+				local prevHolder = windowFunctions.selected.holder
+				if library.configuration.tabAnimation == false then
+					prevHolder.Visible = false
+				end
 				windowFunctions.selected.button = newTab
 				windowFunctions.selected.holder = newTabHolder
 				if windowFunctions.selected.button.ClassName == "TextButton" then
@@ -5736,15 +5760,33 @@ function library:CreateWindow(options, ...)
 				end
 				windowFunctions.selected.holder.Visible = true
 				windowFunctions.LastTab = colored_newTab_TextColor3
-				-- tab switch animation: the tab slides in from the side and its sections appear one after another
+				-- tab switch animation (like turning a page): the old tab slides out while the new one slides in; the right column follows a little later
 				if library.configuration.tabAnimation ~= false then
-					pcall(function()
-						newTabHolder.Position = UDim2.fromOffset(tabDirection * 30, 0)
-						tweenService:Create(newTabHolder, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
-							Position = UDim2.fromOffset(0, 0)
+					local okAnim = pcall(function()
+						local info = TweenInfo.new(0.45, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+						newTabHolder.Position = UDim2.fromScale(tabDirection, 0)
+						right.Position = UDim2.new(0.5 + tabDirection * 0.12, 0, 0, 0)
+						tweenService:Create(newTabHolder, info, {
+							Position = UDim2.fromScale(0, 0)
 						}):Play()
-						revealSections(0.035)
+						tweenService:Create(right, TweenInfo.new(0.55, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+							Position = UDim2.new(0.5, 0, 0, 0)
+						}):Play()
+						if prevHolder and prevHolder ~= newTabHolder then
+							tweenService:Create(prevHolder, info, {
+								Position = UDim2.fromScale(-tabDirection, 0)
+							}):Play()
+							task.delay(0.5, function()
+								if windowFunctions.selected.holder ~= prevHolder then
+									prevHolder.Visible = false
+									prevHolder.Position = UDim2.new()
+								end
+							end)
+						end
 					end)
+					if not okAnim and prevHolder then
+						prevHolder.Visible = false
+					end
 				end
 			end
 		end
