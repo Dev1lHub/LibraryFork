@@ -1841,7 +1841,7 @@ library.Subs.Pace = function()
 	if library.configuration.staggerBuild == false then
 		return
 	end
-	if (os.clock() - paceClock) * 1000 >= (tonumber(library.configuration.buildBudgetMs) or 6) and coroutine.isyieldable() then
+	if (os.clock() - paceClock) * 1000 >= (tonumber(library.configuration.buildBudgetMs) or 4) and coroutine.isyieldable() then
 		task.wait()
 		paceClock = os.clock()
 	end
