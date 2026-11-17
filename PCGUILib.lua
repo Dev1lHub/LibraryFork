@@ -4793,7 +4793,7 @@ function library:CreateWindow(options, ...)
 	end
 	makeDraggable(main, main)
 	-- Fade-in loading animation: the window and the tab bar are visible immediately; only the content area is covered
-	-- (with a small "Loading..." text) until the menu is built, then the cover fades out and the features slide in
+	-- (with a small loading spinner) until the menu is built, then the cover fades out and the features slide in
 	if library.configuration.fadeIn ~= false then
 		pcall(function()
 			local cover = Instance_new("Frame")
@@ -4806,27 +4806,36 @@ function library:CreateWindow(options, ...)
 			cover.Size = UDim2.fromScale(1, 1)
 			cover.ZIndex = 100000
 			addCorner(cover, 6)
-			local loadingLabel = Instance_new("TextLabel")
-			loadingLabel.Name = generateRandomName()
-			loadingLabel.Parent = cover
-			loadingLabel.AnchorPoint = Vector2.new(0.5, 0.5)
-			loadingLabel.Position = UDim2.fromScale(0.5, 0.5)
-			loadingLabel.Size = UDim2.fromOffset(200, 20)
-			loadingLabel.BackgroundTransparency = 1
-			loadingLabel.Font = Enum.Font.Code
-			loadingLabel.TextSize = 14
-			loadingLabel.Text = "Loading..."
-			loadingLabel.TextColor3 = library.colors.otherElementText
-			loadingLabel.ZIndex = 100001
-			task.spawn(function()
-				local frames = {"Loading", "Loading.", "Loading..", "Loading..."}
-				local i = 0
-				while loadingLabel.Parent and loadingLabel.TextTransparency < 1 do
-					i = i % #frames + 1
-					loadingLabel.Text = frames[i]
-					task.wait(0.25)
-				end
-			end)
+			-- loading spinner: a ring with a gradient arc that rotates
+			local spinner = Instance_new("Frame")
+			spinner.Name = generateRandomName()
+			spinner.Parent = cover
+			spinner.AnchorPoint = Vector2.new(0.5, 0.5)
+			spinner.Position = UDim2.fromScale(0.5, 0.5)
+			spinner.Size = UDim2.fromOffset(36, 36)
+			spinner.BackgroundTransparency = 1
+			spinner.BorderSizePixel = 0
+			spinner.ZIndex = 100001
+			addCorner(spinner, 18)
+			local spinnerStroke = Instance_new("UIStroke")
+			spinnerStroke.Name = generateRandomName()
+			spinnerStroke.Parent = spinner
+			spinnerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+			spinnerStroke.Thickness = 3
+			spinnerStroke.Color = library.colors.main
+			local spinnerGradient = Instance_new("UIGradient")
+			spinnerGradient.Name = generateRandomName()
+			spinnerGradient.Parent = spinnerStroke
+			spinnerGradient.Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 1),
+				NumberSequenceKeypoint.new(0.45, 0),
+				NumberSequenceKeypoint.new(0.5, 0),
+				NumberSequenceKeypoint.new(0.51, 1),
+				NumberSequenceKeypoint.new(1, 1)
+			})
+			tweenService:Create(spinnerGradient, TweenInfo.new(0.9, Enum.EasingStyle.Linear, Enum.EasingDirection.In, -1), {
+				Rotation = 360
+			}):Play()
 			task.delay(0.15, function()
 				-- wait until the menu is built (no new element for 0.3 s, max. 8 s), then fade out
 				local waitStart = os.clock()
@@ -4846,8 +4855,8 @@ function library:CreateWindow(options, ...)
 					tweenService:Create(cover, TweenInfo.new(0.7, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						BackgroundTransparency = 1
 					}):Play()
-					tweenService:Create(loadingLabel, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-						TextTransparency = 1
+					tweenService:Create(spinnerStroke, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+						Transparency = 1
 					}):Play()
 				end)
 				task.wait(0.8)
