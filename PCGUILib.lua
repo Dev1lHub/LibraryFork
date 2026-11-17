@@ -1153,6 +1153,7 @@ local library = {
 		buildBudgetMs = 4, -- how many ms of building per frame
 		lazyTabs = false, -- true = tabs are attached to the menu only when opened the first time
 		maxNotifications = 5, -- max. notifications visible at once
+		tabAnimation = true, -- slide + staggered reveal when switching tabs
 		fadeIn = true, -- fade-in animation when the menu is created
 		smoothDragging = false,
 		easingStyle = Enum.EasingStyle.Quart,
@@ -1835,6 +1836,7 @@ library.Subs.MakeSafe = makeSafe
 -- Staggered building: after every created element the building thread yields one frame as soon as its
 -- time budget (library.configuration.buildBudgetMs, default 4 ms) is used up. That keeps the FPS stable while a big menu is built.
 -- Return values stay the same (the Add* call just returns a little later). Off with library.configuration.staggerBuild = false.
+library.__SectionHold = setmetatable({}, {__mode = "k"}) -- sections that are hidden on purpose while a tab is revealed
 local paceClock = os.clock()
 library.Subs.Pace = function()
 	library.__lastBuild = os.clock()
@@ -4809,6 +4811,14 @@ function library:CreateWindow(options, ...)
 				while os.clock() - waitStart < 8 and os.clock() - (library.__lastBuild or 0) < 0.3 do
 					task.wait(0.05)
 				end
+				-- the sections of the first tab appear while the cover fades: left column top to bottom, then the right column
+				pcall(function()
+					local holder = library.__GetSelectedHolder and library.__GetSelectedHolder()
+					local reveal = holder and library.__TabReveal and library.__TabReveal[holder]
+					if reveal then
+						reveal(0.07)
+					end
+				end)
 				pcall(function()
 					tweenService:Create(cover, TweenInfo.new(0.7, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						BackgroundTransparency = 1
@@ -5642,6 +5652,42 @@ function library:CreateWindow(options, ...)
 		end
 		-- Lazy tabs (library.configuration.lazyTabs = true): the holder of a tab is only attached to the menu when the tab is opened for the first time.
 		local lazyPending = false
+		-- Reveal: the sections of the tab appear one after another - the left column from top to bottom, then the right column
+		local function revealSections(step)
+			local list = {}
+			for _, side in ipairs({left, right}) do
+				for _, c in ipairs(side:GetChildren()) do
+					if c:IsA("Frame") then
+						list[1 + #list] = c
+					end
+				end
+			end
+			local hold = library.__SectionHold
+			for _, c in ipairs(list) do
+				hold[c] = true
+				c.Visible = false
+			end
+			task.spawn(function()
+				for _, c in ipairs(list) do
+					if newTabHolder.Visible and newTabHolder.Parent then
+						hold[c] = nil
+						c.Visible = true
+						task.wait(step)
+					else
+						break
+					end
+				end
+				for _, c in ipairs(list) do
+					hold[c] = nil
+					c.Visible = true
+				end
+			end)
+		end
+		library.__TabReveal = library.__TabReveal or {}
+		library.__TabReveal[newTabHolder] = revealSections
+		library.__GetSelectedHolder = function()
+			return windowFunctions.selected.holder
+		end
 		local function goto()
 			if not library.colorpicker and not submenuOpen and (windowFunctions.selected.button ~= newTab) and newTab.Parent and (newTabHolder.Parent or lazyPending) then
 				if lazyPending then
@@ -5667,6 +5713,7 @@ function library:CreateWindow(options, ...)
 						end
 					end
 				end)
+				local tabDirection = ((newTab.LayoutOrder >= windowFunctions.selected.button.LayoutOrder) and 1) or -1
 				if windowFunctions.LastTab then
 					windowFunctions.LastTab[4] = 1.35
 				end
@@ -5689,6 +5736,16 @@ function library:CreateWindow(options, ...)
 				end
 				windowFunctions.selected.holder.Visible = true
 				windowFunctions.LastTab = colored_newTab_TextColor3
+				-- tab switch animation: the tab slides in from the side and its sections appear one after another
+				if library.configuration.tabAnimation ~= false then
+					pcall(function()
+						newTabHolder.Position = UDim2.fromOffset(tabDirection * 30, 0)
+						tweenService:Create(newTabHolder, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+							Position = UDim2.fromOffset(0, 0)
+						}):Play()
+						revealSections(0.035)
+					end)
+				end
 			end
 		end
 		if not homepage and newTab.LayoutOrder <= 4 then
@@ -5886,7 +5943,7 @@ function library:CreateWindow(options, ...)
 			}
 			function sectionFunctions:Update(extra)
 				local currentHolder = newSection.Parent
-				if not newSection.Visible then
+				if not newSection.Visible and not library.__SectionHold[newSection] then
 					newSection.Visible = true
 				end
 				newSection.Size = UDim2.new(1, -20, 0, (15 + sectionList.AbsoluteContentSize.Y))
