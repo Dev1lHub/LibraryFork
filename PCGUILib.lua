@@ -4817,12 +4817,28 @@ function library:CreateWindow(options, ...)
 			spinner.BorderSizePixel = 0
 			spinner.ZIndex = 100001
 			addCorner(spinner, 18)
+			-- full ring in the menu color + a bright (whitened menu color) piece running around it
+			local trackStroke = Instance_new("UIStroke")
+			trackStroke.Name = generateRandomName()
+			trackStroke.Parent = spinner
+			trackStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+			trackStroke.Thickness = 3
+			trackStroke.Color = library.colors.main
+			trackStroke.Transparency = 1
+			local runner = Instance_new("Frame")
+			runner.Name = generateRandomName()
+			runner.Parent = spinner
+			runner.Size = UDim2.fromScale(1, 1)
+			runner.BackgroundTransparency = 1
+			runner.BorderSizePixel = 0
+			runner.ZIndex = 100002
+			addCorner(runner, 18)
 			local spinnerStroke = Instance_new("UIStroke")
 			spinnerStroke.Name = generateRandomName()
-			spinnerStroke.Parent = spinner
+			spinnerStroke.Parent = runner
 			spinnerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 			spinnerStroke.Thickness = 3
-			spinnerStroke.Color = library.colors.main
+			spinnerStroke.Color = library.colors.main:Lerp(Color3.new(1, 1, 1), 0.7)
 			local spinnerGradient = Instance_new("UIGradient")
 			spinnerGradient.Name = generateRandomName()
 			spinnerGradient.Parent = spinnerStroke
@@ -4841,6 +4857,9 @@ function library:CreateWindow(options, ...)
 			spinnerStroke.Transparency = 1
 			tweenService:Create(spinnerStroke, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 				Transparency = 0
+			}):Play()
+			tweenService:Create(trackStroke, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				Transparency = 0.72
 			}):Play()
 			tweenService:Create(spinnerGradient, TweenInfo.new(1.1, Enum.EasingStyle.Linear, Enum.EasingDirection.In, -1), {
 				Rotation = 360
@@ -4873,6 +4892,9 @@ function library:CreateWindow(options, ...)
 						BackgroundTransparency = 1
 					}):Play()
 					tweenService:Create(spinnerStroke, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+						Transparency = 1
+					}):Play()
+					tweenService:Create(trackStroke, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						Transparency = 1
 					}):Play()
 				end)
