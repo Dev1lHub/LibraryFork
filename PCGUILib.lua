@@ -1150,7 +1150,7 @@ local library = {
 		hideKeybind = Enum.KeyCode.RightShift,
 		protectCallbacks = true, -- errors inside callbacks are caught and reported (false = off)
 		staggerBuild = true, -- elements are built one after another (a short pause every few ms) so the FPS does not drop while loading
-		buildBudgetMs = 6, -- how many ms of building per frame
+		buildBudgetMs = 4, -- how many ms of building per frame
 		lazyTabs = false, -- true = tabs are attached to the menu only when opened the first time
 		maxNotifications = 5, -- max. notifications visible at once
 		fadeIn = true, -- fade-in animation when the menu is created
@@ -1833,7 +1833,7 @@ end
 library.Subs = library.Subs or {}
 library.Subs.MakeSafe = makeSafe
 -- Staggered building: after every created element the building thread yields one frame as soon as its
--- time budget (library.configuration.buildBudgetMs, default 6 ms) is used up. That keeps the FPS stable while a big menu is built.
+-- time budget (library.configuration.buildBudgetMs, default 4 ms) is used up. That keeps the FPS stable while a big menu is built.
 -- Return values stay the same (the Add* call just returns a little later). Off with library.configuration.staggerBuild = false.
 local paceClock = os.clock()
 library.Subs.Pace = function()
