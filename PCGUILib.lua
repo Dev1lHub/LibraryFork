@@ -4792,19 +4792,41 @@ function library:CreateWindow(options, ...)
 		colored[1 + #colored] = {mainStroke, "Color", "outerBorder"}
 	end
 	makeDraggable(main, main)
-	-- Fade-in loading animation: a cover in the background color fades out over the freshly built menu
+	-- Fade-in loading animation: the window and the tab bar are visible immediately; only the content area is covered
+	-- (with a small "Loading..." text) until the menu is built, then the cover fades out and the features slide in
 	if library.configuration.fadeIn ~= false then
 		pcall(function()
 			local cover = Instance_new("Frame")
 			cover.Name = generateRandomName()
-			cover.Parent = main
+			cover.Parent = innerMainHolder
 			cover.Active = false
 			cover.BackgroundColor3 = library.colors.background
 			cover.BackgroundTransparency = 0
 			cover.BorderSizePixel = 0
 			cover.Size = UDim2.fromScale(1, 1)
 			cover.ZIndex = 100000
-			addCorner(cover, 8)
+			addCorner(cover, 6)
+			local loadingLabel = Instance_new("TextLabel")
+			loadingLabel.Name = generateRandomName()
+			loadingLabel.Parent = cover
+			loadingLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+			loadingLabel.Position = UDim2.fromScale(0.5, 0.5)
+			loadingLabel.Size = UDim2.fromOffset(200, 20)
+			loadingLabel.BackgroundTransparency = 1
+			loadingLabel.Font = Enum.Font.Code
+			loadingLabel.TextSize = 14
+			loadingLabel.Text = "Loading..."
+			loadingLabel.TextColor3 = library.colors.otherElementText
+			loadingLabel.ZIndex = 100001
+			task.spawn(function()
+				local frames = {"Loading", "Loading.", "Loading..", "Loading..."}
+				local i = 0
+				while loadingLabel.Parent and loadingLabel.TextTransparency < 1 do
+					i = i % #frames + 1
+					loadingLabel.Text = frames[i]
+					task.wait(0.25)
+				end
+			end)
 			task.delay(0.15, function()
 				-- wait until the menu is built (no new element for 0.3 s, max. 8 s), then fade out
 				local waitStart = os.clock()
@@ -4823,6 +4845,9 @@ function library:CreateWindow(options, ...)
 				pcall(function()
 					tweenService:Create(cover, TweenInfo.new(0.7, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						BackgroundTransparency = 1
+					}):Play()
+					tweenService:Create(loadingLabel, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+						TextTransparency = 1
 					}):Play()
 				end)
 				task.wait(0.8)
