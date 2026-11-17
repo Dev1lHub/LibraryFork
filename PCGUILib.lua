@@ -1760,6 +1760,72 @@ end
 library.Subs.SeverAllConnections = SeverAllConnections
 -- Name Hider (client side only): replaces your own and/or other players' names in GUIs, chat,
 -- leaderboard and overhead names. Nothing is hooked while it is not needed.
+-- Callback protection: an error inside a user callback must not break the menu.
+-- It is logged to the console and shown once as a notification (same error is rate limited).
+local protectedFns = setmetatable({}, {__mode = "k"})
+local callbackErrorSeen = {}
+local function reportCallbackError(label, err, trace)
+	local msg = tostring(err)
+	local key = label .. "|" .. msg
+	local now = os.clock()
+	if callbackErrorSeen[key] and now - callbackErrorSeen[key] < 3 then
+		return
+	end
+	callbackErrorSeen[key] = now
+	warn("[D3v1lHub] Callback error in " .. label .. ": " .. msg .. "\n" .. tostring(trace or ""))
+	if library.Notify and type(library.Notify) == "function" then
+		local short = string.gsub(msg, "^[^:]*:%d+:%s*", "")
+		if #short > 110 then
+			short = string.sub(short, 1, 107) .. "..."
+		end
+		pcall(library.Notify, library, {
+			Title = "Callback error",
+			Text = label .. ": " .. short,
+			Time = 6,
+			Type = "error"
+		})
+	end
+end
+local function makeSafe(fn, label)
+	if type(fn) ~= "function" or protectedFns[fn] then
+		return fn
+	end
+	local function safe(...)
+		if library.configuration and library.configuration.protectCallbacks == false then
+			return fn(...)
+		end
+		local res = table.pack(xpcall(fn, function(err)
+			return {err, debug.traceback("", 2)}
+		end, ...))
+		if res[1] then
+			return unpack(res, 2, res.n)
+		end
+		reportCallbackError(label, res[2][1], res[2][2])
+		return nil
+	end
+	protectedFns[safe] = true
+	return safe
+end
+local function protectOptions(options, kind)
+	if type(options) ~= "table" then
+		return options
+	end
+	if type(options[1]) == "table" then
+		for _, sub in ipairs(options) do
+			protectOptions(sub, kind)
+		end
+		return options
+	end
+	local label = kind .. " '" .. tostring(options.Name or options.Flag or "?") .. "'"
+	for _, key in ipairs({"Callback", "Pressed", "OnAccept"}) do
+		if type(options[key]) == "function" then
+			options[key] = makeSafe(options[key], label)
+		end
+	end
+	return options
+end
+library.Subs = library.Subs or {}
+library.Subs.MakeSafe = makeSafe
 library.NameHider = (function()
 	local M = {}
 	local Players = game:GetService("Players")
@@ -5737,6 +5803,7 @@ function library:CreateWindow(options, ...)
 			end
 			function sectionFunctions:AddToggle(options, ...)
 				options = (options and type(options) == "string" and resolvevararg("Tab", options, ...)) or options
+				protectOptions(options, "Toggle")
 				local toggleName, alreadyEnabled, callback, flagName = assert(options.Name, "Missing Name for new toggle."), options.Value or options.Enabled, options.Callback, options.Flag or (function()
 					library.unnamedtoggles = 1 + (library.unnamedtoggles or 0)
 					return "Toggle" .. tostring(library.unnamedtoggles)
@@ -6502,6 +6569,7 @@ function library:CreateWindow(options, ...)
 				local fram = nil
 				for _, options in next, args do
 					options = (options and options[1] and type(options[1]) == "string" and resolvevararg("Button", unpack(options))) or options
+					protectOptions(options, "Button")
 					local buttonName, callback = assert(options.Name, "Missing Name for new button."), options.Callback or (warn("AddButton missing callback. Name:", options.Name or "No Name", debug.traceback("")) and nil) or function()
 					end
 					local lockedup = options.Locked or options.Disabled
@@ -6851,6 +6919,7 @@ function library:CreateWindow(options, ...)
 							if type(t) ~= "table" and call == nil then
 								call = t
 							end
+							call = makeSafe(call, "Button '" .. tostring(options.Name or "?") .. "'")
 							options.Callback = call
 							callback = call
 							return call
@@ -6921,6 +6990,7 @@ function library:CreateWindow(options, ...)
 			sectionFunctions.Button = sectionFunctions.AddButton
 			function sectionFunctions:AddTextbox(options, ...)
 				options = (options and type(options) == "string" and resolvevararg("Textbox", options, ...)) or options
+				protectOptions(options, "Textbox")
 				local textboxName, presetValue, placeholder, callback, flagName = assert(options.Name, "Missing Name for new textbox."), options.Value, options.Placeholder, options.Callback, options.Flag or (function()
 					library.unnamedtextboxes = 1 + (library.unnamedtextboxes or 0)
 					return "Textbox" .. tostring(library.unnamedtextboxes)
@@ -7208,6 +7278,7 @@ function library:CreateWindow(options, ...)
 			sectionFunctions.Box = sectionFunctions.AddTextbox
 			function sectionFunctions:AddKeybind(options, ...)
 				options = (options and type(options) == "string" and resolvevararg("Keybind", options, ...)) or options
+				protectOptions(options, "Keybind")
 				local keybindName, presetKeybind, callback, presscallback, flag = assert(options.Name, "Missing Name for new keybind."), options.Value, options.Callback, options.Pressed, options.Flag or (function()
 					library.unnamedkeybinds = 1 + (library.unnamedkeybinds or 0)
 					return "Keybind" .. tostring(library.unnamedkeybinds)
@@ -7590,6 +7661,7 @@ function library:CreateWindow(options, ...)
 			sectionFunctions.Text = sectionFunctions.AddLabel
 			function sectionFunctions:AddSlider(options, ...)
 				options = (options and type(options) == "string" and resolvevararg("Slider", options, ...)) or options
+				protectOptions(options, "Slider")
 				local sliderName, maxValue, minValue, presetValue, callback, flagName = assert(options.Name, "Missing Name for new slider."), assert(options.Max, "Missing Max for new slider."), assert(options.Min, "Missing Min for new slider."), options.Value, options.Callback, options.Flag or (function()
 					library.unnamedsliders = 1 + (library.unnamedsliders or 0)
 					return "Slider" .. tostring(library.unnamedsliders)
@@ -8046,6 +8118,7 @@ function library:CreateWindow(options, ...)
 			sectionFunctions.Slide = sectionFunctions.AddSlider
 			function sectionFunctions:AddSearchBox(options, ...)
 				options = (options and (type(options) == "string") and resolvevararg("SearchBox", options, ...)) or options
+				protectOptions(options, "SearchBox")
 				local dropdownName, listt, val, callback, flagName = assert(options.Name, "Missing Name for new searchbox."), assert(options.List, "Missing List for new searchbox."), options.Value, options.Callback, options.Flag or (function()
 					library.unnamedsearchbox = 1 + (library.unnamedsearchbox or 0)
 					return "SearchBox" .. tostring(library.unnamedsearchbox)
@@ -8800,6 +8873,7 @@ function library:CreateWindow(options, ...)
 			if isfolder and makefolder and listfiles and readfile and writefile then
 				function sectionFunctions:AddPersistence(options, ...)
 					options = (options and type(options) == "string" and resolvevararg("Tab", options, ...)) or options
+					protectOptions(options, "Persistence")
 					local dropdownName, custom_workspace, val, persistiveflags, suffix, callback, loadcallback, savecallback, postload, postsave, flagName = assert(options.Name, "Missing Name for new persistence."), options.Workspace or library.WorkspaceName, options.Value, options.Persistive or options.Flags or "all", options.Suffix, options.Callback, options.LoadCallback, options.SaveCallback, options.PostLoadCallback, options.PostSaveCallback, options.Flag or (function()
 						library.unnamedpersistence = 1 + (library.unnamedpersistence or 0)
 						return "Persistence" .. tostring(library.unnamedpersistence)
@@ -10147,6 +10221,7 @@ function library:CreateWindow(options, ...)
 			sectionFunctions.SL = sectionFunctions.AddPersistence
 			function sectionFunctions:AddDropdown(options, ...)
 				options = (options and type(options) == "string" and resolvevararg("Dropdown", options, ...)) or options
+				protectOptions(options, "Dropdown")
 				local dropdownName, listt, val, callback, flagName = assert(options.Name, "Missing Name for new searchbox."), assert(options.List, "Missing List for new searchbox."), options.Value, options.Callback, options.Flag or (function()
 					library.unnameddropdown = 1 + (library.unnameddropdown or 0)
 					return "Dropdown" .. tostring(library.unnameddropdown)
@@ -11094,6 +11169,7 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 			sectionFunctions.Dd = sectionFunctions.AddDropdown
 			function sectionFunctions:AddColorpicker(options, ...)
 				options = (options and type(options) == "string" and resolvevararg("Colorpicker", options, ...)) or options
+				protectOptions(options, "Colorpicker")
 				if options.Random == true then
 					options.Value = "random"
 				elseif options.Rainbow == true then
