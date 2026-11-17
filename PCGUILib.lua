@@ -5101,6 +5101,46 @@ function library:CreateWindow(options, ...)
 		return setWindowSize(defaultWindowSize.X, defaultWindowSize.Y, nil)
 	end
 	library.WindowSize = defaultWindowSize
+	-- window position/size is stored together with a saved config
+	local function getWindowState()
+		return {
+			x = {main.Position.X.Scale, main.Position.X.Offset},
+			y = {main.Position.Y.Scale, main.Position.Y.Offset},
+			w = main.Size.X.Offset,
+			h = main.Size.Y.Offset
+		}
+	end
+	local function setWindowState(state)
+		if type(state) ~= "table" or type(state.x) ~= "table" or type(state.y) ~= "table" then
+			return false
+		end
+		local xs, xo, ys, yo = tonumber(state.x[1]), tonumber(state.x[2]), tonumber(state.y[1]), tonumber(state.y[2])
+		if not (xs and xo and ys and yo) or xs ~= xs or xo ~= xo or ys ~= ys or yo ~= yo then
+			return false
+		end
+		local w, h = setWindowSize(state.w, state.h, nil)
+		local area = (library.MainScreenGui and library.MainScreenGui.AbsoluteSize) or Vector2.zero
+		if area.X < 1 or area.Y < 1 then
+			local cam = workspace.CurrentCamera
+			area = (cam and cam.ViewportSize) or Vector2.new(1920, 1080)
+		end
+		local anchor = main.AnchorPoint
+		-- keep the window reachable if the screen is smaller than when it was saved
+		local left = xs * area.X + xo - w * anchor.X
+		local top = ys * area.Y + yo - h * anchor.Y
+		left = math.clamp(left, 100 - w, math.max(100 - w, area.X - 100))
+		top = math.clamp(top, 0, math.max(0, area.Y - 40))
+		main.Position = UDim2.new(xs, math.floor(left + w * anchor.X - xs * area.X), ys, math.floor(top + h * anchor.Y - ys * area.Y))
+		return true
+	end
+	library.GetWindowState = getWindowState
+	library.SetWindowState = setWindowState
+	function windowFunctions:GetState()
+		return getWindowState()
+	end
+	function windowFunctions:SetState(state)
+		return setWindowState(state)
+	end
 	do
 		local resizeGrip = Instance_new("TextButton")
 		resizeGrip.Name = generateRandomName()
@@ -9410,6 +9450,12 @@ function library:CreateWindow(options, ...)
 							savedAt = os.time(),
 							version = 1
 						}
+						if not designerpersists and library.GetWindowState then
+							local okw, ws = pcall(library.GetWindowState)
+							if okw and type(ws) == "table" then
+								saving.__window = ws
+							end
+						end
 						local ret, reason = nil, nil
 						local savedok = false
 						local good, content = JSONEncode(saving)
@@ -9520,6 +9566,9 @@ function library:CreateWindow(options, ...)
 												skipped = skipped + 1
 											end
 										end
+									end
+									if not designerpersists and type(jcontent.__window) == "table" and library.SetWindowState then
+										pcall(library.SetWindowState, jcontent.__window)
 									end
 									loadedok = true
 									if skipped > 0 then
