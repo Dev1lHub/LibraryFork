@@ -1149,6 +1149,8 @@ local library = {
 	configuration = {
 		hideKeybind = Enum.KeyCode.RightShift,
 		protectCallbacks = true, -- errors inside callbacks are caught and reported (false = off)
+		staggerBuild = true, -- elements are built one after another (a short pause every few ms) so the FPS does not drop while loading
+		buildBudgetMs = 6, -- how many ms of building per frame
 		lazyTabs = false, -- true = tabs are attached to the menu only when opened the first time
 		maxNotifications = 5, -- max. notifications visible at once
 		fadeIn = true, -- fade-in animation when the menu is created
@@ -1830,6 +1832,20 @@ local function protectOptions(options, kind)
 end
 library.Subs = library.Subs or {}
 library.Subs.MakeSafe = makeSafe
+-- Staggered building: after every created element the building thread yields one frame as soon as its
+-- time budget (library.configuration.buildBudgetMs, default 6 ms) is used up. That keeps the FPS stable while a big menu is built.
+-- Return values stay the same (the Add* call just returns a little later). Off with library.configuration.staggerBuild = false.
+local paceClock = os.clock()
+library.Subs.Pace = function()
+	library.__lastBuild = os.clock()
+	if library.configuration.staggerBuild == false then
+		return
+	end
+	if (os.clock() - paceClock) * 1000 >= (tonumber(library.configuration.buildBudgetMs) or 6) and coroutine.isyieldable() then
+		task.wait()
+		paceClock = os.clock()
+	end
+end
 library.NameHider = (function()
 	local M = {}
 	local Players = game:GetService("Players")
@@ -4787,6 +4803,12 @@ function library:CreateWindow(options, ...)
 			cover.ZIndex = 100000
 			addCorner(cover, 8)
 			task.delay(0.15, function()
+				-- wait until the menu is built (no new element for 0.3 s, max. 8 s), then fade out
+				local waitStart = os.clock()
+				library.__lastBuild = library.__lastBuild or os.clock()
+				while os.clock() - waitStart < 8 and os.clock() - (library.__lastBuild or 0) < 0.3 do
+					task.wait(0.05)
+				end
 				pcall(function()
 					tweenService:Create(cover, TweenInfo.new(0.7, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						BackgroundTransparency = 1
@@ -11983,6 +12005,16 @@ tabFunctions.Flags[flagName], sectionFunctions.Flags[flagName], elements[flagNam
 			sectionFunctions.Colorpicker = sectionFunctions.AddColorpicker
 			sectionFunctions.Cp = sectionFunctions.AddColorpicker
 			sectionFunctions.CP = sectionFunctions.AddColorpicker
+			-- staggered building: every Add* call pauses the building thread when its frame budget is used up
+			for key, fn in next, sectionFunctions do
+				if type(key) == "string" and type(fn) == "function" and string.sub(key, 1, 3) ~= "Get" and (string.find(key, "Add", 1, true) or string.find(key, "New", 1, true) or string.find(key, "Create", 1, true) or #key <= 3 or key == "Toggle" or key == "Button" or key == "Label" or key == "Slider" or key == "Dropdown" or key == "Textbox" or key == "Keybind" or key == "Colorpicker" or key == "ColorPicker" or key == "SearchBox" or key == "Persistence") then
+					sectionFunctions[key] = function(...)
+						local res = table.pack(fn(...))
+						library.Subs.Pace()
+						return unpack(res, 1, res.n)
+					end
+				end
+			end
 			return sectionFunctions
 		end
 		tabFunctions.AddSection = tabFunctions.CreateSection
