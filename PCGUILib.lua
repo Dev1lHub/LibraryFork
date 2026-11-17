@@ -1154,6 +1154,7 @@ local library = {
 		lazyTabs = false, -- true = tabs are attached to the menu only when opened the first time
 		maxNotifications = 5, -- max. notifications visible at once
 		tabAnimation = true, -- slide + staggered reveal when switching tabs
+		toggleAnimation = true, -- fade + soft scale when the menu is opened / closed
 		fadeIn = true, -- fade-in animation when the menu is created
 		smoothDragging = false,
 		easingStyle = Enum.EasingStyle.Quart,
@@ -5195,6 +5196,83 @@ function library:CreateWindow(options, ...)
 	tabSlider.Position = UDim2.fromOffset(100, 30)
 	tabSlider.Size = UDim2:fromOffset(1)
 	tabSlider.Visible = false
+	-- open / close animation of the menu (fade + soft scale); library.configuration.toggleAnimation = false turns it off
+	local menuTarget = main.Visible
+	local menuAnimating = false
+	local menuAnimToken = 0
+	local menuAnimScale, menuFadeCover = nil, nil
+	local function setMenuVisible(state)
+		if state == nil then
+			state = not ((menuAnimating and menuTarget) or (not menuAnimating and main.Visible))
+		end
+		state = state and true or false
+		menuTarget = state
+		if library.configuration.toggleAnimation == false then
+			main.Visible = state
+			return state
+		end
+		local ok = pcall(function()
+			if not menuAnimScale or not menuAnimScale.Parent then
+				menuAnimScale = Instance_new("UIScale")
+				menuAnimScale.Name = generateRandomName()
+				menuAnimScale.Parent = main
+			end
+			if not menuFadeCover or not menuFadeCover.Parent then
+				menuFadeCover = Instance_new("Frame")
+				menuFadeCover.Name = generateRandomName()
+				menuFadeCover.Parent = main
+				menuFadeCover.Active = false
+				menuFadeCover.BackgroundColor3 = library.colors.background
+				colored[1 + #colored] = {menuFadeCover, "BackgroundColor3", "background"}
+				menuFadeCover.BackgroundTransparency = 1
+				menuFadeCover.BorderSizePixel = 0
+				menuFadeCover.Size = UDim2.fromScale(1, 1)
+				menuFadeCover.ZIndex = 100000
+				addCorner(menuFadeCover, 8)
+			end
+			menuAnimToken = menuAnimToken + 1
+			local token = menuAnimToken
+			menuAnimating = true
+			if state then
+				if not main.Visible then
+					menuAnimScale.Scale = 0.95
+					menuFadeCover.BackgroundTransparency = 0
+					main.Visible = true
+				end
+				tweenService:Create(menuFadeCover, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					BackgroundTransparency = 1
+				}):Play()
+				tweenService:Create(menuAnimScale, TweenInfo.new(0.35, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+					Scale = 1
+				}):Play()
+				task.delay(0.36, function()
+					if token == menuAnimToken then
+						menuAnimating = false
+					end
+				end)
+			else
+				tweenService:Create(menuFadeCover, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+					BackgroundTransparency = 0
+				}):Play()
+				tweenService:Create(menuAnimScale, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+					Scale = 0.95
+				}):Play()
+				task.delay(0.23, function()
+					if token == menuAnimToken then
+						main.Visible = false
+						menuAnimScale.Scale = 1
+						menuFadeCover.BackgroundTransparency = 1
+						menuAnimating = false
+					end
+				end)
+			end
+		end)
+		if not ok then
+			main.Visible = state
+			menuAnimating = false
+		end
+		return state
+	end
 	local IgnoreCoreInputs = nil
 	do
 		local os_clock = os.clock
@@ -5203,7 +5281,7 @@ function library:CreateWindow(options, ...)
 				return
 			elseif keyCode.KeyCode == library.configuration.hideKeybind then
 				if not lasthidebing or ((os_clock() - lasthidebing) > 12) then
-					main.Visible = not main.Visible
+					setMenuVisible()
 				end
 				lasthidebing = nil
 			end
@@ -5216,20 +5294,16 @@ function library:CreateWindow(options, ...)
 	}
 	library.globals["__Window" .. windowName].windowFunctions = windowFunctions
 	function windowFunctions:Show(x)
-		main.Visible = (x == nil) or (x == true) or (x == 1)
-		return main.Visible
+		return setMenuVisible((x == nil) or (x == true) or (x == 1))
 	end
 	function windowFunctions:Hide(x)
-		main.Visible = (x == false) or (x == 0)
-		return main.Visible
+		return setMenuVisible((x == false) or (x == 0))
 	end
 	function windowFunctions:Visibility(x)
 		if x == nil then
-			main.Visible = not main.Visible
-		else
-			main.Visible = x and true
+			return setMenuVisible()
 		end
-		return main.Visible
+		return setMenuVisible(x and true)
 	end
 
 	local defaultWindowSize = Vector2.new(main.Size.X.Offset, main.Size.Y.Offset)
