@@ -49,6 +49,8 @@ NEW (PC library)
    Window position: the position/size of the window is saved with "Save config" and restored on "Load config" (library.GetWindowState() / library.SetWindowState(state), window:GetState() / window:SetState(state)).
    Callback protection: errors inside Callback / Pressed / OnAccept are caught, printed with a warning and shown as a "Callback error" notification (same error max. every 3 s).
       library.configuration.protectCallbacks = false turns it off. library.Subs.MakeSafe(fn, "label") wraps your own function the same way.
+   UI Scale: slider in Settings > More Settings (60-140%), saved with the config; from code: library.SetUIScale(1.0) (0.5-1.5).
+   Dropdowns never show "table: 0x..." anymore - a table value is displayed as "a, b, c"; dropdown:Set(nil) no longer stores the element itself.
    library.configuration (set before CreateWindow): lazyTabs = false (true: tabs are attached to the menu when opened the first time, experimental), maxNotifications = 5, fadeIn = true (fade-in animation when the menu is created)
    library:ShowTerms() // Opens the Terms Of Use / copyright window (also: Settings tab > More Info > "View Terms Of Use")
    library.CloseTerms() // Closes it again
