@@ -4826,15 +4826,32 @@ function library:CreateWindow(options, ...)
 			local spinnerGradient = Instance_new("UIGradient")
 			spinnerGradient.Name = generateRandomName()
 			spinnerGradient.Parent = spinnerStroke
+			-- comet: the tail fades out smoothly, the head ends softly
 			spinnerGradient.Transparency = NumberSequence.new({
 				NumberSequenceKeypoint.new(0, 1),
-				NumberSequenceKeypoint.new(0.45, 0),
+				NumberSequenceKeypoint.new(0.12, 0.92),
+				NumberSequenceKeypoint.new(0.25, 0.72),
+				NumberSequenceKeypoint.new(0.38, 0.4),
+				NumberSequenceKeypoint.new(0.47, 0.1),
 				NumberSequenceKeypoint.new(0.5, 0),
-				NumberSequenceKeypoint.new(0.51, 1),
+				NumberSequenceKeypoint.new(0.54, 0.6),
+				NumberSequenceKeypoint.new(0.58, 1),
 				NumberSequenceKeypoint.new(1, 1)
 			})
-			tweenService:Create(spinnerGradient, TweenInfo.new(0.9, Enum.EasingStyle.Linear, Enum.EasingDirection.In, -1), {
+			spinnerStroke.Transparency = 1
+			tweenService:Create(spinnerStroke, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				Transparency = 0
+			}):Play()
+			tweenService:Create(spinnerGradient, TweenInfo.new(1.1, Enum.EasingStyle.Linear, Enum.EasingDirection.In, -1), {
 				Rotation = 360
+			}):Play()
+			-- gentle breathing so it never looks frozen
+			local spinnerScale = Instance_new("UIScale")
+			spinnerScale.Name = generateRandomName()
+			spinnerScale.Parent = spinner
+			spinnerScale.Scale = 0.85
+			tweenService:Create(spinnerScale, TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
+				Scale = 1
 			}):Play()
 			task.delay(0.15, function()
 				-- wait until the menu is built (no new element for 0.3 s, max. 8 s), then fade out
