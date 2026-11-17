@@ -43,7 +43,13 @@ EXECUTOR CHECK (after the loader returned)
    library.Executor = { Name = string, Version = string | nil, Missing = { {Name, Reason}, ... }, Supported = { "name", ... } }
    library:CheckExecutor({"firesignal", ...}) -> same table format for the given function names
    library:SetVIP(State | nil) -> State // Unlocks / locks every element created with VIP = true (nil toggles)
-   library:IsVIP() -> boolean
+   library:IsVIP() -> boolean // PC and Mobile
+
+NEW (PC library)
+   Window position: the position/size of the window is saved with "Save config" and restored on "Load config" (library.GetWindowState() / library.SetWindowState(state), window:GetState() / window:SetState(state)).
+   Callback protection: errors inside Callback / Pressed / OnAccept are caught, printed with a warning and shown as a "Callback error" notification (same error max. every 3 s).
+      library.configuration.protectCallbacks = false turns it off. library.Subs.MakeSafe(fn, "label") wraps your own function the same way.
+   library.configuration (set before CreateWindow): lazyTabs = false (true: tabs are attached to the menu when opened the first time, experimental), maxNotifications = 5, fadeIn = true (fade-in animation when the menu is created)
    library:ShowTerms() // Opens the Terms Of Use / copyright window (also: Settings tab > More Info > "View Terms Of Use")
    library.CloseTerms() // Closes it again
 
@@ -526,9 +532,13 @@ GetJSON: Function (Func) // Gets the json, and passes it as the first argument o
        (table) Options [
            (string) Text/Message/String/Value = "Nachricht"
            (number | nil) Time = 6 // seconds
-           (string | nil) Type = "success", "error" or "warning" // colors the accent bar and progress line (Mobile)
+           (string | nil) Title = "Titel" // is put in front of the text ("Titel: Text")
+           (string | nil) Type = "success", "error", "warn"/"warning" or "info" // colors the accent bar and progress line
+           (boolean | nil) Sound = false // PC: no sound
        ]
    ) -> Notification [ Text, Active, SetText: Function (NewText), Destroy: Function ]
+   // PC: max. library.configuration.maxNotifications (default 5) visible at once (the oldest one is dismissed), the same message within 0.5 s is shown only once,
+   // clicking a notification dismisses it, library.NotificationHistory holds the last 50 ({Text, Type, Time, Count})
    Prompt: Function (
        (table) Options [
            (string | nil) Name = "Titel"

@@ -457,8 +457,18 @@ library:ShowLoadingScreen({
             Name = "ESP"
         })
 
-        ESPSection:AddLabel({
-            Name = "Coming soon..."
+        ESPSection:AddToggle({
+            Name = "Player ESP",
+            Flag = "ESP_Players",
+            Callback = print
+        })
+
+        -- Colorpicker: Callback receives a Color3 (saved with the config like every other element)
+        ESPSection:AddColorpicker({
+            Name = "ESP color",
+            Flag = "ESP_Color",
+            Value = Color3.fromRGB(255, 255, 255),
+            Callback = print
         })
 
         local WorldSection = WorldTab:CreateSection({
