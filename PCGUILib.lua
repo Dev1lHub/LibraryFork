@@ -4806,7 +4806,8 @@ function library:CreateWindow(options, ...)
 			cover.Size = UDim2.fromScale(1, 1)
 			cover.ZIndex = 100000
 			addCorner(cover, 6)
-			-- loading spinner: a ring with a gradient arc that rotates
+			-- loading spinner: a ring in the menu color with ONE soft white piece (fading tail) that runs around it.
+			-- (UIGradient is a straight gradient, so the piece is built from small bars with growing brightness)
 			local spinner = Instance_new("Frame")
 			spinner.Name = generateRandomName()
 			spinner.Parent = cover
@@ -4817,41 +4818,51 @@ function library:CreateWindow(options, ...)
 			spinner.BorderSizePixel = 0
 			spinner.ZIndex = 100001
 			addCorner(spinner, 22)
-			-- spinner: ONE white piece with a fading tail running around in a circle
-			local runner = Instance_new("Frame")
-			runner.Name = generateRandomName()
-			runner.Parent = spinner
-			runner.Size = UDim2.fromScale(1, 1)
-			runner.BackgroundTransparency = 1
-			runner.BorderSizePixel = 0
-			runner.ZIndex = 100002
-			addCorner(runner, 22)
 			local spinnerStroke = Instance_new("UIStroke")
 			spinnerStroke.Name = generateRandomName()
-			spinnerStroke.Parent = runner
+			spinnerStroke.Parent = spinner
 			spinnerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-			spinnerStroke.Thickness = 3
-			spinnerStroke.Color = Color3.new(1, 1, 1)
-			local spinnerGradient = Instance_new("UIGradient")
-			spinnerGradient.Name = generateRandomName()
-			spinnerGradient.Parent = spinnerStroke
-			-- comet: the tail fades out smoothly, the head ends softly
-			spinnerGradient.Transparency = NumberSequence.new({
-				NumberSequenceKeypoint.new(0, 1),
-				NumberSequenceKeypoint.new(0.05, 1),
-				NumberSequenceKeypoint.new(0.15, 0.85),
-				NumberSequenceKeypoint.new(0.27, 0.55),
-				NumberSequenceKeypoint.new(0.38, 0.2),
-				NumberSequenceKeypoint.new(0.45, 0),
-				NumberSequenceKeypoint.new(0.47, 0.5),
-				NumberSequenceKeypoint.new(0.5, 1),
-				NumberSequenceKeypoint.new(1, 1)
-			})
+			spinnerStroke.Thickness = 4
+			spinnerStroke.Color = library.colors.main
 			spinnerStroke.Transparency = 1
 			tweenService:Create(spinnerStroke, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-				Transparency = 0
+				Transparency = 0.15
 			}):Play()
-			tweenService:Create(spinnerGradient, TweenInfo.new(1.1, Enum.EasingStyle.Linear, Enum.EasingDirection.In, -1), {
+			local runnerHolder = Instance_new("Frame")
+			runnerHolder.Name = generateRandomName()
+			runnerHolder.Parent = spinner
+			runnerHolder.AnchorPoint = Vector2.new(0.5, 0.5)
+			runnerHolder.Position = UDim2.fromScale(0.5, 0.5)
+			runnerHolder.Size = UDim2.fromScale(1, 1)
+			runnerHolder.BackgroundTransparency = 1
+			runnerHolder.BorderSizePixel = 0
+			runnerHolder.ZIndex = 100002
+			local runnerBars = {}
+			local barCount, stepDeg, radius = 18, 4.5, 24
+			for i = 1, barCount do
+				local t = i / barCount -- 1 = head of the piece, 0 = end of the tail
+				local angle = (i - barCount) * stepDeg
+				local rad = math.rad(angle)
+				local bar = Instance_new("Frame")
+				bar.Name = generateRandomName()
+				bar.Parent = runnerHolder
+				bar.AnchorPoint = Vector2.new(0.5, 0.5)
+				bar.Position = UDim2.new(0.5, math.sin(rad) * radius, 0.5, -math.cos(rad) * radius)
+				bar.Rotation = angle
+				bar.Size = UDim2.fromOffset(6, 4)
+				bar.BorderSizePixel = 0
+				bar.BackgroundColor3 = Color3.new(1, 1, 1)
+				bar.ZIndex = 100003
+				-- soft tail and a softly rounded head
+				local strength = (t ^ 1.7) * math.min(1, (1 - t) * 10 + 0.35)
+				local target = 1 - strength
+				bar.BackgroundTransparency = 1
+				runnerBars[1 + #runnerBars] = {bar, target}
+				tweenService:Create(bar, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					BackgroundTransparency = target
+				}):Play()
+			end
+			tweenService:Create(runnerHolder, TweenInfo.new(1.1, Enum.EasingStyle.Linear, Enum.EasingDirection.In, -1), {
 				Rotation = 360
 			}):Play()
 			task.delay(0.15, function()
@@ -4876,6 +4887,11 @@ function library:CreateWindow(options, ...)
 					tweenService:Create(spinnerStroke, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 						Transparency = 1
 					}):Play()
+					for _, entry in ipairs(runnerBars) do
+						tweenService:Create(entry[1], TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+							BackgroundTransparency = 1
+						}):Play()
+					end
 				end)
 				task.wait(0.8)
 				pcall(function()
