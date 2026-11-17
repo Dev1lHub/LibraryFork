@@ -4335,10 +4335,37 @@ end
 			else
 				NotificationData, self = self, library
 			end
+			if type(NotificationData) ~= "table" then
+				NotificationData = {Text = NotificationData}
+			end
 			local now = os_clock()
 			local dur = NotificationData.Time or 6
 			local TextStr = NotificationData.Text or NotificationData.String or NotificationData.Value or NotificationData.Message or NotificationData.Msg
 			TextStr = ((TextStr == nil) and "No text given") or tostring(TextStr)
+			if NotificationData.Title then
+				TextStr = tostring(NotificationData.Title) .. ": " .. TextStr
+			end
+			-- history (last 50) + duplicate protection (same text/type within 0.5 s is shown only once)
+			library.NotificationHistory = library.NotificationHistory or {}
+			local hist = library.NotificationHistory
+			local lastHist = hist[#hist]
+			if lastHist and lastHist.Text == TextStr and lastHist.Type == NotificationData.Type and now - lastHist.Time < 0.5 and lastHist.Object and lastHist.Object.Active then
+				lastHist.Count = (lastHist.Count or 1) + 1
+				return lastHist.Object, lastHist.Object.Object, lastHist.Object.TextLabel
+			end
+			-- max. visible notifications: the oldest one is dismissed
+			local maxVisible = library.configuration.maxNotifications or 5
+			do
+				local alive = {}
+				for _, n in ipairs(Notifications) do
+					if n.Active and n.Object then
+						alive[1 + #alive] = n
+					end
+				end
+				for i = 1, #alive - maxVisible + 1 do
+					pcall(alive[i].Destroy)
+				end
+			end
 			local NotificationObj = {
 				InitTime = now,
 				Active = true,
@@ -4358,7 +4385,7 @@ end
 			local ProgressBar = Instance.new("Frame")
 			local NotificationStroke, BorderStroke, InnerStroke, Border_2Stroke
 			local NotiType = NotificationData.Type
-			local NotiColor = ((NotiType == "success") and Color3.fromRGB(80, 200, 120)) or ((NotiType == "error") and Color3.fromRGB(220, 80, 80)) or nil
+			local NotiColor = ((NotiType == "success") and Color3.fromRGB(80, 200, 120)) or ((NotiType == "error") and Color3.fromRGB(220, 80, 80)) or (((NotiType == "warn") or (NotiType == "warning")) and Color3.fromRGB(235, 170, 60)) or ((NotiType == "info") and Color3.fromRGB(90, 150, 235)) or nil
 			Notification.AnchorPoint = Vector2.new(1, 0)
 			Notification.BackgroundColor3 = library.colors.background
 			colored[1 + #colored] = {Notification, "BackgroundColor3", "background"}
@@ -4623,6 +4650,16 @@ end
 			end
 			NotificationObj.Destroy = Destroy
 			Notifications[1 + #Notifications] = NotificationObj
+			hist[1 + #hist] = {Text = TextStr, Type = NotiType, Time = now, Object = NotificationObj, Count = 1}
+			if #hist > 50 then
+				table.remove(hist, 1)
+			end
+			-- click to dismiss
+			Notification.InputBegan:Connect(function(input)
+				if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+					pcall(Destroy)
+				end
+			end)
 			return NotificationObj, Notification, Text
 		end
 	end
