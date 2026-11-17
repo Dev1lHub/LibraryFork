@@ -1148,6 +1148,10 @@ local library = {
 	colored = {},
 	configuration = {
 		hideKeybind = Enum.KeyCode.RightShift,
+		protectCallbacks = true, -- errors inside callbacks are caught and reported (false = off)
+		lazyTabs = false, -- true = tabs are attached to the menu only when opened the first time
+		maxNotifications = 5, -- max. notifications visible at once
+		fadeIn = true, -- fade-in animation when the menu is created
 		smoothDragging = false,
 		easingStyle = Enum.EasingStyle.Quart,
 		easingDirection = Enum.EasingDirection.Out
@@ -4769,6 +4773,32 @@ function library:CreateWindow(options, ...)
 		colored[1 + #colored] = {mainStroke, "Color", "outerBorder"}
 	end
 	makeDraggable(main, main)
+	-- Fade-in loading animation: a cover in the background color fades out over the freshly built menu
+	if library.configuration.fadeIn ~= false then
+		pcall(function()
+			local cover = Instance_new("Frame")
+			cover.Name = generateRandomName()
+			cover.Parent = main
+			cover.Active = false
+			cover.BackgroundColor3 = library.colors.background
+			cover.BackgroundTransparency = 0
+			cover.BorderSizePixel = 0
+			cover.Size = UDim2.fromScale(1, 1)
+			cover.ZIndex = 100000
+			addCorner(cover, 8)
+			task.delay(0.15, function()
+				pcall(function()
+					tweenService:Create(cover, TweenInfo.new(0.7, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+						BackgroundTransparency = 1
+					}):Play()
+				end)
+				task.wait(0.8)
+				pcall(function()
+					cover:Destroy()
+				end)
+			end)
+		end)
+	end
 	mainBorder.Name = generateRandomName()
 	mainBorder.Parent = main
 	mainBorder.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -5588,8 +5618,21 @@ function library:CreateWindow(options, ...)
 			tabDivider.ZIndex = 2
 			tabDivider.Parent = newTab
 		end
+		-- Lazy tabs (library.configuration.lazyTabs = true): the holder of a tab is only attached to the menu when the tab is opened for the first time.
+		local lazyPending = false
 		local function goto()
-			if not library.colorpicker and not submenuOpen and (windowFunctions.selected.button ~= newTab) and newTab.Parent and newTabHolder.Parent then
+			if not library.colorpicker and not submenuOpen and (windowFunctions.selected.button ~= newTab) and newTab.Parent and (newTabHolder.Parent or lazyPending) then
+				if lazyPending then
+					lazyPending = false
+					newTabHolder.Parent = innerMainHolder
+					pcall(function()
+						for _, e in next, library.elements do
+							if e and (type(e) == "table") and e.Update then
+								pcall(e.Update)
+							end
+						end
+					end)
+				end
 				pcall(function()
 					for _, e in next, library.elements do
 						if e and (type(e) == "table") then
@@ -5652,7 +5695,11 @@ function library:CreateWindow(options, ...)
 			windowFunctions.selected.button = newTab
 		end
 		newTabHolder.Name = generateRandomName() .. "TabHolder"
-		newTabHolder.Parent = innerMainHolder
+		if library.configuration.lazyTabs and windowFunctions.tabCount > 1 then
+			lazyPending = true
+		else
+			newTabHolder.Parent = innerMainHolder
+		end
 		newTabHolder.BackgroundColor3 = Color3.new(1, 1, 1)
 		newTabHolder.BackgroundTransparency = 1
 		newTabHolder.Size = UDim2.fromScale(1, 1)

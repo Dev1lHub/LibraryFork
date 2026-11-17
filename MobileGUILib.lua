@@ -1656,6 +1656,9 @@ do
 		end
 		return false
 	end
+	function library.IsVIP()
+		return library.VIP == true
+	end
 	function library.SetVIP(a, b)
 		library.VIP = (pickArg(library, a, b) and true) or false
 		for _, f in ipairs(vipRefresh) do pcall(f) end
